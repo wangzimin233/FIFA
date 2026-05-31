@@ -1,0 +1,36 @@
+import { createBrowserRouter } from 'react-router-dom'
+import { RootLayout } from '../layouts/root-layout'
+import { DashboardPage } from '../pages/dashboard-page'
+import { MarketDetailPage } from '../pages/market-detail-page'
+import { MatchDetailPage } from '../pages/match-detail-page'
+import { PlaygroundPage } from '../pages/playground-page'
+import { ProfilePage } from '../pages/profile-page'
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: [
+      {
+        index: true,
+        element: <DashboardPage />,
+      },
+      {
+        path: 'playground',
+        element: <PlaygroundPage />,
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
+      },
+      {
+        path: 'matches/:matchId',
+        element: <MatchDetailPage />,
+      },
+      {
+        path: 'markets/:marketId',
+        element: <MarketDetailPage />,
+      },
+    ],
+  },
+])

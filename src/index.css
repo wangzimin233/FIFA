@@ -1,0 +1,66 @@
+@import "@heroui/styles";
+
+@theme {
+  --color-brand: #00ff41;
+  --color-canvas: #121212;
+  --color-panel: #1e1e1e;
+  --color-panel-muted: #2a2a2a;
+  --color-ink: #f7fff1;
+  --color-ink-soft: #8e9488;
+}
+
+:root {
+  color-scheme: dark;
+  font-family:
+    "Avenir Next",
+    "SF Pro Display",
+    "Segoe UI",
+    sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 65, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(215, 235, 197, 0.09), transparent 22%),
+    #121212;
+  color: #f7fff1;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(0, 255, 65, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(215, 235, 197, 0.09), transparent 22%),
+    #121212;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+a,
+[role="button"],
+summary {
+  cursor: pointer;
+}

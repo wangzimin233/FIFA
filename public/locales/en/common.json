@@ -1,0 +1,66 @@
+{
+  "app": {
+    "name": "FIFA Control Room",
+    "subtitle": "React 19, Web3 wallet access, charting, i18n, and state management all wired together."
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "playground": "Playground"
+  },
+  "actions": {
+    "connectWallet": "Connect wallet",
+    "viewWallet": "View wallet info",
+    "disconnectWallet": "Disconnect wallet",
+    "close": "Close",
+    "showWallet": "Show wallet panel",
+    "hideWallet": "Hide wallet panel",
+    "learnMore": "Explore stack"
+  },
+  "dashboard": {
+    "eyebrow": "Scaffold Ready",
+    "title": "A production-oriented React + Web3 starter",
+    "description": "This starter pairs route-driven UI, cached data fetching, wallet onboarding, and a chart workspace so feature work can start immediately.",
+    "missingProjectId": "Add VITE_REOWN_PROJECT_ID to enable Reown AppKit wallet connections.",
+    "rangeLabel": "Window",
+    "walletConnected": "Wallet connected",
+    "walletDisconnected": "No wallet connected yet",
+    "walletBalance": "Wallet balance",
+    "walletNetwork": "Active network",
+    "walletProvider": "Wallet provider",
+    "walletStatus": "Connection status",
+    "walletAddress": "Wallet address",
+    "walletInfoTitle": "Connection details",
+    "walletInfoDescription": "Current BNB Smart Chain session and wallet metadata.",
+    "walletReady": "Connected on BNB Smart Chain",
+    "walletConnectHint": "Use Reown AppKit to connect an EVM wallet on BNB Smart Chain.",
+    "metrics": {
+      "users": "Active users",
+      "volume": "Total volume",
+      "treasury": "Treasury",
+      "gas": "Average gas"
+    },
+    "chart": {
+      "title": "Cross-chain traffic",
+      "description": "Query-backed mock data rendered through ECharts."
+    },
+    "table": {
+      "title": "Network mix",
+      "chain": "Chain",
+      "users": "Users",
+      "volume": "Volume",
+      "share": "Share"
+    }
+  },
+  "playground": {
+    "title": "Integration playground",
+    "description": "Use this page as the landing zone for feature modules, contract flows, and app settings.",
+    "items": {
+      "router": "React Router is ready for nested pages and feature routes.",
+      "query": "TanStack Query + Axios are configured for cached API access.",
+      "wallet": "Reown AppKit, Wagmi, Viem, and Ethers are installed for wallet and contract flows.",
+      "i18n": "i18next loads locale files through HTTP backend with browser language detection.",
+      "state": "Zustand is available for UI-level client state.",
+      "motion": "Motion is available for page transitions and interface animation."
+    }
+  }
+}

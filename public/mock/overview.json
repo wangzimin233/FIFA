@@ -1,0 +1,75 @@
+{
+  "generatedAt": "2026-05-30T08:00:00.000Z",
+  "activeUsers": 18420,
+  "totalVolumeUsd": 12845000,
+  "treasuryWei": "6455000000000000000000",
+  "averageGasUsd": 1.38,
+  "walletSuccessRate": 98.4,
+  "chains": [
+    {
+      "name": "Base",
+      "users": 7420,
+      "volumeUsd": 4250000,
+      "share": 33.1,
+      "color": "#00FF41"
+    },
+    {
+      "name": "Ethereum",
+      "users": 5120,
+      "volumeUsd": 3820000,
+      "share": 29.7,
+      "color": "#D7EBC5"
+    },
+    {
+      "name": "Arbitrum",
+      "users": 3640,
+      "volumeUsd": 2810000,
+      "share": 21.9,
+      "color": "#8E9488"
+    },
+    {
+      "name": "Optimism",
+      "users": 2240,
+      "volumeUsd": 1965000,
+      "share": 15.3,
+      "color": "#F5F5F5"
+    }
+  ],
+  "trends": [
+    {
+      "label": "Mon",
+      "volumeUsd": 1260000,
+      "wallets": 2700
+    },
+    {
+      "label": "Tue",
+      "volumeUsd": 1410000,
+      "wallets": 3010
+    },
+    {
+      "label": "Wed",
+      "volumeUsd": 1320000,
+      "wallets": 2890
+    },
+    {
+      "label": "Thu",
+      "volumeUsd": 1560000,
+      "wallets": 3250
+    },
+    {
+      "label": "Fri",
+      "volumeUsd": 1640000,
+      "wallets": 3480
+    },
+    {
+      "label": "Sat",
+      "volumeUsd": 1720000,
+      "wallets": 3610
+    },
+    {
+      "label": "Sun",
+      "volumeUsd": 1865000,
+      "wallets": 3890
+    }
+  ]
+}
