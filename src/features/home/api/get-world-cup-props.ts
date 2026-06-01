@@ -2,6 +2,7 @@ import { apiClient } from '../../../lib/api-client'
 import type { MarketCard, MarketListCandidate } from '../home-data'
 import {
   formatVolumeLabel,
+  getYesNoAssetIds,
   getYesNoPrices,
   type WorldCupGameEvent,
   type WorldCupGameMarket,
@@ -79,6 +80,7 @@ function getCandidateName(market: WorldCupGameMarket, index: number) {
 
 function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCandidate {
   const { yesPrice, noPrice } = getYesNoPrices(market)
+  const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
   return {
     id: String(market.id ?? `${index}`),
@@ -86,6 +88,8 @@ function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCa
     probability: yesPrice,
     yesPrice,
     noPrice,
+    yesAssetId,
+    noAssetId,
   }
 }
 
@@ -113,6 +117,8 @@ function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
       probability: candidate.probability,
       yesPrice: candidate.yesPrice,
       noPrice: candidate.noPrice,
+      yesAssetId: candidate.yesAssetId,
+      noAssetId: candidate.noAssetId,
       volumeLabel: formatVolumeLabel(markets[0].volumeNum ?? markets[0].volume ?? event.volume),
     }
   }

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useDisplayPrice } from '../features/market-realtime/price-utils'
+import { usePolymarketAssetSubscription } from '../features/market-realtime/use-polymarket-asset-subscription'
 import {
   getWorldCupPropCardById,
   WORLD_CUP_PROPS_PAGE_SIZE,
@@ -31,6 +33,24 @@ function actionButtonClass(active: boolean, tone: 'positive' | 'negative' = 'pos
     : 'border-transparent bg-emerald-500/85 text-white'
 }
 
+function RealtimePriceValue({
+  assetId,
+  fallbackPrice,
+  suffix = '¢',
+}: {
+  assetId?: string
+  fallbackPrice: number
+  suffix?: string
+}) {
+  const price = useDisplayPrice(assetId, fallbackPrice)
+  return (
+    <>
+      {price}
+      {suffix}
+    </>
+  )
+}
+
 export function MarketDetailPage() {
   const { marketId = '' } = useParams()
   const navigate = useNavigate()
@@ -46,6 +66,14 @@ export function MarketDetailPage() {
     enabled: marketId.length > 0,
     initialData: initialMarket,
   })
+
+  usePolymarketAssetSubscription(
+    market
+      ? market.kind === 'list'
+        ? market.candidates.flatMap((candidate) => [candidate.yesAssetId, candidate.noAssetId])
+        : [market.yesAssetId, market.noAssetId]
+      : [],
+  )
 
   useEffect(() => {
     if (!market) {
@@ -78,6 +106,8 @@ export function MarketDetailPage() {
             shortLabel: candidate.name,
             yesPrice: candidate.yesPrice,
             noPrice: candidate.noPrice,
+            yesAssetId: candidate.yesAssetId,
+            noAssetId: candidate.noAssetId,
             activeSide: 'yes',
           },
           { openPanel: false },
@@ -105,6 +135,8 @@ export function MarketDetailPage() {
           shortLabel: market.subject,
           yesPrice: market.yesPrice,
           noPrice: market.noPrice,
+          yesAssetId: market.yesAssetId,
+          noAssetId: market.noAssetId,
           activeSide: 'yes',
         },
         { openPanel: false },
@@ -185,7 +217,13 @@ export function MarketDetailPage() {
                   <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <div className="min-w-0">
                       <div className="text-[18px] font-semibold text-ink">{candidate.name}</div>
-                      <div className="mt-1 text-[13px] text-ink-soft">{candidate.probability}%</div>
+                      <div className="mt-1 text-[13px] text-ink-soft">
+                        <RealtimePriceValue
+                          assetId={candidate.yesAssetId}
+                          fallbackPrice={candidate.yesPrice}
+                          suffix="%"
+                        />
+                      </div>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       <button
@@ -203,6 +241,8 @@ export function MarketDetailPage() {
                               shortLabel: candidate.name,
                               yesPrice: candidate.yesPrice,
                               noPrice: candidate.noPrice,
+                              yesAssetId: candidate.yesAssetId,
+                              noAssetId: candidate.noAssetId,
                               activeSide: 'yes',
                             },
                             { openPanel: true },
@@ -213,7 +253,7 @@ export function MarketDetailPage() {
                           actionButtonClass(isActive && activeSelection.activeSide === 'yes', 'positive'),
                         ].join(' ')}
                       >
-                        YES {candidate.yesPrice}¢
+                        YES <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                       </button>
                       <button
                         type="button"
@@ -230,6 +270,8 @@ export function MarketDetailPage() {
                               shortLabel: candidate.name,
                               yesPrice: candidate.yesPrice,
                               noPrice: candidate.noPrice,
+                              yesAssetId: candidate.yesAssetId,
+                              noAssetId: candidate.noAssetId,
                               activeSide: 'no',
                             },
                             { openPanel: true },
@@ -240,7 +282,7 @@ export function MarketDetailPage() {
                           actionButtonClass(isActive && activeSelection.activeSide === 'no', 'negative'),
                         ].join(' ')}
                       >
-                        NO {candidate.noPrice}¢
+                        NO <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
                       </button>
                     </div>
                   </div>
@@ -255,7 +297,9 @@ export function MarketDetailPage() {
                 <div className="text-[18px] font-semibold text-ink sm:text-[20px]">{market.title}</div>
                 <div className="mt-2 text-[14px] text-ink-soft">{market.subject}</div>
               </div>
-              <div className="text-[32px] font-semibold text-brand sm:text-[38px]">{market.probability}%</div>
+              <div className="text-[32px] font-semibold text-brand sm:text-[38px]">
+                <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} suffix="%" />
+              </div>
             </div>
 
             <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -274,6 +318,8 @@ export function MarketDetailPage() {
                       shortLabel: market.subject,
                       yesPrice: market.yesPrice,
                       noPrice: market.noPrice,
+                      yesAssetId: market.yesAssetId,
+                      noAssetId: market.noAssetId,
                       activeSide: 'yes',
                     },
                     { openPanel: true },
@@ -288,7 +334,7 @@ export function MarketDetailPage() {
                   ),
                 ].join(' ')}
               >
-                YES {market.yesPrice}¢
+                YES <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} />
               </button>
               <button
                 type="button"
@@ -305,6 +351,8 @@ export function MarketDetailPage() {
                       shortLabel: market.subject,
                       yesPrice: market.yesPrice,
                       noPrice: market.noPrice,
+                      yesAssetId: market.yesAssetId,
+                      noAssetId: market.noAssetId,
                       activeSide: 'no',
                     },
                     { openPanel: true },
@@ -320,7 +368,7 @@ export function MarketDetailPage() {
                   ),
                 ].join(' ')}
               >
-                NO {market.noPrice}¢
+                NO <RealtimePriceValue assetId={market.noAssetId} fallbackPrice={market.noPrice} />
               </button>
             </div>
           </section>

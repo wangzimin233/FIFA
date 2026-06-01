@@ -2,6 +2,8 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDisplayPrice } from '../../market-realtime/price-utils'
+import { usePolymarketAssetSubscription } from '../../market-realtime/use-polymarket-asset-subscription'
 import {
   getWorldCupPropsPage,
   WORLD_CUP_PROPS_PAGE_SIZE,
@@ -37,6 +39,35 @@ function ProbabilityRing({ value }: { value: number }) {
   )
 }
 
+function RealtimePriceValue({
+  assetId,
+  fallbackPrice,
+  suffix = '¢',
+}: {
+  assetId?: string
+  fallbackPrice: number
+  suffix?: string
+}) {
+  const price = useDisplayPrice(assetId, fallbackPrice)
+  return (
+    <>
+      {price}
+      {suffix}
+    </>
+  )
+}
+
+function RealtimeProbabilityRing({
+  assetId,
+  fallbackPrice,
+}: {
+  assetId?: string
+  fallbackPrice: number
+}) {
+  const price = useDisplayPrice(assetId, fallbackPrice)
+  return <ProbabilityRing value={price} />
+}
+
 export function MarketGrid() {
   const navigate = useNavigate()
   const {
@@ -56,6 +87,17 @@ export function MarketGrid() {
   })
 
   const cards = useMemo(() => data?.pages.flatMap((page) => page.cards) ?? [], [data])
+  const subscribedAssetIds = useMemo(
+    () =>
+      cards.flatMap((card) =>
+        card.kind === 'list'
+          ? card.candidates.flatMap((candidate) => [candidate.yesAssetId, candidate.noAssetId])
+          : [card.yesAssetId, card.noAssetId],
+      ),
+    [cards],
+  )
+
+  usePolymarketAssetSubscription(subscribedAssetIds)
 
   if (isLoading) {
     return (
@@ -152,14 +194,14 @@ export function MarketGrid() {
                           {candidate.name}
                         </div>
                         <div className="mt-0.5 text-[10px] text-ink-soft sm:text-[11px]">
-                          {candidate.probability}%
+                          <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} suffix="%" />
                         </div>
                       </div>
                       <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
-                        Yes {candidate.yesPrice}¢
+                        Yes <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                       </div>
                       <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
-                        No {candidate.noPrice}¢
+                        No <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
                       </div>
                     </button>
                   )
@@ -205,7 +247,7 @@ export function MarketGrid() {
                     </h3>
                   </div>
                 </div>
-                <ProbabilityRing value={card.probability} />
+                <RealtimeProbabilityRing assetId={card.yesAssetId} fallbackPrice={card.probability} />
               </button>
 
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
@@ -218,7 +260,7 @@ export function MarketGrid() {
                   }
                   className="rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
                 >
-                  Yes {card.yesPrice}¢
+                  Yes <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
                 </button>
                 <button
                   type="button"
@@ -229,7 +271,7 @@ export function MarketGrid() {
                   }
                   className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
                 >
-                  No {card.noPrice}¢
+                  No <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
                 </button>
               </div>
 

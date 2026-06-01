@@ -409,6 +409,14 @@ export function getYesNoPrices(market: WorldCupGameMarket) {
   }
 }
 
+export function getYesNoAssetIds(market: WorldCupGameMarket) {
+  const clobTokenIds = parseJsonStringArray(market.clobTokenIds)
+  return {
+    yesAssetId: clobTokenIds[0],
+    noAssetId: clobTokenIds[1],
+  }
+}
+
 export function getEventType(event: WorldCupGameEvent) {
   return event.markets?.[0]?.sportsMarketType ?? ''
 }
@@ -494,6 +502,7 @@ function normalizeWinnerOutcomes(
     const outcomePrices = parseJsonStringArray(market.outcomePrices)
     const yesPrice = parsePriceToCents(outcomePrices[0] ?? market.price)
     const noPrice = parsePriceToCents(outcomePrices[1])
+    const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
     if (/draw/i.test(label)) {
       fallback.draw = {
@@ -503,6 +512,8 @@ function normalizeWinnerOutcomes(
         badge: '◌',
         yesPrice,
         noPrice,
+        yesAssetId,
+        noAssetId,
         tone: 'slate',
       }
       continue
@@ -517,6 +528,8 @@ function normalizeWinnerOutcomes(
         badgeLogo: homeLogo,
         yesPrice,
         noPrice,
+        yesAssetId,
+        noAssetId,
         tone: 'emerald',
       }
       continue
@@ -531,6 +544,8 @@ function normalizeWinnerOutcomes(
         badgeLogo: awayLogo,
         yesPrice,
         noPrice,
+        yesAssetId,
+        noAssetId,
         tone: 'emerald',
       }
     }
@@ -564,6 +579,7 @@ export function buildSpreadVariants(
           ? 'away'
           : 'home'
       const { yesPrice, noPrice } = getYesNoPrices(market)
+      const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
       const oppositeLineValue = lineValue * -1
 
       return {
@@ -573,6 +589,8 @@ export function buildSpreadVariants(
         awayHandicap: favoredSide === 'away' ? formatHandicap(lineValue) : formatHandicap(oppositeLineValue),
         homePrice: favoredSide === 'home' ? yesPrice : noPrice,
         awayPrice: favoredSide === 'away' ? yesPrice : noPrice,
+        homeAssetId: favoredSide === 'home' ? yesAssetId : noAssetId,
+        awayAssetId: favoredSide === 'away' ? yesAssetId : noAssetId,
         favoredSide,
       }
     })
@@ -595,11 +613,14 @@ export function buildTotalLines(event: WorldCupGameEvent | undefined) {
       }
 
       const { yesPrice, noPrice } = getYesNoPrices(market)
+      const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
       return {
         id: String(market.id),
         line: formatLineNumber(lineValue),
         overPrice: yesPrice,
         underPrice: noPrice,
+        overAssetId: yesAssetId,
+        underAssetId: noAssetId,
       }
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)

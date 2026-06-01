@@ -8,6 +8,8 @@ export type WinnerOutcome = {
   badgeLogo?: string
   yesPrice: number
   noPrice: number
+  yesAssetId?: string
+  noAssetId?: string
   tone?: 'emerald' | 'rose' | 'blue' | 'slate'
 }
 
@@ -18,6 +20,8 @@ export type SpreadVariant = {
   awayHandicap: string
   homePrice: number
   awayPrice: number
+  homeAssetId?: string
+  awayAssetId?: string
   favoredSide?: 'home' | 'away'
 }
 
@@ -26,6 +30,8 @@ export type TotalLine = {
   line: string
   overPrice: number
   underPrice: number
+  overAssetId?: string
+  underAssetId?: string
 }
 
 export type MatchCard = {
@@ -64,6 +70,8 @@ export type MarketListCandidate = {
   probability: number
   yesPrice: number
   noPrice: number
+  yesAssetId?: string
+  noAssetId?: string
 }
 
 export type MarketCard =
@@ -87,6 +95,8 @@ export type MarketCard =
       probability: number
       yesPrice: number
       noPrice: number
+      yesAssetId?: string
+      noAssetId?: string
       volumeLabel: string
     }
 

@@ -1,6 +1,7 @@
 import { Button } from '@heroui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo } from 'react'
+import { useActiveSelectionPrice } from '../../market-realtime/price-utils'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 
@@ -24,26 +25,6 @@ function getMobilePriceTone(selection: MarketSelection) {
   }
 
   return 'text-brand'
-}
-
-function getActivePrice(selection: MarketSelection) {
-  if (selection.template === 'winner') {
-    return selection.activeSide === 'yes' ? selection.yesPrice : selection.noPrice
-  }
-
-  if (selection.template === 'spread') {
-    const activeVariant =
-      selection.variants.find((variant) => variant.id === selection.activeVariantId) ??
-      selection.variants[0]
-
-    return selection.activeTeamSide === 'away'
-      ? activeVariant.awayPrice
-      : activeVariant.homePrice
-  }
-
-  const activeLine = selection.lines.find((line) => line.id === selection.activeLineId) ?? selection.lines[0]
-
-  return selection.activeSide === 'over' ? activeLine.overPrice : activeLine.underPrice
 }
 
 function getMobileTitle(selection: MarketSelection) {
@@ -266,12 +247,12 @@ function MobileTotalSegment() {
 
 function MobileComputedResult() {
   const { activeSelection, amount } = useOrderStore()
+  const activePrice = useActiveSelectionPrice(activeSelection)
 
-  if (!activeSelection || amount <= 0) {
+  if (!activeSelection || amount <= 0 || activePrice === null) {
     return null
   }
 
-  const activePrice = getActivePrice(activeSelection)
   const potentialReturn = activePrice > 0 ? amount / (activePrice / 100) : 0
 
   return (

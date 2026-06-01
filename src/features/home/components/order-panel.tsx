@@ -1,6 +1,7 @@
 import { Button } from '@heroui/react'
 import { motion } from 'motion/react'
 import { type ReactNode, useMemo } from 'react'
+import { useActiveSelectionPrice, useDisplayPrice } from '../../market-realtime/price-utils'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 
@@ -12,26 +13,6 @@ function formatCurrency(value: number) {
 
 function formatCents(value: number) {
   return Number.isInteger(value) ? `${value}¢` : `${value.toFixed(1)}¢`
-}
-
-function getActivePrice(selection: MarketSelection) {
-  if (selection.template === 'winner') {
-    return selection.activeSide === 'yes' ? selection.yesPrice : selection.noPrice
-  }
-
-  if (selection.template === 'spread') {
-    const activeVariant =
-      selection.variants.find((variant) => variant.id === selection.activeVariantId) ??
-      selection.variants[0]
-
-    return selection.activeTeamSide === 'away'
-      ? activeVariant.awayPrice
-      : activeVariant.homePrice
-  }
-
-  const activeLine = selection.lines.find((line) => line.id === selection.activeLineId) ?? selection.lines[0]
-
-  return selection.activeSide === 'over' ? activeLine.overPrice : activeLine.underPrice
 }
 
 function getResultTone(selection: MarketSelection) {
@@ -82,14 +63,14 @@ function PanelShell({
 
 function AmountSection() {
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
+  const activePrice = useActiveSelectionPrice(activeSelection)
   const amountDisplay = useMemo(() => `$${amount}`, [amount])
   const amountTone = amount > 0 ? 'text-ink' : 'text-[#66758d]'
   const computedResult = useMemo(() => {
-    if (!activeSelection || amount <= 0) {
+    if (!activeSelection || amount <= 0 || activePrice === null) {
       return null
     }
 
-    const activePrice = getActivePrice(activeSelection)
     const potentialReturn = activePrice > 0 ? amount / (activePrice / 100) : 0
 
     return {
@@ -97,7 +78,7 @@ function AmountSection() {
       potentialReturn,
       toneClass: getResultTone(activeSelection),
     }
-  }, [activeSelection, amount])
+  }, [activePrice, activeSelection, amount])
 
   return (
     <>
@@ -207,20 +188,23 @@ function PanelHeader({
 
 function WinnerContent({ onClose }: { onClose?: () => void }) {
   const { activeSelection, setWinnerSide } = useOrderStore()
+  const winnerSelection = activeSelection?.template === 'winner' ? activeSelection : null
+  const yesPrice = useDisplayPrice(winnerSelection?.yesAssetId, winnerSelection?.yesPrice ?? 50)
+  const noPrice = useDisplayPrice(winnerSelection?.noAssetId, winnerSelection?.noPrice ?? 50)
 
-  if (!activeSelection || activeSelection.template !== 'winner') {
+  if (!winnerSelection) {
     return null
   }
 
-  const yesActive = activeSelection.activeSide === 'yes'
+  const yesActive = winnerSelection.activeSide === 'yes'
 
   return (
     <>
       <PanelHeader
-        badge={activeSelection.badge}
-        badgeLogo={activeSelection.badgeLogo}
-        title={activeSelection.title}
-        subject={activeSelection.subject}
+        badge={winnerSelection.badge}
+        badgeLogo={winnerSelection.badgeLogo}
+        title={winnerSelection.title}
+        subject={winnerSelection.subject}
         onClose={onClose}
       />
 
@@ -233,7 +217,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
             yesActive ? 'bg-emerald-500/85 text-white' : 'bg-white/4 text-ink-soft hover:text-ink',
           ].join(' ')}
         >
-          <div className="text-[15px] font-semibold sm:text-[16px]">Yes {activeSelection.yesPrice}¢</div>
+          <div className="text-[15px] font-semibold sm:text-[16px]">Yes {yesPrice}¢</div>
         </button>
         <button
           type="button"
@@ -243,7 +227,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
             !yesActive ? 'bg-rose-500/90 text-white' : 'bg-white/4 text-ink-soft hover:text-ink',
           ].join(' ')}
         >
-          <div className="text-[15px] font-semibold sm:text-[16px]">No {activeSelection.noPrice}¢</div>
+          <div className="text-[15px] font-semibold sm:text-[16px]">No {noPrice}¢</div>
         </button>
       </div>
 
@@ -254,26 +238,30 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
 
 function SpreadContent({ onClose }: { onClose?: () => void }) {
   const { activeSelection, setSpreadTeamSide } = useOrderStore()
+  const spreadSelection = activeSelection?.template === 'spread' ? activeSelection : null
 
-  if (!activeSelection || activeSelection.template !== 'spread') {
+  const activeVariant =
+    spreadSelection?.variants.find((variant) => variant.id === spreadSelection.activeVariantId) ??
+    spreadSelection?.variants[0]
+  const awayPrice = useDisplayPrice(activeVariant?.awayAssetId, activeVariant?.awayPrice ?? 50)
+  const homePrice = useDisplayPrice(activeVariant?.homeAssetId, activeVariant?.homePrice ?? 50)
+
+  if (!spreadSelection || !activeVariant) {
     return null
   }
 
-  const activeVariant =
-    activeSelection.variants.find((variant) => variant.id === activeSelection.activeVariantId) ??
-    activeSelection.variants[0]
-  const awayActive = activeSelection.activeTeamSide === 'away'
+  const awayActive = spreadSelection.activeTeamSide === 'away'
 
   return (
     <>
       <PanelHeader
-        badge={activeSelection.badge}
-        badgeLogo={activeSelection.badgeLogo}
-        title={activeSelection.title}
+        badge={spreadSelection.badge}
+        badgeLogo={spreadSelection.badgeLogo}
+        title={spreadSelection.title}
         subject={
           awayActive
-            ? `${activeSelection.awayTeam} ${activeVariant.awayHandicap}`
-            : `${activeSelection.homeTeam} ${activeVariant.homeHandicap}`
+            ? `${spreadSelection.awayTeam} ${activeVariant.awayHandicap}`
+            : `${spreadSelection.homeTeam} ${activeVariant.homeHandicap}`
         }
         onClose={onClose}
       />
@@ -288,7 +276,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            {activeSelection.awayShortLabel} {activeVariant.awayHandicap} {activeVariant.awayPrice}¢
+            {spreadSelection.awayShortLabel} {activeVariant.awayHandicap} {awayPrice}¢
           </div>
         </button>
         <button
@@ -300,7 +288,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            {activeSelection.homeShortLabel} {activeVariant.homeHandicap} {activeVariant.homePrice}¢
+            {spreadSelection.homeShortLabel} {activeVariant.homeHandicap} {homePrice}¢
           </div>
         </button>
       </div>
@@ -312,21 +300,25 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
 
 function TotalContent({ onClose }: { onClose?: () => void }) {
   const { activeSelection, setTotalSide } = useOrderStore()
+  const totalSelection = activeSelection?.template === 'total' ? activeSelection : null
 
-  if (!activeSelection || activeSelection.template !== 'total') {
+  const activeLine =
+    totalSelection?.lines.find((line) => line.id === totalSelection.activeLineId) ??
+    totalSelection?.lines[0]
+  const overPrice = useDisplayPrice(activeLine?.overAssetId, activeLine?.overPrice ?? 50)
+  const underPrice = useDisplayPrice(activeLine?.underAssetId, activeLine?.underPrice ?? 50)
+
+  if (!totalSelection || !activeLine) {
     return null
   }
 
-  const activeLine =
-    activeSelection.lines.find((line) => line.id === activeSelection.activeLineId) ??
-    activeSelection.lines[0]
-  const overActive = activeSelection.activeSide === 'over'
+  const overActive = totalSelection.activeSide === 'over'
 
   return (
     <>
       <PanelHeader
-        badge={activeSelection.badge}
-        badgeLogo={activeSelection.badgeLogo}
+        badge={totalSelection.badge}
+        badgeLogo={totalSelection.badgeLogo}
         title="Over vs Under"
         subject={overActive ? `Over ${activeLine.line}` : `Under ${activeLine.line}`}
         onClose={onClose}
@@ -342,7 +334,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            O {activeLine.line} {activeLine.overPrice}¢
+            O {activeLine.line} {overPrice}¢
           </div>
         </button>
         <button
@@ -354,7 +346,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            U {activeLine.line} {activeLine.underPrice}¢
+            U {activeLine.line} {underPrice}¢
           </div>
         </button>
       </div>

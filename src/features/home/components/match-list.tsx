@@ -2,6 +2,8 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useDisplayPrice } from '../../market-realtime/price-utils'
+import { usePolymarketAssetSubscription } from '../../market-realtime/use-polymarket-asset-subscription'
 import { getWorldCupGames } from '../api/get-world-cup-games'
 import { TeamMark } from './team-mark'
 import type { MatchCard, SpreadVariant, TotalLine } from '../home-data'
@@ -24,6 +26,24 @@ const pairedToneClass = (isActive: boolean, tone: 'positive' | 'negative' | 'neu
   }
 
   return 'border-transparent bg-emerald-500/82 text-white'
+}
+
+function RealtimePriceValue({
+  assetId,
+  fallbackPrice,
+  suffix = '¢',
+}: {
+  assetId?: string
+  fallbackPrice: number
+  suffix?: string
+}) {
+  const price = useDisplayPrice(assetId, fallbackPrice)
+  return (
+    <>
+      {price}
+      {suffix}
+    </>
+  )
 }
 
 function getActiveSpreadVariant(match: MatchCard, activeSelection: ReturnType<typeof useOrderStore.getState>['activeSelection']) {
@@ -215,8 +235,9 @@ export function MatchList() {
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
+  const matches = useMemo(() => data?.pages.flatMap((page) => page.list) ?? [], [data])
+
   const groups = useMemo(() => {
-    const matches = data?.pages.flatMap((page) => page.list) ?? []
     const grouped = new Map<string, MatchCard[]>()
 
     matches.forEach((match) => {
@@ -229,7 +250,26 @@ export function MatchList() {
       date,
       matches: groupedMatches,
     }))
-  }, [data])
+  }, [matches])
+
+  const subscribedAssetIds = useMemo(
+    () =>
+      matches.flatMap((match) => {
+        const activeSpreadVariant = getActiveSpreadVariant(match, activeSelection)
+        const activeTotalLine = getActiveTotalLine(match, activeSelection)
+
+        return [
+          ...match.winnerMarket.outcomes.flatMap((outcome) => [outcome.yesAssetId, outcome.noAssetId]),
+          activeSpreadVariant?.homeAssetId,
+          activeSpreadVariant?.awayAssetId,
+          activeTotalLine?.overAssetId,
+          activeTotalLine?.underAssetId,
+        ]
+      }),
+    [activeSelection, matches],
+  )
+
+  usePolymarketAssetSubscription(subscribedAssetIds)
 
   useEffect(() => {
     if (activeSelection) {
@@ -361,7 +401,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="block text-[13px] font-semibold">
-                              {outcome.shortLabel} {outcome.yesPrice}¢
+                              {outcome.shortLabel} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                             </span>
                           </button>
                         )
@@ -457,7 +497,7 @@ export function MatchList() {
                                 ].join(' ')}
                               >
                                 <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                                  {outcome.shortLabel} {outcome.yesPrice}¢
+                                  {outcome.shortLabel} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                                 </span>
                               </button>
                             )
@@ -483,7 +523,9 @@ export function MatchList() {
                               <span className="truncate">
                                 {match.winnerMarket.outcomes[0].shortLabel} {activeSpreadVariant.homeHandicap}
                               </span>
-                              <span className="shrink-0 tabular-nums">{activeSpreadVariant.homePrice}¢</span>
+                              <span className="shrink-0 tabular-nums">
+                                <RealtimePriceValue assetId={activeSpreadVariant.homeAssetId} fallbackPrice={activeSpreadVariant.homePrice} />
+                              </span>
                             </span>
                           </button>
                           <button
@@ -501,7 +543,9 @@ export function MatchList() {
                               <span className="truncate">
                                 {match.winnerMarket.outcomes[2].shortLabel} {activeSpreadVariant.awayHandicap}
                               </span>
-                              <span className="shrink-0 tabular-nums">{activeSpreadVariant.awayPrice}¢</span>
+                              <span className="shrink-0 tabular-nums">
+                                <RealtimePriceValue assetId={activeSpreadVariant.awayAssetId} fallbackPrice={activeSpreadVariant.awayPrice} />
+                              </span>
                             </span>
                           </button>
                         </div>
@@ -523,7 +567,9 @@ export function MatchList() {
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
                               <span className="truncate">O {activeTotalLine.line}</span>
-                              <span className="shrink-0 tabular-nums">{activeTotalLine.overPrice}¢</span>
+                              <span className="shrink-0 tabular-nums">
+                                <RealtimePriceValue assetId={activeTotalLine.overAssetId} fallbackPrice={activeTotalLine.overPrice} />
+                              </span>
                             </span>
                           </button>
                           <button
@@ -539,7 +585,9 @@ export function MatchList() {
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
                               <span className="truncate">U {activeTotalLine.line}</span>
-                              <span className="shrink-0 tabular-nums">{activeTotalLine.underPrice}¢</span>
+                              <span className="shrink-0 tabular-nums">
+                                <RealtimePriceValue assetId={activeTotalLine.underAssetId} fallbackPrice={activeTotalLine.underPrice} />
+                              </span>
                             </span>
                           </button>
                         </div>

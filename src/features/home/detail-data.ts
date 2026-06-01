@@ -10,6 +10,8 @@ export type MatchDetailProposition = {
   subject: string
   yesPrice: number
   noPrice: number
+  yesAssetId?: string
+  noAssetId?: string
 }
 
 export type MatchDetailThreeWay = {

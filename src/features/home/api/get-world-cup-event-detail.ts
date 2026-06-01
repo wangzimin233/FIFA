@@ -5,6 +5,7 @@ import {
   buildTotalLines,
   formatTimeLabel,
   formatVolumeLabel,
+  getYesNoAssetIds,
   getYesNoPrices,
   hasMarketType,
   normalizeGame,
@@ -196,6 +197,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
     .map((market) => {
       const label = (market.groupItemTitle ?? '').trim()
       const { yesPrice, noPrice } = getYesNoPrices(market)
+      const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
       if (/draw/i.test(label)) {
         return {
@@ -205,6 +207,8 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
           badge: '◌',
           yesPrice,
           noPrice,
+          yesAssetId,
+          noAssetId,
           tone: 'slate' as const,
           sortOrder: 1,
         }
@@ -222,6 +226,8 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
           badgeLogo: home.badgeLogo,
           yesPrice,
           noPrice,
+          yesAssetId,
+          noAssetId,
           tone: 'emerald' as const,
           sortOrder: 0,
         }
@@ -236,6 +242,8 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
           badgeLogo: away.badgeLogo,
           yesPrice,
           noPrice,
+          yesAssetId,
+          noAssetId,
           tone: 'emerald' as const,
           sortOrder: 2,
         }
@@ -277,6 +285,7 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
       const scoreLabel = rawTitle.replace(/^Exact Score:\s*/i, '')
       const { badge, badgeLogo } = toExactScoreBadge(scoreLabel, home, away)
       const { yesPrice, noPrice } = getYesNoPrices(market)
+      const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
       return {
         id: String(market.id),
@@ -288,6 +297,8 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
         subject: rawTitle,
         yesPrice,
         noPrice,
+        yesAssetId,
+        noAssetId,
       }
     })
 
@@ -301,6 +312,7 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined) {
   }
 
   const { yesPrice, noPrice } = getYesNoPrices(market)
+  const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
   const rawTitle = market.groupItemTitle?.trim() || market.question?.split(':').pop()?.trim() || 'Both Teams to Score'
   const title = rawTitle.endsWith('?') ? rawTitle : `${rawTitle}?`
 
@@ -313,6 +325,8 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined) {
     subject: title,
     yesPrice,
     noPrice,
+    yesAssetId,
+    noAssetId,
   }
 }
 

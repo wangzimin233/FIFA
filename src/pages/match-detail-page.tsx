@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   getWorldCupEventDetail,
@@ -10,6 +10,8 @@ import { MobileOrderDrawer } from '../features/home/components/mobile-order-draw
 import { OrderPanel } from '../features/home/components/order-panel'
 import { TeamMark } from '../features/home/components/team-mark'
 import { useOrderStore } from '../features/home/order-store'
+import { useDisplayPrice } from '../features/market-realtime/price-utils'
+import { usePolymarketAssetSubscription } from '../features/market-realtime/use-polymarket-asset-subscription'
 
 type MatchDetailTab = 'markets' | 'exact' | 'halftime'
 
@@ -51,6 +53,24 @@ function EmptyDataSection({ title }: { title: string }) {
         <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">当前详情接口暂未返回这部分真实数据。</p>
       </div>
     </section>
+  )
+}
+
+function RealtimePriceValue({
+  assetId,
+  fallbackPrice,
+  suffix = '¢',
+}: {
+  assetId?: string
+  fallbackPrice: number
+  suffix?: string
+}) {
+  const price = useDisplayPrice(assetId, fallbackPrice)
+  return (
+    <>
+      {price}
+      {suffix}
+    </>
   )
 }
 
@@ -98,6 +118,45 @@ export function MatchDetailPage() {
     queryFn: () => getWorldCupHalftimeResult(slug, detail.match),
     enabled: slug.length > 0 && tab === 'halftime' && !!detail,
   })
+
+  const subscribedAssetIds = useMemo(() => {
+    if (!detail) {
+      return []
+    }
+
+    const activeSpreadVariant =
+      activeSelection?.contextType === 'match' &&
+      activeSelection.matchId === detail.match.id &&
+      activeSelection.template === 'spread'
+        ? detail.spreadVariants.find((variant) => variant.id === activeSelection.activeVariantId) ??
+          detail.spreadVariants[0]
+        : detail.spreadVariants[0]
+
+    const activeTotalLine =
+      activeSelection?.contextType === 'match' &&
+      activeSelection.matchId === detail.match.id &&
+      activeSelection.template === 'total'
+        ? detail.totalLines.find((line) => line.id === activeSelection.activeLineId) ??
+          detail.totalLines[0]
+        : detail.totalLines[0]
+
+    return [
+      ...detail.match.winnerMarket.outcomes.flatMap((outcome) => [outcome.yesAssetId, outcome.noAssetId]),
+      activeSpreadVariant?.homeAssetId,
+      activeSpreadVariant?.awayAssetId,
+      activeTotalLine?.overAssetId,
+      activeTotalLine?.underAssetId,
+      ...(detail.bothTeamsToScore
+        ? [detail.bothTeamsToScore.yesAssetId, detail.bothTeamsToScore.noAssetId]
+        : []),
+      ...(tab === 'exact' ? exactScores.flatMap((item) => [item.yesAssetId, item.noAssetId]) : []),
+      ...(tab === 'halftime'
+        ? (halftimeResult?.outcomes.flatMap((outcome) => [outcome.yesAssetId, outcome.noAssetId]) ?? [])
+        : []),
+    ]
+  }, [activeSelection, detail, exactScores, halftimeResult, tab])
+
+  usePolymarketAssetSubscription(subscribedAssetIds)
 
   useEffect(() => {
     if (!detail) {
@@ -257,7 +316,8 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
                           ].join(' ')}
                         >
-                          {outcome.shortLabel} {outcome.yesPrice}¢
+                          {outcome.shortLabel}{' '}
+                          <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                         </button>
                       )
                     })}
@@ -287,7 +347,10 @@ export function MatchDetailPage() {
                         ].join(' ')}
                       >
                         {detail.match.winnerMarket.outcomes[0]?.shortLabel} {currentSpreadVariant.homeHandicap}{' '}
-                        {currentSpreadVariant.homePrice}¢
+                        <RealtimePriceValue
+                          assetId={currentSpreadVariant.homeAssetId}
+                          fallbackPrice={currentSpreadVariant.homePrice}
+                        />
                       </button>
                       <button
                         type="button"
@@ -303,7 +366,10 @@ export function MatchDetailPage() {
                         ].join(' ')}
                       >
                         {detail.match.winnerMarket.outcomes[2]?.shortLabel} {currentSpreadVariant.awayHandicap}{' '}
-                        {currentSpreadVariant.awayPrice}¢
+                        <RealtimePriceValue
+                          assetId={currentSpreadVariant.awayAssetId}
+                          fallbackPrice={currentSpreadVariant.awayPrice}
+                        />
                       </button>
                     </div>
                   </div>
@@ -358,7 +424,11 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        O {currentTotalLine.line} {currentTotalLine.overPrice}¢
+                        O {currentTotalLine.line}{' '}
+                        <RealtimePriceValue
+                          assetId={currentTotalLine.overAssetId}
+                          fallbackPrice={currentTotalLine.overPrice}
+                        />
                       </button>
                       <button
                         type="button"
@@ -373,7 +443,11 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        U {currentTotalLine.line} {currentTotalLine.underPrice}¢
+                        U {currentTotalLine.line}{' '}
+                        <RealtimePriceValue
+                          assetId={currentTotalLine.underAssetId}
+                          fallbackPrice={currentTotalLine.underPrice}
+                        />
                       </button>
                     </div>
                   </div>
@@ -434,6 +508,8 @@ export function MatchDetailPage() {
                             shortLabel: detail.bothTeamsToScore.shortLabel,
                             yesPrice: detail.bothTeamsToScore.yesPrice,
                             noPrice: detail.bothTeamsToScore.noPrice,
+                            yesAssetId: detail.bothTeamsToScore.yesAssetId,
+                            noAssetId: detail.bothTeamsToScore.noAssetId,
                             activeSide: 'yes',
                           },
                           { openPanel: true },
@@ -450,7 +526,11 @@ export function MatchDetailPage() {
                         ),
                       ].join(' ')}
                     >
-                      YES {detail.bothTeamsToScore.yesPrice}¢
+                      YES{' '}
+                      <RealtimePriceValue
+                        assetId={detail.bothTeamsToScore.yesAssetId}
+                        fallbackPrice={detail.bothTeamsToScore.yesPrice}
+                      />
                     </button>
                     <button
                       type="button"
@@ -467,6 +547,8 @@ export function MatchDetailPage() {
                             shortLabel: detail.bothTeamsToScore.shortLabel,
                             yesPrice: detail.bothTeamsToScore.yesPrice,
                             noPrice: detail.bothTeamsToScore.noPrice,
+                            yesAssetId: detail.bothTeamsToScore.yesAssetId,
+                            noAssetId: detail.bothTeamsToScore.noAssetId,
                             activeSide: 'no',
                           },
                           { openPanel: true },
@@ -483,7 +565,11 @@ export function MatchDetailPage() {
                         ),
                       ].join(' ')}
                     >
-                      NO {detail.bothTeamsToScore.noPrice}¢
+                      NO{' '}
+                      <RealtimePriceValue
+                        assetId={detail.bothTeamsToScore.noAssetId}
+                        fallbackPrice={detail.bothTeamsToScore.noPrice}
+                      />
                     </button>
                   </div>
                 </div>
@@ -530,6 +616,8 @@ export function MatchDetailPage() {
                                 shortLabel: item.shortLabel,
                                 yesPrice: item.yesPrice,
                                 noPrice: item.noPrice,
+                                yesAssetId: item.yesAssetId,
+                                noAssetId: item.noAssetId,
                                 activeSide: 'yes',
                               },
                               { openPanel: true },
@@ -540,7 +628,7 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive && activeSelection?.activeSide === 'yes', 'positive'),
                           ].join(' ')}
                         >
-                          YES {item.yesPrice}¢
+                          YES <RealtimePriceValue assetId={item.yesAssetId} fallbackPrice={item.yesPrice} />
                         </button>
                         <button
                           type="button"
@@ -557,6 +645,8 @@ export function MatchDetailPage() {
                                 shortLabel: item.shortLabel,
                                 yesPrice: item.yesPrice,
                                 noPrice: item.noPrice,
+                                yesAssetId: item.yesAssetId,
+                                noAssetId: item.noAssetId,
                                 activeSide: 'no',
                               },
                               { openPanel: true },
@@ -567,7 +657,7 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive && activeSelection?.activeSide === 'no', 'negative'),
                           ].join(' ')}
                         >
-                          NO {item.noPrice}¢
+                          NO <RealtimePriceValue assetId={item.noAssetId} fallbackPrice={item.noPrice} />
                         </button>
                       </div>
                     </div>
@@ -622,6 +712,8 @@ export function MatchDetailPage() {
                               shortLabel: outcome.shortLabel,
                               yesPrice: outcome.yesPrice,
                               noPrice: outcome.noPrice,
+                              yesAssetId: outcome.yesAssetId,
+                              noAssetId: outcome.noAssetId,
                               activeSide: 'yes',
                             },
                             { openPanel: true },
@@ -632,7 +724,8 @@ export function MatchDetailPage() {
                           outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
                         ].join(' ')}
                       >
-                        {outcome.shortLabel} {outcome.yesPrice}¢
+                        {outcome.shortLabel}{' '}
+                        <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                       </button>
                     )
                   })}
