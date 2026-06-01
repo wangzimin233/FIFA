@@ -1,12 +1,20 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { getMarketCardById } from '../features/home/detail-data'
+import {
+  getWorldCupPropCardById,
+  WORLD_CUP_PROPS_PAGE_SIZE,
+} from '../features/home/api/get-world-cup-props'
 import { MobileOrderDrawer } from '../features/home/components/mobile-order-drawer'
 import { OrderPanel } from '../features/home/components/order-panel'
+import { TeamMark } from '../features/home/components/team-mark'
+import type { MarketCard } from '../features/home/home-data'
 import { useOrderStore } from '../features/home/order-store'
 
 type MarketDetailLocationState = {
   preselectedCandidateName?: string
+  marketCard?: MarketCard
+  backTo?: string
 }
 
 function wrapperClass() {
@@ -28,10 +36,16 @@ export function MarketDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const state = location.state as MarketDetailLocationState | null
-  const market = getMarketCardById(marketId)
+  const initialMarket = state?.marketCard?.id === marketId ? state.marketCard : undefined
   const { activeSelection, selectProposition } = useOrderStore()
   const isActiveMarketWinnerSelection =
     activeSelection?.contextType === 'market' && activeSelection.template === 'winner'
+  const { data: market, isLoading, isError, error } = useQuery({
+    queryKey: ['world-cup-prop-card', marketId],
+    queryFn: () => getWorldCupPropCardById(marketId, WORLD_CUP_PROPS_PAGE_SIZE),
+    enabled: marketId.length > 0,
+    initialData: initialMarket,
+  })
 
   useEffect(() => {
     if (!market) {
@@ -59,6 +73,7 @@ export function MarketDetailPage() {
             matchId: market.id,
             title: market.title,
             badge: market.icon,
+            badgeLogo: market.iconLogo,
             subject: candidate.name,
             shortLabel: candidate.name,
             yesPrice: candidate.yesPrice,
@@ -85,6 +100,7 @@ export function MarketDetailPage() {
           matchId: market.id,
           title: market.title,
           badge: market.icon,
+          badgeLogo: market.iconLogo,
           subject: market.subject,
           shortLabel: market.subject,
           yesPrice: market.yesPrice,
@@ -95,6 +111,22 @@ export function MarketDetailPage() {
       )
     }
   }, [activeSelection, isActiveMarketWinnerSelection, market, selectProposition, state?.preselectedCandidateName])
+
+  if (isLoading && !market) {
+    return (
+      <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
+        正在加载玩法详情...
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
+        玩法详情加载失败：{error instanceof Error ? error.message : '未知错误'}
+      </div>
+    )
+  }
 
   if (!market) {
     return (
@@ -110,7 +142,7 @@ export function MarketDetailPage() {
         <div className="mb-3 sm:mb-4">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate(state?.backTo ?? '/markets')}
             className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-ink-soft transition hover:border-white/14 hover:text-ink sm:px-3.5 sm:py-2 sm:text-[12px]"
           >
             <span aria-hidden="true" className="text-[13px] leading-none">
@@ -123,7 +155,13 @@ export function MarketDetailPage() {
         <section className="rounded-[24px] border border-white/8 bg-panel/95 px-4 py-4 shadow-[0_14px_30px_rgba(0,0,0,0.16)] sm:px-5 sm:py-5">
           <div className="flex items-start gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-white text-[20px]">
-              {market.icon}
+              <TeamMark
+                alt={market.title}
+                emoji={market.icon}
+                logo={market.iconLogo}
+                className="h-11 w-11 rounded-[14px] object-cover"
+                fallbackClassName="text-[20px]"
+              />
             </div>
             <div className="min-w-0">
               <h1 className="text-[24px] font-semibold tracking-tight text-ink sm:text-[28px]">
@@ -143,7 +181,7 @@ export function MarketDetailPage() {
                 activeSelection.subject === candidate.name
 
               return (
-                <section key={candidate.name} className={wrapperClass()}>
+                <section key={candidate.id ?? candidate.name} className={wrapperClass()}>
                   <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
                     <div className="min-w-0">
                       <div className="text-[18px] font-semibold text-ink">{candidate.name}</div>
@@ -160,6 +198,7 @@ export function MarketDetailPage() {
                               matchId: market.id,
                               title: market.title,
                               badge: market.icon,
+                              badgeLogo: market.iconLogo,
                               subject: candidate.name,
                               shortLabel: candidate.name,
                               yesPrice: candidate.yesPrice,
@@ -186,6 +225,7 @@ export function MarketDetailPage() {
                               matchId: market.id,
                               title: market.title,
                               badge: market.icon,
+                              badgeLogo: market.iconLogo,
                               subject: candidate.name,
                               shortLabel: candidate.name,
                               yesPrice: candidate.yesPrice,
@@ -229,6 +269,7 @@ export function MarketDetailPage() {
                       matchId: market.id,
                       title: market.title,
                       badge: market.icon,
+                      badgeLogo: market.iconLogo,
                       subject: market.subject,
                       shortLabel: market.subject,
                       yesPrice: market.yesPrice,
@@ -259,6 +300,7 @@ export function MarketDetailPage() {
                       matchId: market.id,
                       title: market.title,
                       badge: market.icon,
+                      badgeLogo: market.iconLogo,
                       subject: market.subject,
                       shortLabel: market.subject,
                       yesPrice: market.yesPrice,

@@ -22,7 +22,14 @@ export function RootLayout() {
   const walletLabel = isConnected && address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '连接钱包'
 
   return (
-    <div className="min-h-screen">
+    <div className="relative min-h-screen isolate">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 -z-10 bg-[#121212]"
+      >
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,255,65,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(215,235,197,0.09),transparent_22%)]" />
+      </div>
+
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/8 bg-[rgba(16,18,17,0.9)] backdrop-blur-xl">
         <div className="mx-auto flex h-[62px] w-full max-w-7xl items-center justify-between px-2.5 sm:h-[68px] sm:px-4 lg:px-5">
           <NavLink

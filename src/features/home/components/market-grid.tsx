@@ -1,6 +1,12 @@
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { marketCards } from '../home-data'
+import {
+  getWorldCupPropsPage,
+  WORLD_CUP_PROPS_PAGE_SIZE,
+} from '../api/get-world-cup-props'
+import { TeamMark } from './team-mark'
 
 function ProbabilityRing({ value }: { value: number }) {
   const circumference = 2 * Math.PI * 42
@@ -33,10 +39,54 @@ function ProbabilityRing({ value }: { value: number }) {
 
 export function MarketGrid() {
   const navigate = useNavigate()
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['world-cup-props', WORLD_CUP_PROPS_PAGE_SIZE],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      getWorldCupPropsPage({ pageNum: pageParam, pageSize: WORLD_CUP_PROPS_PAGE_SIZE }),
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.pageNum + 1 : undefined),
+  })
+
+  const cards = useMemo(() => data?.pages.flatMap((page) => page.cards) ?? [], [data])
+
+  if (isLoading) {
+    return (
+      <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
+        正在加载玩法列表...
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-[20px] border border-rose-500/20 bg-panel px-4 py-6 text-sm text-rose-300">
+        玩法列表加载失败：{error instanceof Error ? error.message : '未知错误'}
+      </div>
+    )
+  }
+
+  if (!cards.length) {
+    return (
+      <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
+        暂无玩法数据。
+      </div>
+    )
+  }
+
+  const titleClampClass =
+    'overflow-hidden break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
 
   return (
     <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 lg:grid-cols-4">
-      {marketCards.map((card, index) => (
+      {cards.map((card, index) => (
         <motion.article
           key={card.id}
           initial={{ opacity: 0, y: 16 }}
@@ -50,22 +100,32 @@ export function MarketGrid() {
             <>
               <button
                 type="button"
-                onClick={() => navigate(`/markets/${card.id}`)}
+                onClick={() =>
+                  navigate(`/markets/${card.id}`, {
+                    state: { marketCard: card, backTo: '/markets' },
+                  })
+                }
                 className="flex w-full items-start justify-between gap-2.5 text-left"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-white text-[17px]">
-                    {card.icon}
+                    <TeamMark
+                      alt={card.title}
+                      emoji={card.icon}
+                      logo={card.iconLogo}
+                      className="h-9 w-9 rounded-[12px] object-cover"
+                      fallbackClassName="text-[17px]"
+                    />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-[13px] font-semibold leading-tight text-ink sm:text-[14px]">
+                    <h3
+                      className={[
+                        'min-h-[2.25rem] text-[13px] font-semibold leading-tight text-ink sm:min-h-[2.5rem] sm:text-[14px]',
+                        titleClampClass,
+                      ].join(' ')}
+                    >
                       {card.title}
                     </h3>
-                    {card.detailCount ? (
-                      <p className="mt-0.5 text-[10px] text-ink-soft sm:text-[11px]">
-                        详情中还有 {card.detailCount} 个候选项
-                      </p>
-                    ) : null}
                   </div>
                 </div>
               </button>
@@ -74,11 +134,15 @@ export function MarketGrid() {
                 {card.candidates.slice(0, 2).map((candidate) => {
                   return (
                     <button
-                      key={candidate.name}
+                      key={candidate.id ?? candidate.name}
                       type="button"
                       onClick={() =>
                         navigate(`/markets/${card.id}`, {
-                          state: { preselectedCandidateName: candidate.name },
+                          state: {
+                            preselectedCandidateName: candidate.name,
+                            marketCard: card,
+                            backTo: '/markets',
+                          },
                         })
                       }
                       className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 text-left"
@@ -91,14 +155,11 @@ export function MarketGrid() {
                           {candidate.probability}%
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="flex h-8 w-[46px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-0 text-center text-[11px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:h-[34px] sm:w-[50px] sm:text-[12px]"
-                      >
-                        是.
-                      </button>
-                      <div className="flex h-8 w-[46px] items-center justify-center rounded-[11px] bg-rose-500/14 px-0 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:w-[50px] sm:text-[12px]">
-                        否.
+                      <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
+                        Yes {candidate.yesPrice}¢
+                      </div>
+                      <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
+                        No {candidate.noPrice}¢
                       </div>
                     </button>
                   )
@@ -116,15 +177,30 @@ export function MarketGrid() {
             <>
               <button
                 type="button"
-                onClick={() => navigate(`/markets/${card.id}`)}
+                onClick={() =>
+                  navigate(`/markets/${card.id}`, {
+                    state: { marketCard: card, backTo: '/markets' },
+                  })
+                }
                 className="flex w-full items-start justify-between gap-2.5 text-left"
               >
                 <div className="flex min-w-0 items-center gap-2.5">
                   <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-white text-[17px]">
-                    {card.icon}
+                    <TeamMark
+                      alt={card.title}
+                      emoji={card.icon}
+                      logo={card.iconLogo}
+                      className="h-9 w-9 rounded-[12px] object-cover"
+                      fallbackClassName="text-[17px]"
+                    />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="h-[3rem] overflow-hidden text-[14px] font-semibold leading-snug text-ink [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] sm:h-[3.3rem] sm:text-[15px]">
+                    <h3
+                      className={[
+                        'min-h-[3rem] text-[14px] font-semibold leading-snug text-ink sm:min-h-[3.3rem] sm:text-[15px]',
+                        titleClampClass,
+                      ].join(' ')}
+                    >
                       {card.title}
                     </h3>
                   </div>
@@ -135,13 +211,26 @@ export function MarketGrid() {
               <div className="mt-5 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
+                  onClick={() =>
+                    navigate(`/markets/${card.id}`, {
+                      state: { marketCard: card, backTo: '/markets' },
+                    })
+                  }
                   className="rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
                 >
-                  是
+                  Yes {card.yesPrice}¢
                 </button>
-                <div className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 sm:text-[15px]">
-                  否
-                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/markets/${card.id}`, {
+                      state: { marketCard: card, backTo: '/markets' },
+                    })
+                  }
+                  className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
+                >
+                  No {card.noPrice}¢
+                </button>
               </div>
 
               <div className="mt-5 flex items-center justify-between text-ink-soft">
@@ -155,14 +244,18 @@ export function MarketGrid() {
         </motion.article>
       ))}
 
-      <div className="flex justify-center pt-0.5 md:col-span-2 lg:col-span-4">
-        <button
-          type="button"
-          className="rounded-full border border-white/8 bg-white/3 px-4.5 py-2 text-[12px] font-medium text-ink-soft transition hover:border-brand/20 hover:text-ink sm:px-5 sm:text-[13px]"
-        >
-          显示更多盘口
-        </button>
-      </div>
+      {hasNextPage ? (
+        <div className="flex justify-center pt-0.5 md:col-span-2 lg:col-span-4">
+          <button
+            type="button"
+            onClick={() => void fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="rounded-full border border-white/8 bg-white/3 px-4.5 py-2 text-[12px] font-medium text-ink-soft transition hover:border-brand/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-[13px]"
+          >
+            {isFetchingNextPage ? '正在加载更多...' : '显示更多盘口'}
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

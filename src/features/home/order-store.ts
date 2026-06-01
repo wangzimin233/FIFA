@@ -15,6 +15,7 @@ export type WinnerSelection = BaseSelection & {
   template: 'winner'
   marketType: MatchMarketType
   badge: string
+  badgeLogo?: string
   subject: string
   shortLabel: string
   yesPrice: number
@@ -26,8 +27,11 @@ export type SpreadSelection = BaseSelection & {
   template: 'spread'
   marketType: MatchMarketType
   badge: string
+  badgeLogo?: string
   homeBadge: string
+  homeBadgeLogo?: string
   awayBadge: string
+  awayBadgeLogo?: string
   homeShortLabel: string
   awayShortLabel: string
   homeTeam: string
@@ -41,6 +45,7 @@ export type TotalSelection = BaseSelection & {
   template: 'total'
   marketType: MatchMarketType
   badge: string
+  badgeLogo?: string
   activeLineId: string
   lines: TotalLine[]
   activeSide: 'over' | 'under'
@@ -58,11 +63,20 @@ type PropositionSelectionInput = {
   matchId: string
   title: string
   badge: string
+  badgeLogo?: string
   subject: string
   shortLabel: string
   yesPrice: number
   noPrice: number
   activeSide?: 'yes' | 'no'
+}
+
+function getSpreadFavoredSide(variant: SpreadVariant): 'home' | 'away' {
+  if (variant.favoredSide) {
+    return variant.favoredSide
+  }
+
+  return variant.homeHandicap.startsWith('-') ? 'home' : 'away'
 }
 
 interface OrderStore {
@@ -105,6 +119,7 @@ const buildWinnerSelection = ({
   matchId,
   title,
   badge,
+  badgeLogo,
   subject,
   shortLabel,
   yesPrice,
@@ -118,6 +133,7 @@ const buildWinnerSelection = ({
   matchId,
   title,
   badge,
+  badgeLogo,
   subject,
   shortLabel,
   yesPrice,
@@ -143,6 +159,7 @@ export const useOrderStore = create<OrderStore>((set) => ({
         matchId: match.id,
         title: match.matchup,
         badge: outcome.badge,
+        badgeLogo: outcome.badgeLogo,
         subject: outcome.subject,
         shortLabel: outcome.shortLabel,
         yesPrice: outcome.yesPrice,
@@ -175,8 +192,11 @@ export const useOrderStore = create<OrderStore>((set) => ({
         matchId: match.id,
         title: match.matchup,
         badge: activeTeamSide === 'home' ? match.primaryFlag : match.secondaryFlag,
+        badgeLogo: activeTeamSide === 'home' ? match.primaryLogo : match.secondaryLogo,
         homeBadge: match.primaryFlag,
+        homeBadgeLogo: match.primaryLogo,
         awayBadge: match.secondaryFlag,
+        awayBadgeLogo: match.secondaryLogo,
         homeShortLabel: match.winnerMarket.outcomes[0]?.shortLabel ?? match.primaryTeam.slice(0, 3).toUpperCase(),
         awayShortLabel: match.winnerMarket.outcomes[2]?.shortLabel ?? match.secondaryTeam.slice(0, 3).toUpperCase(),
         homeTeam: match.primaryTeam,
@@ -194,10 +214,19 @@ export const useOrderStore = create<OrderStore>((set) => ({
         return state
       }
 
+      const nextVariant =
+        state.activeSelection.variants.find((variant) => variant.id === variantId) ??
+        state.activeSelection.variants[0]
+      const nextSide = nextVariant ? getSpreadFavoredSide(nextVariant) : state.activeSelection.activeTeamSide
+
       return {
         activeSelection: {
           ...state.activeSelection,
           activeVariantId: variantId,
+          activeTeamSide: nextSide,
+          badge: nextSide === 'home' ? state.activeSelection.homeBadge : state.activeSelection.awayBadge,
+          badgeLogo:
+            nextSide === 'home' ? state.activeSelection.homeBadgeLogo : state.activeSelection.awayBadgeLogo,
         },
       }
     }),
@@ -212,6 +241,8 @@ export const useOrderStore = create<OrderStore>((set) => ({
           ...state.activeSelection,
           activeTeamSide: side,
           badge: side === 'home' ? state.activeSelection.homeBadge : state.activeSelection.awayBadge,
+          badgeLogo:
+            side === 'home' ? state.activeSelection.homeBadgeLogo : state.activeSelection.awayBadgeLogo,
         },
       }
     }),

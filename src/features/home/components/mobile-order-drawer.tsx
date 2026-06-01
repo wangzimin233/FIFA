@@ -1,6 +1,7 @@
 import { Button } from '@heroui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo } from 'react'
+import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 
 const quickAmounts = [1, 5, 10, 100]
@@ -85,10 +86,16 @@ function getMobileSubject(selection: MarketSelection) {
   )
 }
 
-function MobileSelectionBadge({ value }: { value: string }) {
+function MobileSelectionBadge({ value, logo }: { value: string; logo?: string }) {
   return (
     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-white/8 text-[18px] font-semibold text-ink">
-      {value}
+      <TeamMark
+        alt={value}
+        emoji={value}
+        logo={logo}
+        className="h-9 w-9 rounded-[10px] object-cover"
+        fallbackClassName="text-[18px]"
+      />
     </div>
   )
 }
@@ -104,7 +111,10 @@ function MobileHeader() {
     <>
       <div className="mx-auto h-1.5 w-24 rounded-full bg-white/8" />
       <div className="mt-7 flex items-start gap-3.5">
-        <MobileSelectionBadge value={activeSelection.badge} />
+        <MobileSelectionBadge
+          value={activeSelection.badge}
+          logo={'badgeLogo' in activeSelection ? activeSelection.badgeLogo : undefined}
+        />
         <div className="min-w-0">
           <h3 className="text-[18px] font-medium leading-tight text-ink-soft">
             {getMobileTitle(activeSelection)}

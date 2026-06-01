@@ -1,7 +1,10 @@
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getWorldCupGames } from '../api/get-world-cup-games'
+import { TeamMark } from './team-mark'
 import type { MatchCard, SpreadVariant, TotalLine } from '../home-data'
-import { matchGroups } from '../home-data'
 import { useOrderStore } from '../order-store'
 
 const winnerToneClass: Record<string, string> = {
@@ -163,16 +166,103 @@ function TotalSelector({
 
 export function MatchList() {
   const navigate = useNavigate()
+  const pageSize = 10
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const {
     activeSelection,
     selectWinner,
     selectSpread,
     selectTotal,
   } = useOrderStore()
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['world-cup-games', pageSize],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => getWorldCupGames({ page: pageParam, pageSize }),
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
+  })
+
+  useEffect(() => {
+    const element = loadMoreRef.current
+    if (!element) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (!entry?.isIntersecting || !hasNextPage || isFetchingNextPage) {
+          return
+        }
+
+        void fetchNextPage()
+      },
+      {
+        rootMargin: '240px 0px',
+      },
+    )
+
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage])
+
+  const groups = useMemo(() => {
+    const matches = data?.pages.flatMap((page) => page.list) ?? []
+    const grouped = new Map<string, MatchCard[]>()
+
+    matches.forEach((match) => {
+      const current = grouped.get(match.date) ?? []
+      current.push(match)
+      grouped.set(match.date, current)
+    })
+
+    return Array.from(grouped.entries()).map(([date, groupedMatches]) => ({
+      date,
+      matches: groupedMatches,
+    }))
+  }, [data])
+
+  useEffect(() => {
+    if (activeSelection) {
+      return
+    }
+
+    const firstMatch = data?.pages[0]?.list[0]
+    const firstOutcome = firstMatch?.winnerMarket.outcomes[0]
+
+    if (firstMatch && firstOutcome) {
+      selectWinner(firstMatch, firstOutcome, 'yes', { openPanel: false })
+    }
+  }, [activeSelection, data, selectWinner])
+
+  if (isLoading) {
+    return (
+      <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
+        正在加载比赛列表...
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-[20px] border border-rose-500/20 bg-panel px-4 py-6 text-sm text-rose-300">
+        比赛列表加载失败：{error instanceof Error ? error.message : '未知错误'}
+      </div>
+    )
+  }
 
   return (
     <div className="grid gap-5">
-      {matchGroups.map((group) => (
+      {groups.map((group) => (
         <section key={group.date} className="grid gap-2.5">
           <div className="grid items-center gap-2 lg:grid-cols-[1.08fr_1.2fr] lg:gap-4">
             <h2 className="text-[17px] font-semibold tracking-tight text-ink sm:text-[18px]">
@@ -213,7 +303,11 @@ export function MatchList() {
                   <div className="grid gap-4 lg:hidden">
                     <button
                       type="button"
-                      onClick={() => navigate(`/matches/${match.id}`)}
+                      onClick={() =>
+                        navigate(`/matches/${match.slug ?? match.id}`, {
+                          state: { backTo: '/matches' },
+                        })
+                      }
                       className="grid gap-4 text-left"
                     >
                       <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft sm:text-[13px]">
@@ -223,18 +317,30 @@ export function MatchList() {
                         <span>{match.volumeLabel}</span>
                       </div>
 
-                      <div className="grid gap-3.5">
-                        <div className="flex items-center gap-3 text-ink">
-                          <span className="text-[26px]">{match.primaryFlag}</span>
-                          <span className="text-[16px] font-semibold">{match.primaryTeam}</span>
-                          <span className="text-[13px] text-ink-soft">{match.score}</span>
+                        <div className="grid gap-3.5">
+                          <div className="flex items-center gap-3 text-ink">
+                            <TeamMark
+                              alt={match.primaryTeam}
+                              emoji={match.primaryFlag}
+                              logo={match.primaryLogo}
+                              className="h-8 w-8 rounded-[8px] object-cover"
+                              fallbackClassName="text-[26px]"
+                            />
+                            <span className="text-[16px] font-semibold">{match.primaryTeam}</span>
+                            <span className="text-[13px] text-ink-soft">{match.primaryRecord}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-ink">
+                            <TeamMark
+                              alt={match.secondaryTeam}
+                              emoji={match.secondaryFlag}
+                              logo={match.secondaryLogo}
+                              className="h-8 w-8 rounded-[8px] object-cover"
+                              fallbackClassName="text-[26px]"
+                            />
+                            <span className="text-[16px] font-semibold">{match.secondaryTeam}</span>
+                            <span className="text-[13px] text-ink-soft">{match.secondaryRecord}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 text-ink">
-                          <span className="text-[26px]">{match.secondaryFlag}</span>
-                          <span className="text-[16px] font-semibold">{match.secondaryTeam}</span>
-                          <span className="text-[13px] text-ink-soft">{match.score}</span>
-                        </div>
-                      </div>
                     </button>
 
                     <div className="grid grid-cols-3 gap-2.5">
@@ -266,7 +372,11 @@ export function MatchList() {
                   <div className="hidden gap-3.5 lg:grid lg:grid-cols-[1.08fr_1.2fr] lg:gap-4">
                     <button
                       type="button"
-                      onClick={() => navigate(`/matches/${match.id}`)}
+                      onClick={() =>
+                        navigate(`/matches/${match.slug ?? match.id}`, {
+                          state: { backTo: '/matches' },
+                        })
+                      }
                       className="min-w-0 text-left"
                     >
                       <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink-soft sm:text-[13px]">
@@ -278,18 +388,30 @@ export function MatchList() {
 
                       <div className="mt-4 grid gap-3.5 sm:mt-5 sm:gap-4">
                         <div className="flex items-center gap-2.5 text-ink sm:gap-3">
-                          <span className="text-[20px] sm:text-[22px]">{match.primaryFlag}</span>
+                          <TeamMark
+                            alt={match.primaryTeam}
+                            emoji={match.primaryFlag}
+                            logo={match.primaryLogo}
+                            className="h-6 w-6 rounded-[6px] object-cover sm:h-7 sm:w-7"
+                            fallbackClassName="text-[20px] sm:text-[22px]"
+                          />
                           <span className="text-[14px] font-semibold sm:text-[15px]">
                             {match.primaryTeam}
                           </span>
-                          <span className="text-[12px] text-ink-soft">{match.score}</span>
+                          <span className="text-[12px] text-ink-soft">{match.primaryRecord}</span>
                         </div>
                         <div className="flex items-center gap-2.5 text-ink sm:gap-3">
-                          <span className="text-[20px] sm:text-[22px]">{match.secondaryFlag}</span>
+                          <TeamMark
+                            alt={match.secondaryTeam}
+                            emoji={match.secondaryFlag}
+                            logo={match.secondaryLogo}
+                            className="h-6 w-6 rounded-[6px] object-cover sm:h-7 sm:w-7"
+                            fallbackClassName="text-[20px] sm:text-[22px]"
+                          />
                           <span className="text-[14px] font-semibold sm:text-[15px]">
                             {match.secondaryTeam}
                           </span>
-                          <span className="text-[12px] text-ink-soft">{match.score}</span>
+                          <span className="text-[12px] text-ink-soft">{match.secondaryRecord}</span>
                         </div>
                       </div>
                     </button>
@@ -298,7 +420,11 @@ export function MatchList() {
                       <div className="flex justify-end">
                         <button
                           type="button"
-                          onClick={() => navigate(`/matches/${match.id}`)}
+                          onClick={() =>
+                            navigate(`/matches/${match.slug ?? match.id}`, {
+                              state: { backTo: '/matches' },
+                            })
+                          }
                           className="inline-flex items-center gap-2 rounded-full border border-white/8 bg-white/4 px-2 py-1 text-[11px] text-ink-soft transition hover:text-ink sm:text-[12px]"
                         >
                           <span className="rounded-full bg-white/6 px-1.5 py-0.5 text-[9px] text-ink-soft">
@@ -353,9 +479,11 @@ export function MatchList() {
                               ),
                             ].join(' ')}
                           >
-                            <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                              {match.winnerMarket.outcomes[0].shortLabel} {activeSpreadVariant.homeHandicap}{' '}
-                              {activeSpreadVariant.homePrice}¢
+                            <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
+                              <span className="truncate">
+                                {match.winnerMarket.outcomes[0].shortLabel} {activeSpreadVariant.homeHandicap}
+                              </span>
+                              <span className="shrink-0 tabular-nums">{activeSpreadVariant.homePrice}¢</span>
                             </span>
                           </button>
                           <button
@@ -369,9 +497,11 @@ export function MatchList() {
                               ),
                             ].join(' ')}
                           >
-                            <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                              {match.winnerMarket.outcomes[2].shortLabel} {activeSpreadVariant.awayHandicap}{' '}
-                              {activeSpreadVariant.awayPrice}¢
+                            <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
+                              <span className="truncate">
+                                {match.winnerMarket.outcomes[2].shortLabel} {activeSpreadVariant.awayHandicap}
+                              </span>
+                              <span className="shrink-0 tabular-nums">{activeSpreadVariant.awayPrice}¢</span>
                             </span>
                           </button>
                         </div>
@@ -391,8 +521,9 @@ export function MatchList() {
                               ),
                             ].join(' ')}
                           >
-                            <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                              O {activeTotalLine.line} {activeTotalLine.overPrice}¢
+                            <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
+                              <span className="truncate">O {activeTotalLine.line}</span>
+                              <span className="shrink-0 tabular-nums">{activeTotalLine.overPrice}¢</span>
                             </span>
                           </button>
                           <button
@@ -406,8 +537,9 @@ export function MatchList() {
                               ),
                             ].join(' ')}
                           >
-                            <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                              U {activeTotalLine.line} {activeTotalLine.underPrice}¢
+                            <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
+                              <span className="truncate">U {activeTotalLine.line}</span>
+                              <span className="shrink-0 tabular-nums">{activeTotalLine.underPrice}¢</span>
                             </span>
                           </button>
                         </div>
@@ -427,6 +559,26 @@ export function MatchList() {
           </div>
         </section>
       ))}
+
+      {!groups.length ? (
+        <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
+          暂无比赛数据
+        </div>
+      ) : null}
+
+      {groups.length ? (
+        <div ref={loadMoreRef} className="flex min-h-12 items-center justify-center">
+          <div className="text-xs text-ink-soft">
+            {isFetchingNextPage
+              ? '加载更多中...'
+              : hasNextPage
+                ? '继续下滑加载更多'
+                : isFetching
+                  ? '刷新中...'
+                  : '已加载全部比赛'}
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

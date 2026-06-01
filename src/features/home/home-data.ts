@@ -5,6 +5,7 @@ export type WinnerOutcome = {
   shortLabel: string
   subject: string
   badge: string
+  badgeLogo?: string
   yesPrice: number
   noPrice: number
   tone?: 'emerald' | 'rose' | 'blue' | 'slate'
@@ -17,6 +18,7 @@ export type SpreadVariant = {
   awayHandicap: string
   homePrice: number
   awayPrice: number
+  favoredSide?: 'home' | 'away'
 }
 
 export type TotalLine = {
@@ -28,6 +30,7 @@ export type TotalLine = {
 
 export type MatchCard = {
   id: string
+  slug?: string
   date: string
   timeLabel: string
   volumeLabel: string
@@ -36,6 +39,10 @@ export type MatchCard = {
   secondaryTeam: string
   primaryFlag: string
   secondaryFlag: string
+  primaryLogo?: string
+  secondaryLogo?: string
+  primaryRecord: string
+  secondaryRecord: string
   score: string
   badgeCount: number
   winnerMarket: {
@@ -52,6 +59,7 @@ export type MatchCard = {
 }
 
 export type MarketListCandidate = {
+  id?: string
   name: string
   probability: number
   yesPrice: number
@@ -64,6 +72,7 @@ export type MarketCard =
       kind: 'list'
       title: string
       icon: string
+      iconLogo?: string
       volumeLabel: string
       candidates: MarketListCandidate[]
       detailCount?: number
@@ -73,6 +82,7 @@ export type MarketCard =
       kind: 'binary'
       title: string
       icon: string
+      iconLogo?: string
       subject: string
       probability: number
       yesPrice: number
@@ -96,6 +106,7 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
     matches: [
       {
         id: 'mex-rsa',
+        slug: 'fifwc-mex-rsa-2026-06-11',
         date: 'Thu, June 11',
         timeLabel: '上午 3:00',
         volumeLabel: '$52.57K 交易量',
@@ -104,6 +115,8 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
         secondaryTeam: 'South Africa',
         primaryFlag: '🇲🇽',
         secondaryFlag: '🇿🇦',
+        primaryRecord: '0-0',
+        secondaryRecord: '0-0',
         score: '0-0',
         badgeCount: 34,
         winnerMarket: {
@@ -188,6 +201,7 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
       },
       {
         id: 'kor-cze',
+        slug: 'fifwc-kr-cze-2026-06-11',
         date: 'Thu, June 11',
         timeLabel: '上午 10:00',
         volumeLabel: '$16.59K 交易量',
@@ -196,6 +210,8 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
         secondaryTeam: 'Czechia',
         primaryFlag: '🇰🇷',
         secondaryFlag: '🇨🇿',
+        primaryRecord: '0-0',
+        secondaryRecord: '0-0',
         score: '0-0',
         badgeCount: 34,
         winnerMarket: {
@@ -262,6 +278,7 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
     matches: [
       {
         id: 'can-bih',
+        slug: 'fifwc-can-bih-2026-06-12',
         date: 'Fri, June 12',
         timeLabel: '上午 3:00',
         volumeLabel: '$10.83K 交易量',
@@ -270,6 +287,8 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
         secondaryTeam: 'Bosnia-Herzegovina',
         primaryFlag: '🇨🇦',
         secondaryFlag: '🇧🇦',
+        primaryRecord: '0-0',
+        secondaryRecord: '0-0',
         score: '0-0',
         badgeCount: 34,
         winnerMarket: {
@@ -323,6 +342,7 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
       },
       {
         id: 'usa-par',
+        slug: 'fifwc-usa-par-2026-06-12',
         date: 'Fri, June 12',
         timeLabel: '上午 9:00',
         volumeLabel: '$31.42K 交易量',
@@ -331,6 +351,8 @@ export const matchGroups: Array<{ date: string; matches: MatchCard[] }> = [
         secondaryTeam: 'Paraguay',
         primaryFlag: '🇺🇸',
         secondaryFlag: '🇵🇾',
+        primaryRecord: '0-0',
+        secondaryRecord: '0-0',
         score: '0-0',
         badgeCount: 34,
         winnerMarket: {

@@ -1,8 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { getMatchDetail } from '../features/home/detail-data'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import {
+  getWorldCupEventDetail,
+  getWorldCupExactScores,
+  getWorldCupHalftimeResult,
+} from '../features/home/api/get-world-cup-event-detail'
 import { MobileOrderDrawer } from '../features/home/components/mobile-order-drawer'
 import { OrderPanel } from '../features/home/components/order-panel'
+import { TeamMark } from '../features/home/components/team-mark'
 import { useOrderStore } from '../features/home/order-store'
 
 type MatchDetailTab = 'markets' | 'exact' | 'halftime'
@@ -29,10 +35,34 @@ function outcomeButtonClass(active: boolean, tone: 'positive' | 'negative' | 'ne
   return 'border-transparent bg-emerald-500/85 text-white'
 }
 
+function getSpreadFavoredSide(variant: { favoredSide?: 'home' | 'away'; homeHandicap: string }) {
+  if (variant.favoredSide) {
+    return variant.favoredSide
+  }
+
+  return variant.homeHandicap.startsWith('-') ? 'home' : 'away'
+}
+
+function EmptyDataSection({ title }: { title: string }) {
+  return (
+    <section className={sectionCardClass()}>
+      <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
+        <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{title}</h2>
+        <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">当前详情接口暂未返回这部分真实数据。</p>
+      </div>
+    </section>
+  )
+}
+
+type MatchDetailLocationState = {
+  backTo?: string
+}
+
 export function MatchDetailPage() {
-  const { matchId = '' } = useParams()
+  const { slug = '' } = useParams()
   const navigate = useNavigate()
-  const detail = useMemo(() => getMatchDetail(matchId), [matchId])
+  const location = useLocation()
+  const state = location.state as MatchDetailLocationState | null
   const [tab, setTab] = useState<MatchDetailTab>('markets')
   const {
     activeSelection,
@@ -43,6 +73,31 @@ export function MatchDetailPage() {
     setSpreadVariant,
     setTotalLine,
   } = useOrderStore()
+  const { data: detail, isLoading, isError, error } = useQuery({
+    queryKey: ['world-cup-event-detail', slug],
+    queryFn: () => getWorldCupEventDetail(slug),
+    enabled: slug.length > 0,
+  })
+  const {
+    data: exactScores = [],
+    isLoading: isExactScoresLoading,
+    isError: isExactScoresError,
+    error: exactScoresError,
+  } = useQuery({
+    queryKey: ['world-cup-event-detail-exact-score', slug],
+    queryFn: () => getWorldCupExactScores(slug),
+    enabled: slug.length > 0 && tab === 'exact',
+  })
+  const {
+    data: halftimeResult,
+    isLoading: isHalftimeResultLoading,
+    isError: isHalftimeResultError,
+    error: halftimeResultError,
+  } = useQuery({
+    queryKey: ['world-cup-event-detail-halftime-result', slug, detail?.match.id],
+    queryFn: () => getWorldCupHalftimeResult(slug, detail.match),
+    enabled: slug.length > 0 && tab === 'halftime' && !!detail,
+  })
 
   useEffect(() => {
     if (!detail) {
@@ -60,6 +115,22 @@ export function MatchDetailPage() {
       }
     }
   }, [activeSelection, detail, selectWinner])
+
+  if (isLoading) {
+    return (
+      <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
+        正在加载比赛详情...
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
+        比赛详情加载失败：{error instanceof Error ? error.message : '未知错误'}
+      </div>
+    )
+  }
 
   if (!detail) {
     return (
@@ -88,7 +159,7 @@ export function MatchDetailPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(state?.backTo ?? '/matches')}
           className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-ink-soft transition hover:border-white/14 hover:text-ink sm:px-3.5 sm:py-2 sm:text-[12px]"
         >
           <span aria-hidden="true" className="text-[13px] leading-none">
@@ -109,7 +180,13 @@ export function MatchDetailPage() {
         <div className="mt-4 border-t border-white/8 pt-4 sm:mt-6 sm:pt-6">
           <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-center">
             <div className="flex items-center justify-center gap-2.5 lg:justify-start">
-              <div className="text-[34px] sm:text-[44px]">{detail.match.primaryFlag}</div>
+              <TeamMark
+                alt={detail.match.primaryTeam}
+                emoji={detail.match.primaryFlag}
+                logo={detail.match.primaryLogo}
+                className="h-11 w-11 rounded-[12px] object-cover sm:h-14 sm:w-14"
+                fallbackClassName="text-[34px] sm:text-[44px]"
+              />
               <div className="text-[18px] font-semibold text-ink sm:text-[30px]">
                 {detail.match.primaryTeam}
               </div>
@@ -128,7 +205,13 @@ export function MatchDetailPage() {
               <div className="text-[18px] font-semibold text-ink sm:text-[30px]">
                 {detail.match.secondaryTeam}
               </div>
-              <div className="text-[34px] sm:text-[44px]">{detail.match.secondaryFlag}</div>
+              <TeamMark
+                alt={detail.match.secondaryTeam}
+                emoji={detail.match.secondaryFlag}
+                logo={detail.match.secondaryLogo}
+                className="h-11 w-11 rounded-[12px] object-cover sm:h-14 sm:w-14"
+                fallbackClassName="text-[34px] sm:text-[44px]"
+              />
             </div>
           </div>
         </div>
@@ -182,145 +265,150 @@ export function MatchDetailPage() {
                 </div>
               </section>
 
-              <section className={sectionCardClass()}>
-                <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                  <div>
-                    <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">让分</h2>
-                    <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.spreadVolumeLabel}</p>
+              {detail.spreadVariants.length && currentSpreadVariant ? (
+                <section className={sectionCardClass()}>
+                  <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+                    <div>
+                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">让分</h2>
+                      <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.spreadVolumeLabel}</p>
+                    </div>
+                    <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectSpread(detail.match, currentSpreadVariant.id, 'home')}
+                        className={[
+                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
+                          outcomeButtonClass(
+                            isCurrentMatchSelection &&
+                              activeSelection?.template === 'spread' &&
+                              activeSelection.activeTeamSide === 'home',
+                            'positive',
+                          ),
+                        ].join(' ')}
+                      >
+                        {detail.match.winnerMarket.outcomes[0]?.shortLabel} {currentSpreadVariant.homeHandicap}{' '}
+                        {currentSpreadVariant.homePrice}¢
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectSpread(detail.match, currentSpreadVariant.id, 'away')}
+                        className={[
+                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
+                          outcomeButtonClass(
+                            isCurrentMatchSelection &&
+                              activeSelection?.template === 'spread' &&
+                              activeSelection.activeTeamSide === 'away',
+                            'negative',
+                          ),
+                        ].join(' ')}
+                      >
+                        {detail.match.winnerMarket.outcomes[2]?.shortLabel} {currentSpreadVariant.awayHandicap}{' '}
+                        {currentSpreadVariant.awayPrice}¢
+                      </button>
+                    </div>
                   </div>
-                  <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                    <button
-                      type="button"
-                      onClick={() => selectSpread(detail.match, currentSpreadVariant.id, 'home')}
-                      className={[
-                        'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                        outcomeButtonClass(
-                          isCurrentMatchSelection &&
-                            activeSelection?.template === 'spread' &&
-                            activeSelection.activeTeamSide === 'home',
-                          'positive',
-                        ),
-                      ].join(' ')}
-                    >
-                      {detail.match.winnerMarket.outcomes[0]?.shortLabel} {currentSpreadVariant.homeHandicap}{' '}
-                      {currentSpreadVariant.homePrice}¢
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectSpread(detail.match, currentSpreadVariant.id, 'away')}
-                      className={[
-                        'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                        outcomeButtonClass(
-                          isCurrentMatchSelection &&
-                            activeSelection?.template === 'spread' &&
-                            activeSelection.activeTeamSide === 'away',
-                          'negative',
-                        ),
-                      ].join(' ')}
-                    >
-                      {detail.match.winnerMarket.outcomes[2]?.shortLabel} {currentSpreadVariant.awayHandicap}{' '}
-                      {currentSpreadVariant.awayPrice}¢
-                    </button>
+
+                  <div className="flex items-center justify-between gap-2 px-3.5 py-3 text-[13px] text-ink-soft sm:px-5 sm:py-4 sm:text-[14px]">
+                    <span className="text-lg sm:text-xl">‹</span>
+                    <div className="flex flex-1 items-center justify-center gap-5 overflow-x-auto sm:gap-6">
+                      {detail.spreadVariants.map((variant) => {
+                        const isActive = currentSpreadVariant.id === variant.id
+
+                        return (
+                          <button
+                            key={variant.id}
+                            type="button"
+                            onClick={() => {
+                              if (isCurrentMatchSelection && activeSelection?.template === 'spread') {
+                                setSpreadVariant(variant.id)
+                              } else {
+                                selectSpread(detail.match, variant.id, getSpreadFavoredSide(variant))
+                              }
+                            }}
+                            className={isActive ? 'font-semibold text-ink' : 'transition hover:text-ink'}
+                          >
+                            {variant.displayLine}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <span className="text-lg sm:text-xl">›</span>
                   </div>
-                </div>
+                </section>
+              ) : null}
 
-                <div className="flex items-center justify-between gap-2 px-3.5 py-3 text-[13px] text-ink-soft sm:px-5 sm:py-4 sm:text-[14px]">
-                  <span className="text-lg sm:text-xl">‹</span>
-                  <div className="flex flex-1 items-center justify-center gap-5 overflow-x-auto sm:gap-6">
-                    {detail.spreadVariants.map((variant) => {
-                      const isActive = currentSpreadVariant.id === variant.id
-
-                      return (
-                        <button
-                          key={variant.id}
-                          type="button"
-                          onClick={() => {
-                            if (isCurrentMatchSelection && activeSelection?.template === 'spread') {
-                              setSpreadVariant(variant.id)
-                            } else {
-                              selectSpread(detail.match, variant.id, 'home')
-                            }
-                          }}
-                          className={isActive ? 'font-semibold text-ink' : 'transition hover:text-ink'}
-                        >
-                          {variant.displayLine}
-                        </button>
-                      )
-                    })}
+              {detail.totalLines.length && currentTotalLine ? (
+                <section className={sectionCardClass()}>
+                  <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
+                    <div>
+                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">总分</h2>
+                      <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.totalVolumeLabel}</p>
+                    </div>
+                    <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => selectTotal(detail.match, currentTotalLine.id, 'over')}
+                        className={[
+                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
+                          outcomeButtonClass(
+                            isCurrentMatchSelection &&
+                              activeSelection?.template === 'total' &&
+                              activeSelection.activeSide === 'over',
+                            'positive',
+                          ),
+                        ].join(' ')}
+                      >
+                        O {currentTotalLine.line} {currentTotalLine.overPrice}¢
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectTotal(detail.match, currentTotalLine.id, 'under')}
+                        className={[
+                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
+                          outcomeButtonClass(
+                            isCurrentMatchSelection &&
+                              activeSelection?.template === 'total' &&
+                              activeSelection.activeSide === 'under',
+                            'negative',
+                          ),
+                        ].join(' ')}
+                      >
+                        U {currentTotalLine.line} {currentTotalLine.underPrice}¢
+                      </button>
+                    </div>
                   </div>
-                  <span className="text-lg sm:text-xl">›</span>
-                </div>
-              </section>
 
-              <section className={sectionCardClass()}>
-                <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                  <div>
-                    <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">总分</h2>
-                    <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.totalVolumeLabel}</p>
+                  <div className="flex items-center justify-between gap-2 px-3.5 py-3 text-[13px] text-ink-soft sm:px-5 sm:py-4 sm:text-[14px]">
+                    <span className="text-lg sm:text-xl">‹</span>
+                    <div className="flex flex-1 items-center justify-center gap-5 overflow-x-auto sm:gap-6">
+                      {detail.totalLines.map((line) => {
+                        const isActive = currentTotalLine.id === line.id
+
+                        return (
+                          <button
+                            key={line.id}
+                            type="button"
+                            onClick={() => {
+                              if (isCurrentMatchSelection && activeSelection?.template === 'total') {
+                                setTotalLine(line.id)
+                              } else {
+                                selectTotal(detail.match, line.id, 'over')
+                              }
+                            }}
+                            className={isActive ? 'font-semibold text-ink' : 'transition hover:text-ink'}
+                          >
+                            {line.line}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <span className="text-lg sm:text-xl">›</span>
                   </div>
-                  <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                    <button
-                      type="button"
-                      onClick={() => selectTotal(detail.match, currentTotalLine.id, 'over')}
-                      className={[
-                        'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                        outcomeButtonClass(
-                          isCurrentMatchSelection &&
-                            activeSelection?.template === 'total' &&
-                            activeSelection.activeSide === 'over',
-                          'positive',
-                        ),
-                      ].join(' ')}
-                    >
-                      O {currentTotalLine.line} {currentTotalLine.overPrice}¢
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => selectTotal(detail.match, currentTotalLine.id, 'under')}
-                      className={[
-                        'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                        outcomeButtonClass(
-                          isCurrentMatchSelection &&
-                            activeSelection?.template === 'total' &&
-                            activeSelection.activeSide === 'under',
-                          'negative',
-                        ),
-                      ].join(' ')}
-                    >
-                      U {currentTotalLine.line} {currentTotalLine.underPrice}¢
-                    </button>
-                  </div>
-                </div>
+                </section>
+              ) : null}
 
-                <div className="flex items-center justify-between gap-2 px-3.5 py-3 text-[13px] text-ink-soft sm:px-5 sm:py-4 sm:text-[14px]">
-                  <span className="text-lg sm:text-xl">‹</span>
-                  <div className="flex flex-1 items-center justify-center gap-5 overflow-x-auto sm:gap-6">
-                    {detail.totalLines.map((line) => {
-                      const isActive = currentTotalLine.id === line.id
-
-                      return (
-                        <button
-                          key={line.id}
-                          type="button"
-                          onClick={() => {
-                            if (isCurrentMatchSelection && activeSelection?.template === 'total') {
-                              setTotalLine(line.id)
-                            } else {
-                              selectTotal(detail.match, line.id, 'over')
-                            }
-                          }}
-                          className={isActive ? 'font-semibold text-ink' : 'transition hover:text-ink'}
-                        >
-                          {line.line}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <span className="text-lg sm:text-xl">›</span>
-                </div>
-              </section>
-
-              <section className={sectionCardClass()}>
+              {detail.bothTeamsToScore ? (
+                <section className={sectionCardClass()}>
                 <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
                   <div>
                     <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
@@ -341,6 +429,7 @@ export function MatchDetailPage() {
                             matchId: detail.match.id,
                             title: detail.match.matchup,
                             badge: detail.bothTeamsToScore.badge,
+                            badgeLogo: detail.bothTeamsToScore.badgeLogo,
                             subject: detail.bothTeamsToScore.title,
                             shortLabel: detail.bothTeamsToScore.shortLabel,
                             yesPrice: detail.bothTeamsToScore.yesPrice,
@@ -373,6 +462,7 @@ export function MatchDetailPage() {
                             matchId: detail.match.id,
                             title: detail.match.matchup,
                             badge: detail.bothTeamsToScore.badge,
+                            badgeLogo: detail.bothTeamsToScore.badgeLogo,
                             subject: detail.bothTeamsToScore.title,
                             shortLabel: detail.bothTeamsToScore.shortLabel,
                             yesPrice: detail.bothTeamsToScore.yesPrice,
@@ -397,11 +487,21 @@ export function MatchDetailPage() {
                     </button>
                   </div>
                 </div>
-              </section>
+                </section>
+              ) : null}
             </div>
           ) : tab === 'exact' ? (
+            isExactScoresLoading ? (
+              <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
+                正在加载准确比分...
+              </div>
+            ) : isExactScoresError ? (
+              <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
+                准确比分加载失败：{exactScoresError instanceof Error ? exactScoresError.message : '未知错误'}
+              </div>
+            ) : exactScores.length ? (
             <div className="grid gap-3 sm:gap-4">
-              {detail.exactScores.map((item) => {
+              {exactScores.map((item) => {
                 const isActive =
                   isCurrentMatchSelection &&
                   activeSelection?.template === 'winner' &&
@@ -425,6 +525,7 @@ export function MatchDetailPage() {
                                 matchId: detail.match.id,
                                 title: detail.match.matchup,
                                 badge: item.badge,
+                                badgeLogo: item.badgeLogo,
                                 subject: item.subject,
                                 shortLabel: item.shortLabel,
                                 yesPrice: item.yesPrice,
@@ -451,6 +552,7 @@ export function MatchDetailPage() {
                                 matchId: detail.match.id,
                                 title: detail.match.matchup,
                                 badge: item.badge,
+                                badgeLogo: item.badgeLogo,
                                 subject: item.subject,
                                 shortLabel: item.shortLabel,
                                 yesPrice: item.yesPrice,
@@ -473,19 +575,31 @@ export function MatchDetailPage() {
                 )
               })}
             </div>
+            ) : (
+              <EmptyDataSection title="准确比分" />
+            )
+          ) : isHalftimeResultLoading ? (
+            <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
+              正在加载半场结果...
+            </div>
+          ) : isHalftimeResultError ? (
+            <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
+              半场结果加载失败：{halftimeResultError instanceof Error ? halftimeResultError.message : '未知错误'}
+            </div>
           ) : (
+            halftimeResult ? (
             <section className={sectionCardClass()}>
               <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
                 <div>
                   <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-                    {detail.halftimeResult.title}
+                    {halftimeResult.title}
                   </h2>
                   <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">
-                    {detail.halftimeResult.volumeLabel}
+                    {halftimeResult.volumeLabel}
                   </p>
                 </div>
                 <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                  {detail.halftimeResult.outcomes.map((outcome) => {
+                  {halftimeResult.outcomes.map((outcome) => {
                     const isActive =
                       isCurrentMatchSelection &&
                       activeSelection?.template === 'winner' &&
@@ -503,6 +617,7 @@ export function MatchDetailPage() {
                               matchId: detail.match.id,
                               title: detail.match.matchup,
                               badge: outcome.badge,
+                              badgeLogo: outcome.badgeLogo,
                               subject: outcome.subject,
                               shortLabel: outcome.shortLabel,
                               yesPrice: outcome.yesPrice,
@@ -524,6 +639,9 @@ export function MatchDetailPage() {
                 </div>
               </div>
             </section>
+            ) : (
+              <EmptyDataSection title="半场结果" />
+            )
           )}
         </div>
 
@@ -531,6 +649,17 @@ export function MatchDetailPage() {
           <OrderPanel />
         </div>
       </div>
+
+      {detail.contextDescription ? (
+        <section className={sectionCardClass()}>
+          <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
+            <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">比赛背景</h2>
+            <p className="mt-2 text-[12px] leading-6 text-ink-soft sm:mt-3 sm:text-[14px] sm:leading-7">
+              {detail.contextDescription}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <MobileOrderDrawer />
     </div>

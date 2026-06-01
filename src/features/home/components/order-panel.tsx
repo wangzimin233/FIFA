@@ -1,6 +1,7 @@
 import { Button } from '@heroui/react'
 import { motion } from 'motion/react'
 import { type ReactNode, useMemo } from 'react'
+import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 
 const quickAmounts = [1, 5, 10, 100]
@@ -45,10 +46,16 @@ function getResultTone(selection: MarketSelection) {
   return 'text-brand'
 }
 
-function SelectionBadge({ value }: { value: string }) {
+function SelectionBadge({ value, logo }: { value: string; logo?: string }) {
   return (
     <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-white/8 text-[18px] font-semibold text-ink">
-      {value}
+      <TeamMark
+        alt={value}
+        emoji={value}
+        logo={logo}
+        className="h-8 w-8 rounded-[10px] object-cover"
+        fallbackClassName="text-[18px]"
+      />
     </div>
   )
 }
@@ -154,11 +161,13 @@ function AmountSection() {
 
 function PanelHeader({
   badge,
+  badgeLogo,
   title,
   subject,
   onClose,
 }: {
   badge: string
+  badgeLogo?: string
   title: string
   subject: string
   onClose?: () => void
@@ -167,7 +176,7 @@ function PanelHeader({
     <>
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
-          <SelectionBadge value={badge} />
+          <SelectionBadge value={badge} logo={badgeLogo} />
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-brand sm:text-[11px]">
               当前下单
@@ -209,6 +218,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
     <>
       <PanelHeader
         badge={activeSelection.badge}
+        badgeLogo={activeSelection.badgeLogo}
         title={activeSelection.title}
         subject={activeSelection.subject}
         onClose={onClose}
@@ -258,6 +268,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
     <>
       <PanelHeader
         badge={activeSelection.badge}
+        badgeLogo={activeSelection.badgeLogo}
         title={activeSelection.title}
         subject={
           awayActive
@@ -315,6 +326,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
     <>
       <PanelHeader
         badge={activeSelection.badge}
+        badgeLogo={activeSelection.badgeLogo}
         title="Over vs Under"
         subject={overActive ? `Over ${activeLine.line}` : `Under ${activeLine.line}`}
         onClose={onClose}
