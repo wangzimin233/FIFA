@@ -1,4 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
+import { getWalletUserInfo } from '../features/wallet-auth/api'
+import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 
 const rechargeOptions = [
   { label: '$10', value: '10 USDC' },
@@ -13,6 +16,15 @@ const referralStats = [
 ]
 
 export function ProfilePage() {
+  const session = useWalletAuthStore((state) => state.session)
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['wallet-user-info', session?.token],
+    queryFn: getWalletUserInfo,
+    enabled: Boolean(session?.token),
+  })
+  const walletUser = data?.data
+  const primaryAsset = walletUser?.assets[0]
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
@@ -28,8 +40,69 @@ export function ProfilePage() {
           个人中心
         </h1>
         <p className="mt-2 text-[13px] leading-5 text-ink-soft sm:text-[14px]">
-          当前先提供充值与直推数据展示，后续功能继续补充到这里。
+          完成钱包签名登录后，这里会直接读取当前钱包用户信息与资产概览。
         </p>
+      </section>
+
+      <section className="rounded-[22px] border border-white/8 bg-panel/95 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-[17px] font-semibold text-ink sm:text-[19px]">钱包登录状态</h2>
+            <p className="mt-1 text-[12px] text-ink-soft sm:text-[13px]">
+              使用已保存 token 请求 `/api/wallet/user/info`。
+            </p>
+          </div>
+          <div className="rounded-full border border-brand/20 bg-brand/12 px-2.5 py-1 text-[10px] font-semibold text-brand sm:text-[11px]">
+            {session?.authType ?? 'Guest'}
+          </div>
+        </div>
+
+        {!session ? (
+          <div className="mt-4 rounded-[18px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-4 text-[12px] text-ink-soft sm:text-[13px]">
+            先连接钱包并完成签名登录，随后这里会显示真实用户资料。
+          </div>
+        ) : isLoading ? (
+          <div className="mt-4 rounded-[18px] border border-white/8 bg-white/[0.03] px-4 py-4 text-[12px] text-ink-soft sm:text-[13px]">
+            正在读取钱包用户信息...
+          </div>
+        ) : isError ? (
+          <div className="mt-4 rounded-[18px] border border-rose-500/20 bg-rose-500/10 px-4 py-4 text-[12px] text-rose-200 sm:text-[13px]">
+            钱包用户信息读取失败：{error instanceof Error ? error.message : '未知错误'}
+          </div>
+        ) : walletUser ? (
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+            <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4">
+              <div className="grid gap-2 text-[12px] text-ink-soft sm:text-[13px]">
+                <div className="flex items-center justify-between gap-3">
+                  <span>钱包地址</span>
+                  <span className="truncate text-right font-medium text-ink">{walletUser.walletAddress}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>用户 ID</span>
+                  <span className="font-medium text-ink">{walletUser.userId}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>邀请码</span>
+                  <span className="font-medium text-ink">{walletUser.inviteCode || '--'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>昵称</span>
+                  <span className="font-medium text-ink">{walletUser.nickname || '--'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4">
+              <div className="text-[12px] text-ink-soft sm:text-[13px]">可用余额</div>
+              <div className="mt-1 text-[28px] font-semibold tracking-tight text-ink sm:text-[34px]">
+                {primaryAsset ? `${primaryAsset.availableBalance} ${primaryAsset.coinCode}` : '--'}
+              </div>
+              <div className="mt-2 text-[12px] text-ink-soft sm:text-[13px]">
+                {primaryAsset ? `${primaryAsset.chainCode} / ${primaryAsset.coinName}` : '暂无资产数据'}
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] lg:gap-4">
@@ -49,7 +122,7 @@ export function ProfilePage() {
               <div>
                 <div className="text-[12px] text-ink-soft sm:text-[13px]">可用余额</div>
                 <div className="mt-1 text-[28px] font-semibold tracking-tight text-ink sm:text-[34px]">
-                  $128.50
+                  {primaryAsset ? `${primaryAsset.availableBalance} ${primaryAsset.coinCode}` : '$128.50'}
                 </div>
               </div>
               <button

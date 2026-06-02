@@ -1,7 +1,9 @@
 import { useAppKit } from '@reown/appkit/react'
+import { AnimatePresence } from 'motion/react'
 import { motion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useAccount } from 'wagmi'
+import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
 
 function UserGlyph() {
   return (
@@ -14,12 +16,108 @@ function UserGlyph() {
   )
 }
 
+function InviteCodeDialog({
+  error,
+  isOpen,
+  isSubmitting,
+  onConfirm,
+  onSkip,
+}: {
+  error: string | null
+  isOpen: boolean
+  isSubmitting: boolean
+  onConfirm: (inviteCode: string) => void
+  onSkip: () => void
+}) {
+  const [inviteCode, setInviteCode] = useState('')
+
+  useEffect(() => {
+    if (!isOpen) {
+      setInviteCode('')
+    }
+  }, [isOpen])
+
+  return (
+    <AnimatePresence>
+      {isOpen ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[80] grid place-items-center bg-black/60 px-4 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className="w-full max-w-md rounded-[24px] border border-white/10 bg-[#171918] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
+          >
+            <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-brand">
+              Invite
+            </div>
+            <h2 className="mt-2 text-[22px] font-semibold tracking-tight text-ink">补充邀请码</h2>
+            <p className="mt-2 text-[13px] leading-6 text-ink-soft">
+              当前钱包还未注册。邀请码可以填写，也可以直接跳过；跳过后将不传这个参数。
+            </p>
+
+            <label className="mt-4 block">
+              <span className="mb-2 block text-[12px] font-medium text-ink-soft">邀请码（可选）</span>
+              <input
+                value={inviteCode}
+                onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                placeholder="例如 ROOT01"
+                className="h-11 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 text-[14px] text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-brand/30"
+              />
+            </label>
+
+            {error ? <p className="mt-3 text-[12px] text-rose-300">{error}</p> : null}
+
+            <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={onSkip}
+                disabled={isSubmitting}
+                className="inline-flex h-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-[13px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                跳过
+              </button>
+              <button
+                type="button"
+                onClick={() => onConfirm(inviteCode.trim())}
+                disabled={isSubmitting}
+                className="inline-flex h-11 items-center justify-center rounded-[16px] border border-brand/20 bg-brand text-[13px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? '注册中...' : '继续注册'}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  )
+}
+
 export function RootLayout() {
   const location = useLocation()
   const { open } = useAppKit()
-  const { address, isConnected } = useAccount()
+  const {
+    error,
+    isConnected,
+    isInviteCodeRequired,
+    isSessionForConnectedWallet,
+    completeRegistration,
+    resetWalletAuth,
+    startWalletAuth,
+    status,
+    walletButtonLabel,
+  } = useWalletAuth()
 
-  const walletLabel = isConnected && address ? `${address.slice(0, 6)}...${address.slice(-4)}` : '连接钱包'
+  const isWalletBusy =
+    status === 'logging_out' ||
+    status === 'signing' ||
+    status === 'logging_in' ||
+    status === 'registering'
 
   return (
     <div className="relative min-h-screen isolate">
@@ -39,7 +137,7 @@ export function RootLayout() {
           >
             <div className="min-w-0">
               <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-brand sm:text-[11px]">
-                FIFA
+                GOPRE
               </div>
               <div className="mt-0.5 truncate text-[10px] font-semibold text-ink sm:text-[12px]">
                 World Cup 2026
@@ -50,15 +148,36 @@ export function RootLayout() {
           <div className="flex items-center gap-2 sm:gap-2.5">
             <button
               type="button"
-              onClick={() => open()}
+              onClick={() => {
+                if (!isConnected) {
+                  resetWalletAuth()
+                  open()
+                  return
+                }
+
+                if (!isSessionForConnectedWallet && !isWalletBusy) {
+                  void startWalletAuth()
+                  return
+                }
+
+                open()
+              }}
+              disabled={isWalletBusy}
               className="inline-flex h-9 items-center justify-center rounded-[15px] border border-brand/20 bg-brand px-3 text-[10px] font-semibold text-black shadow-[0_10px_24px_rgba(0,255,65,0.2)] transition hover:bg-[#19ff53] sm:h-10 sm:px-4 sm:text-[11px]"
             >
-              {walletLabel}
+              {walletButtonLabel}
             </button>
 
             <NavLink
               to="/profile"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] text-ink-soft transition hover:border-white/16 hover:text-ink sm:h-10 sm:w-10"
+              className={({ isActive }) =>
+                [
+                  'inline-flex h-9 w-9 items-center justify-center rounded-[15px] border text-ink-soft transition sm:h-10 sm:w-10',
+                  isActive
+                    ? 'border-brand/30 bg-brand/12 text-brand'
+                    : 'border-white/10 bg-white/[0.04] hover:border-white/16 hover:text-ink',
+                ].join(' ')
+              }
               aria-label="个人中心"
             >
               <UserGlyph />
@@ -68,6 +187,11 @@ export function RootLayout() {
       </header>
 
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-2.5 pb-2.5 pt-[72px] sm:px-4 sm:pb-4 sm:pt-[84px] lg:px-5">
+        {error ? (
+          <div className="mb-2 rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-[12px] text-rose-200 sm:text-[13px]">
+            {error}
+          </div>
+        ) : null}
 
         <motion.main
           key={location.pathname}
@@ -79,6 +203,18 @@ export function RootLayout() {
           <Outlet />
         </motion.main>
       </div>
+
+      <InviteCodeDialog
+        error={error}
+        isOpen={isInviteCodeRequired}
+        isSubmitting={status === 'registering'}
+        onConfirm={(inviteCode) => {
+          void completeRegistration(inviteCode || undefined)
+        }}
+        onSkip={() => {
+          void completeRegistration()
+        }}
+      />
     </div>
   )
 }
