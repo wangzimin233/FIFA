@@ -22,6 +22,33 @@ const WALLET_HISTORY_PAGE_SIZE = 10
 
 type ActiveAction = 'deposit' | 'withdraw' | null
 type ActiveHistory = 'deposit' | 'withdraw' | null
+type DepositHistoryStatus = 1 | 2 | 3 | 4
+type WithdrawHistoryStatus = 1 | 2 | 3 | 4 | 5 | 6 | 7
+
+const DEPOSIT_HISTORY_STATUS_OPTIONS: Array<{
+  label: string
+  value?: DepositHistoryStatus
+}> = [
+  { label: '全部' },
+  { label: '待支付', value: 1 },
+  { label: '已提交', value: 2 },
+  { label: '成功', value: 3 },
+  { label: '失败', value: 4 },
+]
+
+const WITHDRAW_HISTORY_STATUS_OPTIONS: Array<{
+  label: string
+  value?: WithdrawHistoryStatus
+}> = [
+  { label: '全部' },
+  { label: '待审核', value: 1 },
+  { label: '待打款', value: 2 },
+  { label: '处理中', value: 3 },
+  { label: '成功', value: 4 },
+  { label: '驳回', value: 5 },
+  { label: '失败', value: 6 },
+  { label: '已取消', value: 7 },
+]
 
 function resolveDepositStatusMeta(status: ReturnType<typeof useDeposit>['status']) {
   const labelMap: Record<ReturnType<typeof useDeposit>['status'], string> = {
@@ -148,6 +175,14 @@ function resolveDepositRecordStatus(status: number) {
     return { label: '成功', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
+  if (status === 4) {
+    return { label: '失败', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+  }
+
+  if (status === 2) {
+    return { label: '已提交', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+  }
+
   if (status === 1) {
     return { label: '待支付', tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
   }
@@ -160,12 +195,24 @@ function resolveWithdrawRecordStatus(status: number) {
     return { label: '成功', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
+  if (status === 7) {
+    return { label: '已取消', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  }
+
+  if (status === 6) {
+    return { label: '失败', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+  }
+
   if (status === 5) {
     return { label: '驳回', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
   if (status === 3) {
     return { label: '处理中', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+  }
+
+  if (status === 2) {
+    return { label: '待打款', tone: 'border-brand/20 bg-brand/12 text-brand' }
   }
 
   if (status === 1) {
@@ -339,6 +386,47 @@ function SecondaryButton({
     >
       {children}
     </button>
+  )
+}
+
+function HistoryStatusFilter<TStatus extends number>({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<{
+    label: string
+    value?: TStatus
+  }>
+  value?: TStatus
+  onChange: (value?: TStatus) => void
+}) {
+  const gridClass = options.length > 5 ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-3 sm:grid-cols-5'
+
+  return (
+    <div className="border-b border-white/8 px-4 py-3 sm:px-5">
+      <div className={`grid gap-2 ${gridClass}`}>
+        {options.map((option) => {
+          const isActive = value === option.value
+
+          return (
+            <button
+              key={option.label}
+              type="button"
+              onClick={() => onChange(option.value)}
+              className={[
+                'inline-flex h-9 items-center justify-center rounded-[13px] border px-2 text-[12px] font-semibold transition',
+                isActive
+                  ? 'border-brand/25 bg-brand/12 text-brand'
+                  : 'border-white/10 bg-white/[0.03] text-ink-soft hover:border-white/16 hover:text-ink',
+              ].join(' ')}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
@@ -644,9 +732,18 @@ function WalletHistoryDialog({
   onClose: () => void
 }) {
   type WalletRecordItem = DepositOrderPageItem | WithdrawOrderPageItem
+  const [depositStatusFilter, setDepositStatusFilter] = useState<DepositHistoryStatus | undefined>()
+  const [withdrawStatusFilter, setWithdrawStatusFilter] = useState<WithdrawHistoryStatus | undefined>()
 
   const historyQuery = useInfiniteQuery<WalletHistoryPage<WalletRecordItem>, Error>({
-    queryKey: ['wallet-history', kind, 'BSC', WALLET_HISTORY_PAGE_SIZE],
+    queryKey: [
+      'wallet-history',
+      kind,
+      'BSC',
+      depositStatusFilter ?? 'all-deposit',
+      withdrawStatusFilter ?? 'all-withdraw',
+      WALLET_HISTORY_PAGE_SIZE,
+    ],
     queryFn: async ({ pageParam }) => {
       const page = Number(pageParam)
       if (kind === 'deposit') {
@@ -654,6 +751,7 @@ function WalletHistoryDialog({
           page,
           pageSize: WALLET_HISTORY_PAGE_SIZE,
           chainType: 'BSC',
+          status: depositStatusFilter,
         })) as WalletHistoryPage<WalletRecordItem>
       }
 
@@ -661,6 +759,7 @@ function WalletHistoryDialog({
         page,
         pageSize: WALLET_HISTORY_PAGE_SIZE,
         chainType: 'BSC',
+        status: withdrawStatusFilter,
       })) as WalletHistoryPage<WalletRecordItem>
     },
     initialPageParam: 1,
@@ -672,6 +771,10 @@ function WalletHistoryDialog({
   const total = historyQuery.data?.pages[0]?.total ?? 0
   const title = kind === 'deposit' ? '充值记录' : '提现记录'
   const eyebrow = kind === 'deposit' ? 'Deposit History' : 'Withdraw History'
+  const historyListMaxHeightClass =
+    kind === 'withdraw'
+      ? 'max-h-[calc(92vh-224px)] sm:max-h-[calc(92vh-178px)]'
+      : 'max-h-[calc(92vh-178px)] sm:max-h-[calc(92vh-130px)]'
 
   return (
     <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
@@ -681,8 +784,21 @@ function WalletHistoryDialog({
         status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
         onClose={onClose}
       />
+      {kind === 'deposit' ? (
+        <HistoryStatusFilter
+          options={DEPOSIT_HISTORY_STATUS_OPTIONS}
+          value={depositStatusFilter}
+          onChange={(value) => setDepositStatusFilter(value)}
+        />
+      ) : (
+        <HistoryStatusFilter
+          options={WITHDRAW_HISTORY_STATUS_OPTIONS}
+          value={withdrawStatusFilter}
+          onChange={(value) => setWithdrawStatusFilter(value)}
+        />
+      )}
       <div
-        className="max-h-[calc(92vh-73px)] overflow-y-auto"
+        className={`${historyListMaxHeightClass} overflow-y-auto`}
         onScroll={(event) => {
           const target = event.currentTarget
           const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
