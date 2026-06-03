@@ -84,22 +84,14 @@ function resolveDepositButtonLabel({
 function resolveWithdrawStatusMeta(status: ReturnType<typeof useWithdraw>['status']) {
   const labelMap: Record<ReturnType<typeof useWithdraw>['status'], string> = {
     idle: '待开始',
-    switching_network: '切换网络',
     applying: '申请提现',
-    submitting: '提交提现',
-    confirming: '等待确认',
-    callback_pending: '通知后端',
-    success: '提现成功',
+    success: '等待审核',
     error: '流程异常',
   }
 
   const toneMap: Record<ReturnType<typeof useWithdraw>['status'], string> = {
     idle: 'border-white/10 bg-white/[0.04] text-ink-soft',
-    switching_network: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
     applying: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
-    submitting: 'border-amber-400/20 bg-amber-400/10 text-amber-200',
-    confirming: 'border-brand/20 bg-brand/12 text-brand',
-    callback_pending: 'border-brand/20 bg-brand/12 text-brand',
     success: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
     error: 'border-rose-500/20 bg-rose-500/10 text-rose-200',
   }
@@ -128,16 +120,8 @@ function resolveWithdrawButtonLabel({
   }
 
   switch (status) {
-    case 'switching_network':
-      return '切换到 BSC 中...'
     case 'applying':
       return '申请提现中...'
-    case 'submitting':
-      return '提交提现中...'
-    case 'confirming':
-      return '链上确认中...'
-    case 'callback_pending':
-      return '回调处理中...'
     case 'success':
       return '继续提现'
     case 'error':
@@ -162,7 +146,6 @@ export function ProfilePage() {
   const session = useWalletAuthStore((state) => state.session)
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
-  const [withdrawAddress, setWithdrawAddress] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
 
   const { data, isLoading, isError, error } = useQuery({
@@ -560,12 +543,6 @@ export function ProfilePage() {
                 </div>
               </div>
 
-              {withdraw.lastSuccessHash ? (
-                <div className="mt-4 rounded-[16px] border border-emerald-400/20 bg-emerald-400/10 px-3 py-3 text-[12px] text-emerald-100 sm:text-[13px]">
-                  最近一次提现交易哈希: {shortenHash(withdraw.lastSuccessHash)}
-                </div>
-              ) : null}
-
               <label className="mt-5 block">
                 <span className="block text-[12px] font-medium text-ink-soft sm:text-[13px]">提现金额</span>
                 <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
@@ -586,18 +563,6 @@ export function ProfilePage() {
                 </div>
               </label>
 
-              <label className="mt-4 block">
-                <span className="block text-[12px] font-medium text-ink-soft sm:text-[13px]">提现地址</span>
-                <div className="mt-2 rounded-[18px] border border-white/10 bg-[#101211] px-4">
-                  <input
-                    value={withdrawAddress}
-                    onChange={(event) => setWithdrawAddress(event.target.value)}
-                    placeholder="请输入 BSC 链地址"
-                    className="h-14 w-full bg-transparent text-[15px] font-medium text-ink outline-none placeholder:text-ink-soft/45 sm:text-[16px]"
-                  />
-                </div>
-              </label>
-
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button
                   type="button"
@@ -614,11 +579,10 @@ export function ProfilePage() {
                   type="button"
                   onClick={() => {
                     setWithdrawAmount(withdraw.availableBalance || '')
-                    setWithdrawAddress(address ?? '')
                   }}
                   className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3 text-[13px] font-medium text-ink-soft transition hover:border-white/14 hover:bg-white/[0.06] hover:text-ink"
                 >
-                  全部提到当前钱包
+                  填入全部可用
                 </button>
               </div>
 
@@ -636,29 +600,13 @@ export function ProfilePage() {
                       return
                     }
 
-                    void withdraw.submitWithdraw(withdrawAmount, withdrawAddress)
+                    void withdraw.submitWithdraw(withdrawAmount)
                   }}
-                  disabled={authStatus === 'logging_in' || authStatus === 'signing' || withdraw.isBusy || Boolean(withdraw.providerWarning)}
+                  disabled={authStatus === 'logging_in' || authStatus === 'signing' || withdraw.isBusy}
                   className="inline-flex h-12 items-center justify-center rounded-[16px] border border-brand/20 bg-brand px-4 text-[14px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {withdrawButtonLabel}
                 </button>
-
-                {withdraw.hasPendingCallback ? (
-                  <button
-                    type="button"
-                    onClick={() => void withdraw.retryCallback()}
-                    className="inline-flex h-12 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] px-4 text-[14px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
-                  >
-                    重新通知后端出账
-                  </button>
-                ) : null}
-
-                {withdraw.providerWarning ? (
-                  <div className="rounded-[16px] border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-[12px] text-amber-100 sm:text-[13px]">
-                    {withdraw.providerWarning}
-                  </div>
-                ) : null}
 
                 {(withdraw.error || withdraw.status === 'error') && withdraw.error ? (
                   <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200 sm:text-[13px]">

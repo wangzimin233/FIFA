@@ -10,9 +10,7 @@ type ApiResult<T> = {
 }
 
 export type WithdrawApplyRequest = {
-  chainType: ChainType
   amount: number
-  toAddress: string
 }
 
 export type WithdrawApplyResponse = {
