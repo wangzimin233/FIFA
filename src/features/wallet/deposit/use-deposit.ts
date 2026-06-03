@@ -11,7 +11,6 @@ import {
   type Hash,
   type Hex,
 } from 'viem'
-import { parseUnits } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { rechargeDepositAbi } from '../../../config/contracts'
 import type { WalletUserInfoResponse } from '../../wallet-auth/api'
@@ -36,7 +35,6 @@ import { createDepositOrder, notifyDepositCallback } from './api'
 import {
   APPROVE_AMOUNT,
   BSC_CHAIN_ID,
-  BSC_USDT_DECIMALS,
   isAddressLike,
   usdtErc20Abi,
 } from './contracts'
@@ -506,7 +504,7 @@ export function useDeposit({
             address: usdtAddress,
             abi: usdtErc20Abi,
             functionName: 'approve',
-            args: [contractAddress, parseUnits(APPROVE_AMOUNT, BSC_USDT_DECIMALS)],
+            args: [contractAddress, APPROVE_AMOUNT],
             account: walletAddress,
           })
           console.info('[deposit] approve transaction start', {
@@ -518,7 +516,7 @@ export function useDeposit({
           const approveHash = await sendContractTransaction({
             abi: usdtErc20Abi,
             address: usdtAddress,
-            args: [contractAddress, parseUnits(APPROVE_AMOUNT, BSC_USDT_DECIMALS)],
+            args: [contractAddress, APPROVE_AMOUNT],
             fallbackProvider: walletProvider,
             from: walletAddress,
             functionName: 'approve',

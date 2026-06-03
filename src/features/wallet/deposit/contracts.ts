@@ -1,8 +1,7 @@
-import { erc20Abi, type Address } from 'viem'
+import { erc20Abi, maxUint256, type Address } from 'viem'
 
 export const BSC_CHAIN_ID = 56
-export const BSC_USDT_DECIMALS = 18
-export const APPROVE_AMOUNT = '1000000'
+export const APPROVE_AMOUNT = maxUint256
 
 export const CONTRACT_TYPE_DEPOSIT = 1
 export const CONTRACT_TYPE_WITHDRAW = 2
