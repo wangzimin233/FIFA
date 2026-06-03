@@ -1,5 +1,5 @@
 import { formatUnits as formatEthersUnits } from 'ethers'
-import { getAddress } from 'viem'
+import { getAddress, isAddress } from 'viem'
 
 export function formatCompactNumber(value: number) {
   return new Intl.NumberFormat('en', {
@@ -29,6 +29,18 @@ export function shortenAddress(address?: string) {
     return 'Not connected'
   }
 
+  if (!isAddress(address, { strict: false })) {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
   const checksum = getAddress(address)
   return `${checksum.slice(0, 6)}...${checksum.slice(-4)}`
+}
+
+export function shortenHash(hash?: string) {
+  if (!hash) {
+    return '--'
+  }
+
+  return `${hash.slice(0, 10)}...${hash.slice(-8)}`
 }

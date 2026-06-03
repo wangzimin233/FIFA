@@ -8,12 +8,10 @@ import {
 } from '@reown/appkit/react'
 import {
   loginWithWallet,
-  logoutWalletAuth,
   registerWithWallet,
   type WalletAuthResponse,
 } from './api'
 import { buildWalletAuthMessage } from './auth-message'
-import type { WalletAuthSession } from './storage'
 import { useWalletAuthStore } from './auth-store'
 
 const EVM_NAMESPACE = 'eip155'
@@ -104,6 +102,10 @@ function normalizeChainId(value: number | string | undefined) {
   return null
 }
 
+function isConnectionTransitioning(status: string | undefined) {
+  return status === 'connecting' || status === 'reconnecting'
+}
+
 export function useWalletAuth() {
   const { address, isConnected, status: connectionStatus } = useAppKitAccount({
     namespace: EVM_NAMESPACE,
@@ -140,27 +142,9 @@ export function useWalletAuth() {
     [setSession],
   )
 
-  const logoutExistingSession = useCallback(
-    async (sessionToLogout: WalletAuthSession | null | undefined, options?: { clearSession?: boolean }) => {
-      const token = sessionToLogout?.token
-
-      try {
-        if (token) {
-          await logoutWalletAuth(token)
-        }
-      } catch (error) {
-        const axiosError = error as AxiosError
-        if (axiosError.response?.status !== 401) {
-          console.warn('[wallet-auth] logout failed before re-auth', error)
-        }
-      } finally {
-        if (options?.clearSession) {
-          setSession(null)
-        }
-      }
-    },
-    [setSession],
-  )
+  const clearLocalSession = useCallback(() => {
+    setSession(null)
+  }, [setSession])
 
   const signWalletMessage = useCallback(
     async (message: string, walletAddress: string) => {
@@ -217,8 +201,7 @@ export function useWalletAuth() {
     }
 
     if (session?.token) {
-      setStatus('logging_out')
-      await logoutExistingSession(session, { clearSession: true })
+      clearLocalSession()
     }
 
     setPendingRegistration(null)
@@ -293,9 +276,9 @@ export function useWalletAuth() {
     }
   }, [
     address,
+    clearLocalSession,
     finalizeSession,
     isConnected,
-    logoutExistingSession,
     resolveCurrentChainId,
     session,
     setError,
@@ -355,14 +338,17 @@ export function useWalletAuth() {
     }
 
     if (!isConnected || !address) {
+      if (isConnectionTransitioning(connectionStatus)) {
+        return
+      }
+
       if (
         session?.token &&
         hasSeenConnectedWallet &&
         !hasHandledDisconnect
       ) {
         hasHandledDisconnect = true
-        setStatus('logging_out')
-        void logoutExistingSession(session, { clearSession: true })
+        clearLocalSession()
         return
       }
 
@@ -378,9 +364,8 @@ export function useWalletAuth() {
     }
 
     if (session && normalizedConnectedAddress !== normalizedSessionAddress) {
-      if (status !== 'logging_out') {
-        setStatus('logging_out')
-        void logoutExistingSession(session, { clearSession: true })
+      if (status !== 'signing' && status !== 'logging_in' && status !== 'registering') {
+        clearLocalSession()
       }
       return
     }
@@ -390,9 +375,10 @@ export function useWalletAuth() {
     }
   }, [
     address,
+    clearLocalSession,
+    connectionStatus,
     isConnected,
     isSessionForConnectedWallet,
-    logoutExistingSession,
     normalizedConnectedAddress,
     normalizedSessionAddress,
     resetAuthFlow,

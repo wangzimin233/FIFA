@@ -76,7 +76,7 @@ export async function logoutWalletAuth(token?: string) {
       ...(token
         ? {
             headers: {
-              Authorization: `Bearer ${token}`,
+              Authorization: token,
             },
           }
         : {}),

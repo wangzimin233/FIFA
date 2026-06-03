@@ -1,8 +1,12 @@
 import { useAppKit } from '@reown/appkit/react'
 import { AnimatePresence } from 'motion/react'
 import { motion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import {
+  loadInviteCodeFromSession,
+  saveInviteCodeToSession,
+} from '../features/wallet-auth/storage'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
 
 function UserGlyph() {
@@ -18,24 +22,21 @@ function UserGlyph() {
 
 function InviteCodeDialog({
   error,
+  initialInviteCode,
   isOpen,
   isSubmitting,
   onConfirm,
   onSkip,
 }: {
   error: string | null
+  initialInviteCode?: string
   isOpen: boolean
   isSubmitting: boolean
   onConfirm: (inviteCode: string) => void
   onSkip: () => void
 }) {
-  const [inviteCode, setInviteCode] = useState('')
-
-  useEffect(() => {
-    if (!isOpen) {
-      setInviteCode('')
-    }
-  }, [isOpen])
+  const [inviteCode, setInviteCode] = useState(() => initialInviteCode ?? '')
+  const [validationMessage, setValidationMessage] = useState('')
 
   return (
     <AnimatePresence>
@@ -65,13 +66,19 @@ function InviteCodeDialog({
               <span className="mb-2 block text-[12px] font-medium text-ink-soft">邀请码（可选）</span>
               <input
                 value={inviteCode}
-                onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+                onChange={(event) => {
+                  setInviteCode(event.target.value.toUpperCase())
+                  if (validationMessage) {
+                    setValidationMessage('')
+                  }
+                }}
                 placeholder="例如 ROOT01"
                 className="h-11 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 text-[14px] text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-brand/30"
               />
             </label>
 
-            {error ? <p className="mt-3 text-[12px] text-rose-300">{error}</p> : null}
+            {validationMessage ? <p className="mt-3 text-[12px] text-amber-200">{validationMessage}</p> : null}
+            {!validationMessage && error ? <p className="mt-3 text-[12px] text-rose-300">{error}</p> : null}
 
             <div className="mt-5 grid grid-cols-2 gap-2.5">
               <button
@@ -84,7 +91,15 @@ function InviteCodeDialog({
               </button>
               <button
                 type="button"
-                onClick={() => onConfirm(inviteCode.trim())}
+                onClick={() => {
+                  const normalizedInviteCode = inviteCode.trim().toUpperCase()
+                  if (!normalizedInviteCode) {
+                    setValidationMessage('请输入邀请码后继续注册，或点击跳过。')
+                    return
+                  }
+
+                  onConfirm(normalizedInviteCode)
+                }}
                 disabled={isSubmitting}
                 className="inline-flex h-11 items-center justify-center rounded-[16px] border border-brand/20 bg-brand text-[13px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -112,12 +127,29 @@ export function RootLayout() {
     status,
     walletButtonLabel,
   } = useWalletAuth()
+  const inviteCodeFromQuery = useMemo(() => {
+    const queryValue = new URLSearchParams(location.search).get('code')?.trim().toUpperCase()
+    return queryValue || ''
+  }, [location.search])
+  const persistedInviteCode = useMemo(() => {
+    if (inviteCodeFromQuery) {
+      return inviteCodeFromQuery
+    }
+
+    return loadInviteCodeFromSession()
+  }, [inviteCodeFromQuery])
 
   const isWalletBusy =
     status === 'logging_out' ||
     status === 'signing' ||
     status === 'logging_in' ||
     status === 'registering'
+
+  useEffect(() => {
+    if (inviteCodeFromQuery) {
+      saveInviteCodeToSession(inviteCodeFromQuery)
+    }
+  }, [inviteCodeFromQuery])
 
   return (
     <div className="relative min-h-screen isolate">
@@ -205,11 +237,13 @@ export function RootLayout() {
       </div>
 
       <InviteCodeDialog
+        key={`${isInviteCodeRequired ? 'open' : 'closed'}-${persistedInviteCode}`}
         error={error}
+        initialInviteCode={persistedInviteCode}
         isOpen={isInviteCodeRequired}
         isSubmitting={status === 'registering'}
         onConfirm={(inviteCode) => {
-          void completeRegistration(inviteCode || undefined)
+          void completeRegistration(inviteCode)
         }}
         onSkip={() => {
           void completeRegistration()

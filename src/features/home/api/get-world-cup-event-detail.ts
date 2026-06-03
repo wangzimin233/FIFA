@@ -253,7 +253,11 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
     })
     .filter((item): item is NonNullable<typeof item> => item !== null)
     .sort((left, right) => left.sortOrder - right.sortOrder)
-    .map(({ sortOrder, ...outcome }) => outcome)
+    .map((item) => {
+      const { sortOrder, ...outcome } = item
+      void sortOrder
+      return outcome
+    })
 
   if (!outcomes.length) {
     return undefined
