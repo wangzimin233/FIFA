@@ -638,7 +638,7 @@ export function ProfilePage() {
 
                     void withdraw.submitWithdraw(withdrawAmount, withdrawAddress)
                   }}
-                  disabled={authStatus === 'logging_in' || authStatus === 'signing' || withdraw.isBusy}
+                  disabled={authStatus === 'logging_in' || authStatus === 'signing' || withdraw.isBusy || Boolean(withdraw.providerWarning)}
                   className="inline-flex h-12 items-center justify-center rounded-[16px] border border-brand/20 bg-brand px-4 text-[14px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {withdrawButtonLabel}
@@ -652,6 +652,12 @@ export function ProfilePage() {
                   >
                     重新通知后端出账
                   </button>
+                ) : null}
+
+                {withdraw.providerWarning ? (
+                  <div className="rounded-[16px] border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-[12px] text-amber-100 sm:text-[13px]">
+                    {withdraw.providerWarning}
+                  </div>
                 ) : null}
 
                 {(withdraw.error || withdraw.status === 'error') && withdraw.error ? (

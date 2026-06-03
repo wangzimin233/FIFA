@@ -1,20 +1,26 @@
 import type { AxiosError } from 'axios'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from '@heroui/react'
 import { useAppKitProvider } from '@reown/appkit/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { BaseError, ContractFunctionRevertedError, type Hash } from 'viem'
+import { BaseError, ContractFunctionRevertedError, type AbiEvent, type Address, type Hash } from 'viem'
 import { parseUnits } from 'viem'
-import { usePublicClient, useWalletClient } from 'wagmi'
+import { usePublicClient } from 'wagmi'
 import { withdrawClaimAbi } from '../../../config/contracts'
 import type { WalletUserInfoResponse } from '../../wallet-auth/api'
+import { useWalletAuthStore } from '../../wallet-auth/auth-store'
 import type { WalletContractConfigResponse } from '../deposit/api'
 import { BSC_CHAIN_ID, BSC_USDT_DECIMALS, CONTRACT_TYPE_WITHDRAW, isAddressLike } from '../deposit/contracts'
+import {
+  ensureWalletProviderBscNetwork,
+  isDuplicateProviderError,
+  resolveWalletProvider,
+  sendContractTransaction,
+  WALLET_PROVIDER_CONFLICT_MESSAGE,
+  type Eip1193Provider,
+  type WalletProviderPreference,
+} from '../provider-registry'
 import { applyWithdraw, notifyWithdrawCallback, type WithdrawApplyResponse } from './api'
-
-type Eip1193Provider = {
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>
-}
 
 export type WithdrawStatus =
   | 'idle'
@@ -30,6 +36,19 @@ type WithdrawCallbackState = {
   amount: string
   hash: Hash
   withdrawNo?: string
+}
+
+const DUPLICATE_RECOVERY_RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 15_000]
+const WITHDRAW_LOG_LOOKBACK_BLOCKS = 2_000n
+
+const usdtWithdrawClaimedEvent = withdrawClaimAbi.find(
+  (entry) => entry.type === 'event' && entry.name === 'USDTWithdrawClaimed',
+) as AbiEvent | undefined
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
 }
 
 function resolveErrorMessage(error: unknown) {
@@ -149,6 +168,67 @@ function resolveClaimArgs(response: WithdrawApplyResponse) {
   }
 }
 
+async function recoverWithdrawHashFromLogs({
+  amount,
+  bizId,
+  contractAddress,
+  operator,
+  publicClient,
+  rewardType,
+  receiver,
+}: {
+  amount: bigint
+  bizId: bigint
+  contractAddress: Address
+  operator: Address
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  receiver: Address
+  rewardType: bigint
+}) {
+  if (!usdtWithdrawClaimedEvent) {
+    return null
+  }
+
+  for (let attemptIndex = 0; attemptIndex <= DUPLICATE_RECOVERY_RETRY_DELAYS_MS.length; attemptIndex += 1) {
+    if (attemptIndex > 0) {
+      await sleep(DUPLICATE_RECOVERY_RETRY_DELAYS_MS[attemptIndex - 1])
+    }
+
+    const latestBlock = await publicClient.getBlockNumber()
+    const fromBlock =
+      latestBlock > WITHDRAW_LOG_LOOKBACK_BLOCKS ? latestBlock - WITHDRAW_LOG_LOOKBACK_BLOCKS : 0n
+    const logs = await publicClient.getLogs({
+      address: contractAddress,
+      args: {
+        bizId,
+        operator,
+        receiver,
+      },
+      event: usdtWithdrawClaimedEvent,
+      fromBlock,
+      toBlock: 'latest',
+    })
+    const matchingLog = logs
+      .filter((log) => {
+        const args = log.args as { amount?: bigint; rewardType?: bigint }
+        return args.amount === amount && args.rewardType === rewardType
+      })
+      .sort((left, right) => Number(right.blockNumber - left.blockNumber))[0]
+
+    if (matchingLog?.transactionHash) {
+      return matchingLog.transactionHash
+    }
+  }
+
+  return null
+}
+
+function ensureSuccessfulReceiptStatus(status: 'success' | 'reverted' | undefined) {
+  if (status === 'reverted') {
+    throw new Error('提现交易已上链但执行失败，请检查链上交易详情。')
+  }
+}
+
 export function useWithdraw({
   contractConfig,
   isConnected,
@@ -166,17 +246,31 @@ export function useWithdraw({
 }) {
   const queryClient = useQueryClient()
   const publicClient = usePublicClient({ chainId: BSC_CHAIN_ID })
-  const { data: walletClient } = useWalletClient()
   const { walletProvider } = useAppKitProvider<Eip1193Provider>('eip155')
+  const session = useWalletAuthStore((state) => state.session)
 
   const [status, setStatus] = useState<WithdrawStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [lastCallbackState, setLastCallbackState] = useState<WithdrawCallbackState | null>(null)
   const [lastSuccessHash, setLastSuccessHash] = useState<Hash | null>(null)
+  const [providerWarning, setProviderWarning] = useState<string | null>(null)
 
   const withdrawContractAddress = useMemo(
     () => resolveWithdrawContractAddress(contractConfig),
     [contractConfig],
+  )
+  const preferredIdentity = useMemo<WalletProviderPreference | undefined>(
+    () =>
+      session
+        ? {
+            walletProviderId: session.walletProviderId,
+            walletProviderName: session.walletProviderName,
+            walletProviderRdns: session.walletProviderRdns,
+            walletProviderSource: session.walletProviderSource,
+            walletProviderUuid: session.walletProviderUuid,
+          }
+        : undefined,
+    [session],
   )
 
   const availableBalance = useMemo(() => {
@@ -193,6 +287,51 @@ export function useWithdraw({
       queryClient.invalidateQueries({ queryKey: ['wallet-contract-config', 'BSC'] }),
     ])
   }, [queryClient])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    if (!isConnected || !walletAddress || !isAddressLike(walletAddress)) {
+      const timeoutId = window.setTimeout(() => {
+        setProviderWarning(null)
+      }, 0)
+
+      return () => {
+        isCancelled = true
+        window.clearTimeout(timeoutId)
+      }
+    }
+
+    const checkProvider = async () => {
+      try {
+        const selectedProvider = await resolveWalletProvider({
+          fallbackProvider: walletProvider,
+          preferredIdentity,
+          walletAddress,
+        })
+        if (isCancelled) {
+          return
+        }
+
+        if (!selectedProvider) {
+          setProviderWarning('未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。')
+          return
+        }
+
+        setProviderWarning(selectedProvider.isMixedProvider ? WALLET_PROVIDER_CONFLICT_MESSAGE : null)
+      } catch (error) {
+        if (!isCancelled) {
+          setProviderWarning(resolveErrorMessage(error))
+        }
+      }
+    }
+
+    void checkProvider()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isConnected, preferredIdentity, walletAddress, walletProvider])
 
   const runCallback = useCallback(
     async (hash: Hash, amount: string, withdrawNo?: string) => {
@@ -220,27 +359,21 @@ export function useWithdraw({
     [invalidateWalletData, onSuccess],
   )
 
-  const ensureBscNetwork = useCallback(async () => {
-    if (!walletProvider?.request) {
-      throw new Error('当前未获取到钱包 Provider，请重新连接钱包后重试。')
-    }
+  const ensureBscNetwork = useCallback(
+    async () => {
+      if (!walletAddress || !isAddressLike(walletAddress)) {
+        throw new Error('请先连接钱包。')
+      }
 
-    const currentChainId = await walletProvider.request({ method: 'eth_chainId' })
-    const normalizedChainId =
-      typeof currentChainId === 'string' && currentChainId.startsWith('0x')
-        ? Number.parseInt(currentChainId, 16)
-        : Number(currentChainId)
-
-    if (normalizedChainId === BSC_CHAIN_ID) {
-      return
-    }
-
-    setStatus('switching_network')
-    await walletProvider.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0x38' }],
-    })
-  }, [walletProvider])
+      await ensureWalletProviderBscNetwork({
+        fallbackProvider: walletProvider,
+        onSwitching: () => setStatus('switching_network'),
+        preferredIdentity,
+        walletAddress,
+      })
+    },
+    [preferredIdentity, walletAddress, walletProvider],
+  )
 
   const submitWithdraw = useCallback(
     async (amountInput: string, toAddressInput: string) => {
@@ -256,7 +389,7 @@ export function useWithdraw({
         return
       }
 
-      if (!publicClient || !walletClient) {
+      if (!publicClient) {
         setStatus('error')
         setError('当前钱包客户端未就绪，请稍后重试。')
         return
@@ -341,19 +474,68 @@ export function useWithdraw({
         })
 
         setStatus('submitting')
-        const claimRequest = await publicClient.simulateContract({
+        const claimSimulation = await publicClient.simulateContract({
           address: withdrawContractAddress,
           abi: withdrawClaimAbi,
           functionName: 'claimUSDT',
           args: [claimArgs.bizId, claimArgs.rewardType, claimArgs.amount, claimArgs.to],
           account: walletAddress,
         })
-        const claimHash = await walletClient.writeContract(claimRequest.request)
+        console.info('[withdraw] claim transaction start', {
+          walletAddress,
+          withdrawContractAddress,
+          gas: claimSimulation.request.gas?.toString(),
+        })
+
+        let claimHash: Hash
+        try {
+          claimHash = await sendContractTransaction({
+            abi: withdrawClaimAbi,
+            address: withdrawContractAddress,
+            args: [claimArgs.bizId, claimArgs.rewardType, claimArgs.amount, claimArgs.to],
+            fallbackProvider: walletProvider,
+            from: walletAddress,
+            functionName: 'claimUSDT',
+            preferredIdentity,
+          })
+        } catch (sendError) {
+          if (!isDuplicateProviderError(sendError)) {
+            throw sendError
+          }
+
+          console.warn('[withdraw] duplicate send detected, trying to recover transaction hash from chain logs', {
+            amount: claimArgs.amount.toString(),
+            bizId: claimArgs.bizId.toString(),
+            rewardType: claimArgs.rewardType.toString(),
+            to: claimArgs.to,
+            walletAddress,
+            withdrawContractAddress,
+          })
+          const recoveredHash = await recoverWithdrawHashFromLogs({
+            amount: claimArgs.amount,
+            bizId: claimArgs.bizId,
+            contractAddress: withdrawContractAddress,
+            operator: walletAddress,
+            publicClient,
+            receiver: claimArgs.to,
+            rewardType: claimArgs.rewardType,
+          })
+
+          if (!recoveredHash) {
+            throw sendError
+          }
+
+          claimHash = recoveredHash
+          console.info('[withdraw] recovered claim transaction hash', {
+            hash: claimHash,
+          })
+        }
 
         setStatus('confirming')
-        await publicClient.waitForTransactionReceipt({
+        const claimReceipt = await publicClient.waitForTransactionReceipt({
           hash: claimHash,
         })
+        ensureSuccessfulReceiptStatus(claimReceipt.status)
 
         await runCallback(claimHash, applyResult.data.actualAmount || applyResult.data.applyAmount, applyResult.data.withdrawNo)
       } catch (error) {
@@ -367,10 +549,11 @@ export function useWithdraw({
       ensureBscNetwork,
       isConnected,
       isSessionReady,
+      preferredIdentity,
       publicClient,
       runCallback,
       walletAddress,
-      walletClient,
+      walletProvider,
       withdrawContractAddress,
     ],
   )
@@ -395,6 +578,7 @@ export function useWithdraw({
     hasPendingCallback: Boolean(lastCallbackState),
     isBusy: status !== 'idle' && status !== 'success' && status !== 'error',
     lastSuccessHash,
+    providerWarning,
     retryCallback,
     status,
     submitWithdraw,

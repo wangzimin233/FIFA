@@ -10,6 +10,11 @@ export type WalletAuthSession = {
   userType?: number
   inviteCode?: string
   registered: boolean
+  walletProviderId?: string
+  walletProviderName?: string
+  walletProviderRdns?: string
+  walletProviderSource?: string
+  walletProviderUuid?: string
 }
 
 function isWalletAuthSession(value: unknown): value is WalletAuthSession {

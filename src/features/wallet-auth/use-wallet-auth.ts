@@ -3,7 +3,6 @@ import { useCallback, useEffect, useMemo } from 'react'
 import { toast } from '@heroui/react'
 import {
   useAppKitAccount,
-  useAppKitNetwork,
   useAppKitProvider,
 } from '@reown/appkit/react'
 import {
@@ -13,21 +12,24 @@ import {
 } from './api'
 import { buildWalletAuthMessage } from './auth-message'
 import { useWalletAuthStore } from './auth-store'
+import {
+  getProviderChainId,
+  resolveWalletProvider,
+  toWalletProviderPreference,
+  type Eip1193Provider,
+  type WalletProviderIdentity,
+} from '../wallet/provider-registry'
 
 const EVM_NAMESPACE = 'eip155'
 const BSC_CHAIN_ID = 56
 let hasSeenConnectedWallet = false
 let hasHandledDisconnect = false
 
-type Eip1193Provider = {
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>
-}
-
 function normalizeAddress(value: string | undefined | null) {
   return value?.trim().toLowerCase() ?? ''
 }
 
-function toSession(data: WalletAuthResponse) {
+function toSession(data: WalletAuthResponse, walletProviderIdentity?: WalletProviderIdentity) {
   return {
     token: data.token ?? '',
     walletAddress: data.walletAddress,
@@ -36,6 +38,7 @@ function toSession(data: WalletAuthResponse) {
     userType: data.userType,
     inviteCode: data.inviteCode,
     registered: data.registered || Boolean(data.token),
+    ...toWalletProviderPreference(walletProviderIdentity),
   }
 }
 
@@ -110,7 +113,6 @@ export function useWalletAuth() {
   const { address, isConnected, status: connectionStatus } = useAppKitAccount({
     namespace: EVM_NAMESPACE,
   })
-  const { chainId } = useAppKitNetwork()
   const { walletProvider } = useAppKitProvider<Eip1193Provider>(EVM_NAMESPACE)
 
   const session = useWalletAuthStore((state) => state.session)
@@ -131,12 +133,12 @@ export function useWalletAuth() {
     normalizedConnectedAddress === normalizedSessionAddress
 
   const finalizeSession = useCallback(
-    (data: WalletAuthResponse, successMessage = '钱包登录成功') => {
+    (data: WalletAuthResponse, walletProviderIdentity?: WalletProviderIdentity, successMessage = '钱包登录成功') => {
       if (!data.token) {
         throw new Error('后端未返回 token，无法建立登录态。')
       }
 
-      setSession(toSession(data))
+      setSession(toSession(data, walletProviderIdentity))
       toast.success(successMessage)
     },
     [setSession],
@@ -147,12 +149,12 @@ export function useWalletAuth() {
   }, [setSession])
 
   const signWalletMessage = useCallback(
-    async (message: string, walletAddress: string) => {
-      if (!walletProvider?.request) {
+    async (message: string, walletAddress: string, signingProvider: Eip1193Provider) => {
+      if (!signingProvider.request) {
         throw new Error('当前未获取到钱包 Provider，请重新连接钱包后重试。')
       }
 
-      const signature = await walletProvider.request({
+      const signature = await signingProvider.request({
         method: 'personal_sign',
         params: [message, walletAddress],
       })
@@ -163,26 +165,8 @@ export function useWalletAuth() {
 
       return signature
     },
-    [walletProvider],
+    [],
   )
-
-  const resolveCurrentChainId = useCallback(async () => {
-    const normalizedAppKitChainId = normalizeChainId(chainId)
-    if (normalizedAppKitChainId !== null) {
-      return normalizedAppKitChainId
-    }
-
-    if (!walletProvider?.request) {
-      return null
-    }
-
-    const providerChainId = await walletProvider.request({ method: 'eth_chainId' })
-    return normalizeChainId(
-      typeof providerChainId === 'number' || typeof providerChainId === 'string'
-        ? providerChainId
-        : undefined,
-    )
-  }, [chainId, walletProvider])
 
   const startWalletAuth = useCallback(async () => {
     if (!isConnected || !address) {
@@ -193,7 +177,23 @@ export function useWalletAuth() {
       return
     }
 
-    const currentChainId = await resolveCurrentChainId()
+    let providerErrorMessage: string | null = null
+    const authProvider = await resolveWalletProvider({
+      fallbackProvider: walletProvider,
+      walletAddress: address,
+    }).catch((error: unknown) => {
+      providerErrorMessage = resolveErrorMessage(error)
+      return null
+    })
+
+    if (!authProvider) {
+      setError(providerErrorMessage || '未找到与当前连接地址匹配的钱包 Provider，请重新连接钱包后重试。')
+      setStatus('error')
+      return
+    }
+
+    const providerChainId = authProvider.chainId ?? (await getProviderChainId(authProvider.provider))
+    const currentChainId = normalizeChainId(providerChainId)
     if (currentChainId !== null && currentChainId !== BSC_CHAIN_ID) {
       setError('当前仅支持 BSC 钱包网络，请切换后重试。')
       setStatus('error')
@@ -212,7 +212,7 @@ export function useWalletAuth() {
     let signature = ''
 
     try {
-      signature = await signWalletMessage(message, address)
+      signature = await signWalletMessage(message, address, authProvider.provider)
       setStatus('logging_in')
 
       const result = await loginWithWallet({
@@ -229,6 +229,7 @@ export function useWalletAuth() {
             walletAddress: address,
             message,
             signature,
+            walletProviderIdentity: authProvider.identity,
           })
           setStatus('awaiting_registration')
           return
@@ -238,7 +239,7 @@ export function useWalletAuth() {
       }
 
       if (hasAuthenticatedToken(result.data)) {
-        finalizeSession(result.data)
+        finalizeSession(result.data, authProvider.identity)
         return
       }
 
@@ -248,12 +249,13 @@ export function useWalletAuth() {
           walletAddress: address,
           message,
           signature,
+          walletProviderIdentity: authProvider.identity,
         })
         setStatus('awaiting_registration')
         return
       }
 
-      finalizeSession(result.data)
+      finalizeSession(result.data, authProvider.identity)
     } catch (error) {
       if (isUnregisteredError(error)) {
         setPendingRegistration({
@@ -261,6 +263,7 @@ export function useWalletAuth() {
           walletAddress: address,
           message,
           signature,
+          walletProviderIdentity: authProvider.identity,
         })
         setStatus(signature ? 'awaiting_registration' : 'error')
         setError(
@@ -279,13 +282,13 @@ export function useWalletAuth() {
     clearLocalSession,
     finalizeSession,
     isConnected,
-    resolveCurrentChainId,
     session,
     setError,
     setPendingRegistration,
     setStatus,
     signWalletMessage,
     status,
+    walletProvider,
   ])
 
   const completeRegistration = useCallback(
@@ -316,7 +319,7 @@ export function useWalletAuth() {
           throw new Error(result.message || '钱包注册未返回有效数据，请稍后重试。')
         }
 
-        finalizeSession(result.data)
+        finalizeSession(result.data, pendingRegistration.walletProviderIdentity)
       } catch (error) {
         setStatus('awaiting_registration')
         setError(resolveErrorMessage(error))

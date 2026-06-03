@@ -5,6 +5,7 @@ import {
   saveWalletAuthSession,
   type WalletAuthSession,
 } from './storage'
+import type { WalletProviderIdentity } from '../wallet/provider-registry'
 
 export type WalletAuthStatus =
   | 'idle'
@@ -21,6 +22,7 @@ export type PendingWalletRegistration = {
   walletAddress: string
   message: string
   signature: string
+  walletProviderIdentity?: WalletProviderIdentity
 }
 
 type WalletAuthState = {

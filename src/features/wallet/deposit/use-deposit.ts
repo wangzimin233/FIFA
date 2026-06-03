@@ -6,8 +6,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import {
   BaseError,
   ContractFunctionRevertedError,
-  encodeFunctionData,
-  type Abi,
   type AbiEvent,
   type Address,
   type Hash,
@@ -17,11 +15,22 @@ import { parseUnits } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { rechargeDepositAbi } from '../../../config/contracts'
 import type { WalletUserInfoResponse } from '../../wallet-auth/api'
+import { useWalletAuthStore } from '../../wallet-auth/auth-store'
 import {
   clearDepositCallbackState,
   loadDepositCallbackState,
   saveDepositCallbackState,
 } from '../../wallet-auth/storage'
+import {
+  describeProvider,
+  ensureWalletProviderBscNetwork,
+  isDuplicateProviderError,
+  resolveWalletProvider,
+  sendContractTransaction,
+  WALLET_PROVIDER_CONFLICT_MESSAGE,
+  type Eip1193Provider,
+  type WalletProviderPreference,
+} from '../provider-registry'
 import type { WalletContractConfigResponse } from './api'
 import { createDepositOrder, notifyDepositCallback } from './api'
 import {
@@ -31,36 +40,6 @@ import {
   isAddressLike,
   usdtErc20Abi,
 } from './contracts'
-
-type Eip1193Provider = {
-  request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>
-  selectedAddress?: string
-  chainId?: string
-  isMetaMask?: boolean
-  isTokenPocket?: boolean
-  isTronLink?: boolean
-  isOkxWallet?: boolean
-  providers?: Eip1193Provider[]
-}
-
-type Eip6963ProviderDetail = {
-  info?: {
-    name?: string
-    rdns?: string
-    uuid?: string
-  }
-  provider?: Eip1193Provider
-}
-
-type ScoredProvider = {
-  accounts: string[]
-  chainId?: string
-  isMixedProvider: boolean
-  matchesWalletAddress: boolean
-  provider: Eip1193Provider
-  score: number
-  source: string
-}
 
 export type DepositStatus =
   | 'idle'
@@ -80,11 +59,8 @@ type DepositCallbackState = {
 }
 
 const CALLBACK_RETRY_DELAYS_MS = [2_000, 4_000, 6_000, 10_000, 15_000, 25_000]
-const EIP6963_COLLECT_DELAY_MS = 200
 const DUPLICATE_RECOVERY_RETRY_DELAYS_MS = [2_000, 4_000, 8_000, 15_000]
 const DEPOSIT_LOG_LOOKBACK_BLOCKS = 2_000n
-const WALLET_PROVIDER_CONFLICT_MESSAGE =
-  '检测到 MetaMask 和 TokenPocket 同时注入并混用了同一个钱包 Provider。为避免重复发起链上交易，请临时停用未使用的钱包插件，或只保留当前要用的钱包后刷新页面。'
 
 const usdtDepositedEvent = rechargeDepositAbi.find(
   (entry) => entry.type === 'event' && entry.name === 'USDTDeposited',
@@ -187,281 +163,6 @@ function resolveOrderId(orderNo: string | undefined, orderId: string | number) {
   return parseOrderId(orderId)
 }
 
-function normalizeAddress(value: string | undefined | null) {
-  return value?.trim().toLowerCase() ?? ''
-}
-
-function describeProvider(provider: Eip1193Provider | undefined) {
-  if (!provider) {
-    return {
-      hasProvider: false,
-    }
-  }
-
-  return {
-    hasProvider: true,
-    isMetaMask: Boolean(provider.isMetaMask),
-    isTokenPocket: Boolean(provider.isTokenPocket),
-    isTronLink: Boolean(provider.isTronLink),
-    isOkxWallet: Boolean(provider.isOkxWallet),
-    selectedAddress: provider.selectedAddress,
-    chainId: provider.chainId,
-  }
-}
-
-function describeScoredProvider(provider: ScoredProvider | null) {
-  if (!provider) {
-    return {
-      hasProvider: false,
-    }
-  }
-
-  return {
-    ...describeProvider(provider.provider),
-    accounts: provider.accounts,
-    chainId: provider.chainId,
-    isMixedProvider: provider.isMixedProvider,
-    matchesWalletAddress: provider.matchesWalletAddress,
-    score: provider.score,
-    source: provider.source,
-  }
-}
-
-function isDuplicateProviderError(error: unknown) {
-  const message =
-    (error as { details?: string })?.details ??
-    (error as { shortMessage?: string })?.shortMessage ??
-    (error as { message?: string })?.message ??
-    ''
-
-  return /duplicate call detected/i.test(message)
-}
-
-function getWindowEthereum() {
-  if (typeof window === 'undefined') {
-    return undefined
-  }
-
-  return (window as unknown as Window & { ethereum?: Eip1193Provider }).ethereum
-}
-
-async function requestEip6963Providers() {
-  if (typeof window === 'undefined') {
-    return []
-  }
-
-  const providers: Eip6963ProviderDetail[] = []
-  const handleProvider = (event: Event) => {
-    const detail = (event as CustomEvent<Eip6963ProviderDetail>).detail
-    if (detail?.provider?.request) {
-      providers.push(detail)
-    }
-  }
-
-  window.addEventListener('eip6963:announceProvider', handleProvider)
-  window.dispatchEvent(new Event('eip6963:requestProvider'))
-  await sleep(EIP6963_COLLECT_DELAY_MS)
-  window.removeEventListener('eip6963:announceProvider', handleProvider)
-
-  return providers
-}
-
-async function listCandidateProviders(fallbackProvider: Eip1193Provider | undefined) {
-  const candidates: Array<{ provider: Eip1193Provider; source: string }> = []
-  const seenProviders = new Set<Eip1193Provider>()
-  const addProvider = (provider: Eip1193Provider | undefined, source: string) => {
-    if (!provider?.request || seenProviders.has(provider)) {
-      return
-    }
-
-    seenProviders.add(provider)
-    candidates.push({ provider, source })
-  }
-
-  for (const detail of await requestEip6963Providers()) {
-    const providerName = detail.info?.name || detail.info?.rdns || detail.info?.uuid || 'unknown'
-    addProvider(detail.provider, `eip6963:${providerName}`)
-  }
-
-  const ethereum = getWindowEthereum()
-  const injectedProviders = ethereum?.providers?.filter((provider) => typeof provider?.request === 'function') ?? []
-  injectedProviders.forEach((provider, index) => {
-    addProvider(provider, `window.ethereum.providers[${index}]`)
-  })
-  addProvider(fallbackProvider, 'appkit.walletProvider')
-  addProvider(ethereum, 'window.ethereum')
-
-  return candidates
-}
-
-function chooseTransactionProvider(scoredProviders: ScoredProvider[]) {
-  const byScore = (left: ScoredProvider, right: ScoredProvider) => right.score - left.score
-  const safeMatches = scoredProviders
-    .filter((provider) => provider.matchesWalletAddress && !provider.isMixedProvider && !provider.provider.isTronLink)
-    .sort(byScore)
-
-  if (safeMatches.length > 0) {
-    return safeMatches[0]
-  }
-
-  const unsafeMatches = scoredProviders
-    .filter((provider) => provider.matchesWalletAddress)
-    .sort(byScore)
-
-  if (unsafeMatches.length > 0) {
-    return unsafeMatches[0]
-  }
-
-  return null
-}
-
-async function getProviderAccounts(provider: Eip1193Provider) {
-  try {
-    const accounts = await provider.request({ method: 'eth_accounts' })
-    return Array.isArray(accounts) ? accounts.filter((account): account is string => typeof account === 'string') : []
-  } catch {
-    return []
-  }
-}
-
-async function getProviderChainId(provider: Eip1193Provider) {
-  try {
-    const chainId = await provider.request({ method: 'eth_chainId' })
-    return typeof chainId === 'string' ? chainId : undefined
-  } catch {
-    return undefined
-  }
-}
-
-async function resolveTransactionProvider(walletAddress: string, fallbackProvider: Eip1193Provider | undefined) {
-  const normalizedWalletAddress = normalizeAddress(walletAddress)
-  const candidates = await listCandidateProviders(fallbackProvider)
-  const scoredProviders: ScoredProvider[] = []
-  const hasLikelyMetaMaskProvider = candidates.some(
-    ({ provider, source }) => /metamask/i.test(source) || Boolean(provider.isMetaMask && !provider.isTokenPocket),
-  )
-  const hasLikelyTokenPocketProvider = candidates.some(
-    ({ provider, source }) => /tokenpocket/i.test(source) || Boolean(provider.isTokenPocket),
-  )
-
-  for (const { provider, source } of candidates) {
-    const accounts = await getProviderAccounts(provider)
-    const chainId = await getProviderChainId(provider)
-    const normalizedAccounts = accounts.map(normalizeAddress)
-    const isMixedProvider = Boolean(provider.isMetaMask && provider.isTokenPocket && hasLikelyMetaMaskProvider && hasLikelyTokenPocketProvider)
-    const matchesWalletAddress =
-      normalizedAccounts.includes(normalizedWalletAddress) ||
-      normalizeAddress(provider.selectedAddress) === normalizedWalletAddress
-    let score = 0
-
-    if (matchesWalletAddress) {
-      score += 100
-    }
-
-    if (normalizeAddress(provider.selectedAddress) === normalizedWalletAddress) {
-      score += 40
-    }
-
-    if (chainId?.toLowerCase() === '0x38') {
-      score += 10
-    }
-
-    if (/eip6963/i.test(source)) {
-      score += 8
-    }
-
-    if (/metamask/i.test(source)) {
-      score += 6
-    }
-
-    if (/tokenpocket/i.test(source)) {
-      score += 3
-    }
-
-    if (provider.isTronLink) {
-      score -= 50
-    }
-
-    if (isMixedProvider) {
-      score -= 100
-    }
-
-    scoredProviders.push({
-      accounts,
-      chainId,
-      isMixedProvider,
-      matchesWalletAddress,
-      provider,
-      score,
-      source,
-    })
-  }
-
-  const selectedProvider = chooseTransactionProvider(scoredProviders)
-  console.info('[deposit] transaction provider candidates', scoredProviders.map(describeScoredProvider))
-  console.info('[deposit] selected transaction provider', describeScoredProvider(selectedProvider))
-
-  return selectedProvider
-}
-
-async function sendContractTransaction({
-  abi,
-  address,
-  args,
-  fallbackProvider,
-  from,
-  functionName,
-}: {
-  abi: typeof rechargeDepositAbi | typeof usdtErc20Abi
-  address: string
-  args: readonly unknown[]
-  fallbackProvider?: Eip1193Provider
-  from: string
-  functionName: string
-}) {
-  const selectedProvider = await resolveTransactionProvider(from, fallbackProvider)
-  if (!selectedProvider) {
-    throw new Error('未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。')
-  }
-
-  if (selectedProvider.isMixedProvider) {
-    throw new Error(WALLET_PROVIDER_CONFLICT_MESSAGE)
-  }
-
-  const hashResult = await selectedProvider.provider.request({
-    method: 'eth_sendTransaction',
-    params: [
-      {
-        data: encodeFunctionData({
-          abi: abi as Abi,
-          functionName,
-          args: args as readonly never[],
-        }),
-        from,
-        to: address,
-        value: '0x0',
-      },
-    ],
-  })
-
-  if (typeof hashResult !== 'string' || !hashResult.startsWith('0x')) {
-    throw new Error('钱包未返回有效的交易哈希。')
-  }
-
-  return hashResult as Hash
-}
-
-async function ensureTransactionProviderReady(walletAddress: string, fallbackProvider: Eip1193Provider | undefined) {
-  const selectedProvider = await resolveTransactionProvider(walletAddress, fallbackProvider)
-  if (!selectedProvider) {
-    throw new Error('未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。')
-  }
-
-  if (selectedProvider.isMixedProvider) {
-    throw new Error(WALLET_PROVIDER_CONFLICT_MESSAGE)
-  }
-}
-
 async function recoverDepositHashFromLogs({
   amount,
   contractAddress,
@@ -550,6 +251,7 @@ export function useDeposit({
   const queryClient = useQueryClient()
   const publicClient = usePublicClient({ chainId: BSC_CHAIN_ID })
   const { walletProvider } = useAppKitProvider<Eip1193Provider>('eip155')
+  const session = useWalletAuthStore((state) => state.session)
 
   const [lastCallbackState, setLastCallbackState] = useState<DepositCallbackState | null>(loadInitialDepositCallbackState)
   const [status, setStatus] = useState<DepositStatus>(() => (lastCallbackState ? 'callback_pending' : 'idle'))
@@ -561,6 +263,19 @@ export function useDeposit({
   const usdtAddress = useMemo(
     () => pickUsdtAddress(walletUser, contractConfig),
     [contractConfig, walletUser],
+  )
+  const preferredIdentity = useMemo<WalletProviderPreference | undefined>(
+    () =>
+      session
+        ? {
+            walletProviderId: session.walletProviderId,
+            walletProviderName: session.walletProviderName,
+            walletProviderRdns: session.walletProviderRdns,
+            walletProviderSource: session.walletProviderSource,
+            walletProviderUuid: session.walletProviderUuid,
+          }
+        : undefined,
+    [session],
   )
 
   const reset = useCallback(() => {
@@ -586,7 +301,11 @@ export function useDeposit({
 
     const checkProvider = async () => {
       try {
-        const selectedProvider = await resolveTransactionProvider(walletAddress, walletProvider)
+        const selectedProvider = await resolveWalletProvider({
+          fallbackProvider: walletProvider,
+          preferredIdentity,
+          walletAddress,
+        })
         if (isCancelled) {
           return
         }
@@ -609,7 +328,7 @@ export function useDeposit({
     return () => {
       isCancelled = true
     }
-  }, [isConnected, walletAddress, walletProvider])
+  }, [isConnected, preferredIdentity, walletAddress, walletProvider])
 
   const invalidateWalletData = useCallback(async () => {
     await Promise.all([
@@ -669,27 +388,21 @@ export function useDeposit({
     [invalidateWalletData, onSuccess],
   )
 
-  const ensureBscNetwork = useCallback(async () => {
-    if (!walletProvider?.request) {
-      throw new Error('当前未获取到钱包 Provider，请重新连接钱包后重试。')
-    }
+  const ensureBscNetwork = useCallback(
+    async () => {
+      if (!walletAddress || !isAddressLike(walletAddress)) {
+        throw new Error('请先连接钱包。')
+      }
 
-    const currentChainId = await walletProvider.request({ method: 'eth_chainId' })
-    const normalizedChainId =
-      typeof currentChainId === 'string' && currentChainId.startsWith('0x')
-        ? Number.parseInt(currentChainId, 16)
-        : Number(currentChainId)
-
-    if (normalizedChainId === BSC_CHAIN_ID) {
-      return
-    }
-
-    setStatus('switching_network')
-    await walletProvider.request({
-      method: 'wallet_switchEthereumChain',
-      params: [{ chainId: '0x38' }],
-    })
-  }, [walletProvider])
+      await ensureWalletProviderBscNetwork({
+        fallbackProvider: walletProvider,
+        onSwitching: () => setStatus('switching_network'),
+        preferredIdentity,
+        walletAddress,
+      })
+    },
+    [preferredIdentity, walletAddress, walletProvider],
+  )
 
   const submitDeposit = useCallback(
     async (amountInput: string) => {
@@ -749,7 +462,6 @@ export function useDeposit({
 
       try {
         await ensureBscNetwork()
-        await ensureTransactionProviderReady(walletAddress, walletProvider)
 
         setStatus('creating_order')
         const orderResult = await createDepositOrder({
@@ -810,6 +522,7 @@ export function useDeposit({
             fallbackProvider: walletProvider,
             from: walletAddress,
             functionName: 'approve',
+            preferredIdentity,
           })
           console.info('[deposit] approve transaction success', {
             hash: approveHash,
@@ -859,6 +572,7 @@ export function useDeposit({
             fallbackProvider: walletProvider,
             from: walletAddress,
             functionName: 'depositUSDT',
+            preferredIdentity,
           })
         } catch (sendError) {
           if (!isDuplicateProviderError(sendError)) {
@@ -923,6 +637,7 @@ export function useDeposit({
       isConnected,
       isSessionReady,
       publicClient,
+      preferredIdentity,
       runCallback,
       usdtAddress,
       walletAddress,
