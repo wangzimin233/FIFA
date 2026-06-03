@@ -1,15 +1,27 @@
 import { useAppKit } from '@reown/appkit/react'
 import { toast } from '@heroui/react'
-import { useQuery } from '@tanstack/react-query'
-import { motion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
 import { getWalletContractConfig } from '../features/wallet/deposit/api'
 import { useDeposit } from '../features/wallet/deposit/use-deposit'
+import {
+  getDepositHistory,
+  getWithdrawHistory,
+  type DepositOrderPageItem,
+  type WalletHistoryPage,
+  type WithdrawOrderPageItem,
+} from '../features/wallet/history/api'
 import { useWithdraw } from '../features/wallet/withdraw/use-withdraw'
 import { shortenAddress, shortenHash } from '../lib/format'
+
+const WALLET_HISTORY_PAGE_SIZE = 10
+
+type ActiveAction = 'deposit' | 'withdraw' | null
+type ActiveHistory = 'deposit' | 'withdraw' | null
 
 function resolveDepositStatusMeta(status: ReturnType<typeof useDeposit>['status']) {
   const labelMap: Record<ReturnType<typeof useDeposit>['status'], string> = {
@@ -131,12 +143,585 @@ function resolveWithdrawButtonLabel({
   }
 }
 
-function ProfileDataItem({ label, value }: { label: string; value: string }) {
+function resolveDepositRecordStatus(status: number) {
+  if (status === 3) {
+    return { label: '成功', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+  }
+
+  if (status === 1) {
+    return { label: '待支付', tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
+  }
+
+  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+}
+
+function resolveWithdrawRecordStatus(status: number) {
+  if (status === 4) {
+    return { label: '成功', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+  }
+
+  if (status === 5) {
+    return { label: '驳回', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+  }
+
+  if (status === 3) {
+    return { label: '处理中', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+  }
+
+  if (status === 1) {
+    return { label: '待审核', tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
+  }
+
+  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+}
+
+function formatMaybeDate(value?: string) {
+  if (!value) {
+    return '--'
+  }
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+function formatAmount(value?: string, coinCode = 'USDT') {
+  if (!value) {
+    return '--'
+  }
+
+  return `${value} ${coinCode}`
+}
+
+function IconMark({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-white/6 py-3 last:border-b-0 last:pb-0 first:pt-0">
-      <span className="text-[12px] text-ink-soft sm:text-[13px]">{label}</span>
-      <span className="text-right text-[13px] font-medium text-ink sm:text-[14px]">{value}</span>
+    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-[15px] text-brand">
+      {children}
+    </span>
+  )
+}
+
+function FieldLine({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-3 border-b border-white/6 py-2.5 last:border-b-0">
+      <span className="text-[12px] text-ink-soft">{label}</span>
+      <span className="min-w-0 text-right text-[13px] font-medium text-ink">{value}</span>
     </div>
+  )
+}
+
+function MetricCell({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 border-white/6 px-3 py-3 sm:border-r sm:last:border-r-0">
+      <div className="text-[11px] text-ink-soft">{label}</div>
+      <div className="mt-1 truncate text-[18px] font-semibold text-ink">{value}</div>
+    </div>
+  )
+}
+
+function DialogFrame({
+  children,
+  isOpen,
+  maxWidthClass = 'max-w-xl',
+  onClose,
+}: {
+  children: ReactNode
+  isOpen: boolean
+  maxWidthClass?: string
+  onClose: () => void
+}) {
+  return (
+    <AnimatePresence>
+      {isOpen ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[90] grid place-items-center bg-black/65 px-3 py-4 backdrop-blur-sm sm:px-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              onClose()
+            }
+          }}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 14, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.18 }}
+            className={`max-h-[92vh] w-full overflow-hidden rounded-[24px] border border-white/10 bg-[#171918] shadow-[0_20px_70px_rgba(0,0,0,0.48)] ${maxWidthClass}`}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  )
+}
+
+function DialogHeader({
+  eyebrow,
+  title,
+  status,
+  onClose,
+}: {
+  eyebrow: string
+  title: string
+  status?: ReactNode
+  onClose: () => void
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-white/8 px-4 py-4 sm:px-5">
+      <div className="min-w-0">
+        <div className="text-[11px] font-semibold uppercase text-brand">{eyebrow}</div>
+        <h2 className="mt-1 text-[20px] font-semibold text-ink">{title}</h2>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        {status}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="关闭"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-[18px] leading-none text-ink-soft transition hover:border-white/16 hover:text-ink"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function PrimaryButton({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-12 items-center justify-center rounded-[16px] border border-brand/20 bg-brand px-4 text-[14px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {children}
+    </button>
+  )
+}
+
+function SecondaryButton({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-3 text-[13px] font-semibold text-ink-soft transition hover:border-white/16 hover:bg-white/[0.06] hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {children}
+    </button>
+  )
+}
+
+function DepositActionDialog({
+  amount,
+  authStatus,
+  contractConfigError,
+  deposit,
+  isConnected,
+  isContractConfigError,
+  isContractConfigLoading,
+  isOpen,
+  isSessionReady,
+  minAmount,
+  onAmountChange,
+  onClose,
+  onConnect,
+  onLogin,
+  onSubmit,
+}: {
+  amount: string
+  authStatus: ReturnType<typeof useWalletAuth>['status']
+  contractConfigError: unknown
+  deposit: ReturnType<typeof useDeposit>
+  isConnected: boolean
+  isContractConfigError: boolean
+  isContractConfigLoading: boolean
+  isOpen: boolean
+  isSessionReady: boolean
+  minAmount?: string
+  onAmountChange: (value: string) => void
+  onClose: () => void
+  onConnect: () => void
+  onLogin: () => void
+  onSubmit: () => void
+}) {
+  const statusMeta = resolveDepositStatusMeta(deposit.status)
+  const buttonLabel = resolveDepositButtonLabel({
+    isConnected,
+    isSessionReady,
+    status: deposit.status,
+  })
+
+  return (
+    <DialogFrame isOpen={isOpen} onClose={onClose}>
+      <DialogHeader
+        eyebrow="Recharge"
+        title="BSC USDT 充值"
+        status={<span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${statusMeta.tone}`}>{statusMeta.label}</span>}
+        onClose={onClose}
+      />
+      <div className="max-h-[calc(92vh-73px)] overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="grid gap-2.5 sm:grid-cols-3">
+          <FieldLine label="网络" value="BSC" />
+          <FieldLine label="币种" value="USDT" />
+          <FieldLine label="最小充值" value={minAmount ? `${minAmount} USDT` : '--'} />
+        </div>
+
+        {isContractConfigLoading ? (
+          <p className="mt-4 text-[12px] text-ink-soft">正在加载资金配置...</p>
+        ) : null}
+
+        {isContractConfigError ? (
+          <div className="mt-4 rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200">
+            资金配置读取失败: {contractConfigError instanceof Error ? contractConfigError.message : '未知错误'}
+          </div>
+        ) : null}
+
+        {deposit.lastSuccessHash ? (
+          <div className="mt-4 rounded-[16px] border border-emerald-400/20 bg-emerald-400/10 px-3 py-3 text-[12px] text-emerald-100">
+            最近一次充值交易哈希: {shortenHash(deposit.lastSuccessHash)}
+          </div>
+        ) : null}
+
+        <label className="mt-5 block">
+          <span className="block text-[12px] font-medium text-ink-soft">充值金额</span>
+          <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
+            <input
+              value={amount}
+              onChange={(event) => onAmountChange(event.target.value)}
+              inputMode="decimal"
+              placeholder={minAmount ? `最少 ${minAmount}` : '请输入 USDT 数量'}
+              className="h-14 w-full bg-transparent text-[19px] font-medium text-ink outline-none placeholder:text-ink-soft/45"
+            />
+            <span className="text-[12px] font-semibold uppercase text-ink-soft">USDT</span>
+          </div>
+        </label>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>填入最小金额</SecondaryButton>
+          <SecondaryButton onClick={() => onAmountChange('100')}>快速填入 100</SecondaryButton>
+        </div>
+
+        <div className="mt-4 grid gap-2.5">
+          <PrimaryButton
+            onClick={() => {
+              if (!isConnected) {
+                onConnect()
+                return
+              }
+
+              if (!isSessionReady) {
+                onLogin()
+                return
+              }
+
+              onSubmit()
+            }}
+            disabled={authStatus === 'logging_in' || authStatus === 'signing' || deposit.isBusy || Boolean(deposit.providerWarning)}
+          >
+            {buttonLabel}
+          </PrimaryButton>
+
+          {deposit.hasPendingCallback ? (
+            <SecondaryButton onClick={() => void deposit.retryCallback()}>重新通知后端入账</SecondaryButton>
+          ) : null}
+
+          {deposit.providerWarning ? (
+            <div className="rounded-[16px] border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-[12px] text-amber-100">
+              {deposit.providerWarning}
+            </div>
+          ) : null}
+
+          {(deposit.error || deposit.status === 'error') && deposit.error ? (
+            <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200">
+              {deposit.error}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </DialogFrame>
+  )
+}
+
+function WithdrawActionDialog({
+  amount,
+  authStatus,
+  availableBalance,
+  feeLabel,
+  isConnected,
+  isOpen,
+  isSessionReady,
+  maxAmountLabel,
+  minAmount,
+  minAmountLabel,
+  onAmountChange,
+  onClose,
+  onConnect,
+  onLogin,
+  onSubmit,
+  withdraw,
+}: {
+  amount: string
+  authStatus: ReturnType<typeof useWalletAuth>['status']
+  availableBalance?: string
+  feeLabel: string
+  isConnected: boolean
+  isOpen: boolean
+  isSessionReady: boolean
+  maxAmountLabel: string
+  minAmount?: string
+  minAmountLabel: string
+  onAmountChange: (value: string) => void
+  onClose: () => void
+  onConnect: () => void
+  onLogin: () => void
+  onSubmit: () => void
+  withdraw: ReturnType<typeof useWithdraw>
+}) {
+  const statusMeta = resolveWithdrawStatusMeta(withdraw.status)
+  const buttonLabel = resolveWithdrawButtonLabel({
+    isConnected,
+    isSessionReady,
+    status: withdraw.status,
+  })
+
+  return (
+    <DialogFrame isOpen={isOpen} onClose={onClose}>
+      <DialogHeader
+        eyebrow="Withdraw"
+        title="BSC USDT 提现"
+        status={<span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${statusMeta.tone}`}>{statusMeta.label}</span>}
+        onClose={onClose}
+      />
+      <div className="max-h-[calc(92vh-73px)] overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="grid gap-2.5 sm:grid-cols-2">
+          <FieldLine label="可用余额" value={availableBalance ? `${availableBalance} USDT` : '--'} />
+          <FieldLine label="手续费" value={feeLabel} />
+          <FieldLine label="最小提现" value={minAmountLabel} />
+          <FieldLine label="最大提现" value={maxAmountLabel} />
+        </div>
+
+        <label className="mt-5 block">
+          <span className="block text-[12px] font-medium text-ink-soft">提现金额</span>
+          <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
+            <input
+              value={amount}
+              onChange={(event) => onAmountChange(event.target.value)}
+              inputMode="decimal"
+              placeholder={minAmount ? `最少 ${minAmount}` : '请输入 USDT 数量'}
+              className="h-14 w-full bg-transparent text-[19px] font-medium text-ink outline-none placeholder:text-ink-soft/45"
+            />
+            <span className="text-[12px] font-semibold uppercase text-ink-soft">USDT</span>
+          </div>
+        </label>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>填入最小金额</SecondaryButton>
+          <SecondaryButton onClick={() => onAmountChange(availableBalance || '')}>填入全部可用</SecondaryButton>
+        </div>
+
+        <div className="mt-4 grid gap-2.5">
+          <PrimaryButton
+            onClick={() => {
+              if (!isConnected) {
+                onConnect()
+                return
+              }
+
+              if (!isSessionReady) {
+                onLogin()
+                return
+              }
+
+              onSubmit()
+            }}
+            disabled={authStatus === 'logging_in' || authStatus === 'signing' || withdraw.isBusy}
+          >
+            {buttonLabel}
+          </PrimaryButton>
+
+          {(withdraw.error || withdraw.status === 'error') && withdraw.error ? (
+            <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200">
+              {withdraw.error}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </DialogFrame>
+  )
+}
+
+function DepositRecordRow({ item }: { item: DepositOrderPageItem }) {
+  const status = resolveDepositRecordStatus(item.status)
+
+  return (
+    <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-ink">{item.orderNo}</div>
+          <div className="mt-1 text-[12px] text-ink-soft">{formatMaybeDate(item.createTime)}</div>
+        </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}>
+          {status.label}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
+        <span>金额: <b className="font-semibold text-ink">{formatAmount(item.amount, item.coinCode)}</b></span>
+        <span>网络: <b className="font-semibold text-ink">{item.chainType}</b></span>
+        <span>哈希: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+      </div>
+    </div>
+  )
+}
+
+function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
+  const status = resolveWithdrawRecordStatus(item.status)
+
+  return (
+    <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-ink">{item.withdrawNo}</div>
+          <div className="mt-1 text-[12px] text-ink-soft">{formatMaybeDate(item.createTime)}</div>
+        </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}>
+          {status.label}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
+        <span>申请: <b className="font-semibold text-ink">{formatAmount(item.applyAmount, item.coinCode)}</b></span>
+        <span>到账: <b className="font-semibold text-ink">{formatAmount(item.actualAmount, item.coinCode)}</b></span>
+        <span>手续费: <b className="font-semibold text-ink">{formatAmount(item.feeAmount, item.coinCode)}</b></span>
+      </div>
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
+        <span>地址: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
+        <span>哈希: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+      </div>
+      {item.rejectReason ? <div className="mt-2 text-[12px] text-rose-200">驳回原因: {item.rejectReason}</div> : null}
+    </div>
+  )
+}
+
+function WalletHistoryDialog({
+  isOpen,
+  isSessionReady,
+  kind,
+  onClose,
+}: {
+  isOpen: boolean
+  isSessionReady: boolean
+  kind: ActiveHistory
+  onClose: () => void
+}) {
+  type WalletRecordItem = DepositOrderPageItem | WithdrawOrderPageItem
+
+  const historyQuery = useInfiniteQuery<WalletHistoryPage<WalletRecordItem>, Error>({
+    queryKey: ['wallet-history', kind, 'BSC', WALLET_HISTORY_PAGE_SIZE],
+    queryFn: async ({ pageParam }) => {
+      const page = Number(pageParam)
+      if (kind === 'deposit') {
+        return (await getDepositHistory({
+          page,
+          pageSize: WALLET_HISTORY_PAGE_SIZE,
+          chainType: 'BSC',
+        })) as WalletHistoryPage<WalletRecordItem>
+      }
+
+      return (await getWithdrawHistory({
+        page,
+        pageSize: WALLET_HISTORY_PAGE_SIZE,
+        chainType: 'BSC',
+      })) as WalletHistoryPage<WalletRecordItem>
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
+    enabled: isOpen && isSessionReady && kind !== null,
+  })
+
+  const items = historyQuery.data?.pages.flatMap((page) => page.list) ?? []
+  const total = historyQuery.data?.pages[0]?.total ?? 0
+  const title = kind === 'deposit' ? '充值记录' : '提现记录'
+  const eyebrow = kind === 'deposit' ? 'Deposit History' : 'Withdraw History'
+
+  return (
+    <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
+      <DialogHeader
+        eyebrow={eyebrow}
+        title={title}
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+        onClose={onClose}
+      />
+      <div
+        className="max-h-[calc(92vh-73px)] overflow-y-auto"
+        onScroll={(event) => {
+          const target = event.currentTarget
+          const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
+          if (isNearBottom && historyQuery.hasNextPage && !historyQuery.isFetchingNextPage) {
+            void historyQuery.fetchNextPage()
+          }
+        }}
+      >
+        {!isSessionReady ? (
+          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看记录。</div>
+        ) : historyQuery.isLoading ? (
+          <div className="grid gap-2 px-4 py-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-20 rounded-[16px] border border-white/8 bg-white/[0.03]" />
+            ))}
+          </div>
+        ) : historyQuery.isError ? (
+          <div className="px-4 py-8 text-center text-[13px] text-rose-200">
+            记录读取失败: {historyQuery.error instanceof Error ? historyQuery.error.message : '未知错误'}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">暂无记录。</div>
+        ) : (
+          <div>
+            {kind === 'deposit'
+              ? (items as DepositOrderPageItem[]).map((item) => <DepositRecordRow key={`${item.id}-${item.orderNo}`} item={item} />)
+              : (items as WithdrawOrderPageItem[]).map((item) => <WithdrawRecordRow key={`${item.id}-${item.withdrawNo}`} item={item} />)}
+          </div>
+        )}
+
+        {historyQuery.isFetchingNextPage ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+        ) : null}
+
+        {!historyQuery.hasNextPage && items.length > 0 ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+        ) : null}
+      </div>
+    </DialogFrame>
   )
 }
 
@@ -144,6 +729,8 @@ export function ProfilePage() {
   const { open } = useAppKit()
   const { address, isConnected, isSessionForConnectedWallet, startWalletAuth, status: authStatus } = useWalletAuth()
   const session = useWalletAuthStore((state) => state.session)
+  const [activeAction, setActiveAction] = useState<ActiveAction>(null)
+  const [activeHistory, setActiveHistory] = useState<ActiveHistory>(null)
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
@@ -186,17 +773,7 @@ export function ProfilePage() {
     walletUser,
   })
 
-  const depositButtonLabel = resolveDepositButtonLabel({
-    isConnected,
-    isSessionReady: isSessionForConnectedWallet,
-    status: deposit.status,
-  })
   const depositStatusMeta = resolveDepositStatusMeta(deposit.status)
-  const withdrawButtonLabel = resolveWithdrawButtonLabel({
-    isConnected,
-    isSessionReady: isSessionForConnectedWallet,
-    status: withdraw.status,
-  })
   const withdrawStatusMeta = resolveWithdrawStatusMeta(withdraw.status)
   const connectionLabel = !isConnected ? '未连接' : isSessionForConnectedWallet ? '已登录' : '待登录'
   const connectionTone = !isConnected
@@ -204,6 +781,7 @@ export function ProfilePage() {
     : isSessionForConnectedWallet
       ? 'border-brand/20 bg-brand/12 text-brand'
       : 'border-amber-400/20 bg-amber-400/10 text-amber-200'
+  const userTypeLabel = walletUser?.userType === 2 ? '节点用户' : walletUser?.userType === 1 ? '普通用户' : '--'
   const inviteLink = useMemo(() => {
     if (typeof window === 'undefined' || !walletUser?.inviteCode) {
       return ''
@@ -213,411 +791,277 @@ export function ProfilePage() {
   }, [walletUser?.inviteCode])
   const withdrawMinAmount = Number(contractConfig?.withdrawMinAmount ?? '')
   const withdrawMaxAmount = Number(contractConfig?.withdrawMaxAmount ?? '')
+  const withdrawMinAmountLabel =
+    Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? `${contractConfig?.withdrawMinAmount} USDT` : '不限'
+  const withdrawMaxAmountLabel =
+    Number.isFinite(withdrawMaxAmount) && withdrawMaxAmount > 0 ? `${contractConfig?.withdrawMaxAmount} USDT` : '不限'
+  const withdrawFeeLabel = contractConfig?.withdrawFeeValue
+    ? contractConfig.withdrawFeeType === 2
+      ? `${contractConfig.withdrawFeeValue}%`
+      : `${contractConfig.withdrawFeeValue} USDT`
+    : '--'
+
+  const requireWalletReady = (next: () => void) => {
+    if (!isConnected) {
+      open()
+      return
+    }
+
+    if (!isSessionForConnectedWallet) {
+      void startWalletAuth()
+      return
+    }
+
+    next()
+  }
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22 }}
-      className="grid gap-4 sm:gap-5"
-    >
-      <section className="overflow-hidden rounded-[26px] border border-white/8 bg-panel/95 shadow-[0_18px_36px_rgba(0,0,0,0.18)]">
-        <div className="bg-[radial-gradient(circle_at_top_right,rgba(0,255,65,0.16),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0))] px-4 py-5 sm:px-5 sm:py-6 lg:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-[38rem]">
-              <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-brand sm:text-[11px]">Profile</div>
-              <h1 className="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-ink sm:text-[34px]">
-                个人中心
-              </h1>
-              <p className="mt-2 max-w-[34rem] text-[13px] leading-6 text-ink-soft sm:text-[14px]">
-                这里集中展示当前钱包身份、BSC-USDT 资产，以及充值和提现入口，保留资金操作所需的信息，其余内容尽量收敛。
-              </p>
+    <>
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22 }}
+        className="grid gap-3 sm:gap-4"
+      >
+        <section className="rounded-[22px] border border-white/8 bg-panel/95 px-4 py-3 shadow-[0_14px_28px_rgba(0,0,0,0.16)] sm:px-5">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <IconMark>◎</IconMark>
+              <div className="min-w-0">
+                <h1 className="text-[22px] font-semibold text-ink sm:text-[26px]">个人中心</h1>
+                <div className="mt-0.5 truncate text-[12px] text-ink-soft">
+                  {walletUser?.walletAddress ? shortenAddress(walletUser.walletAddress) : address ? shortenAddress(address) : '连接钱包后管理资产'}
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <div
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold sm:text-[12px] ${connectionTone}`}
-              >
+              <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${connectionTone}`}>
                 钱包状态: {connectionLabel}
-              </div>
-              <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft sm:text-[12px]">
+              </span>
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
                 网络: BSC
-              </div>
+              </span>
+              <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${depositStatusMeta.tone}`}>
+                充值: {depositStatusMeta.label}
+              </span>
+              <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${withdrawStatusMeta.tone}`}>
+                提现: {withdrawStatusMeta.label}
+              </span>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
-        <div className="rounded-[26px] border border-white/8 bg-panel/95 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] sm:p-5 lg:p-6">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.18em] text-ink-soft/80 sm:text-[12px]">Wallet</div>
-              <h2 className="mt-1 text-[20px] font-semibold tracking-tight text-ink sm:text-[24px]">钱包与资产</h2>
-            </div>
-            <div className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft sm:text-[12px]">
-              资产概览
-            </div>
-          </div>
-
-          {!isConnected ? (
-            <div className="mt-5 rounded-[20px] border border-dashed border-white/10 bg-white/[0.03] px-4 py-5 text-[13px] leading-6 text-ink-soft sm:px-5 sm:text-[14px]">
-              还没有连接钱包，点击右上角按钮先连接，随后这里会显示当前账户和资产信息。
-            </div>
-          ) : !isSessionForConnectedWallet ? (
-            <div className="mt-5 rounded-[20px] border border-amber-400/20 bg-amber-400/10 px-4 py-5 text-[13px] leading-6 text-amber-100 sm:px-5 sm:text-[14px]">
-              钱包已连接，但尚未完成登录。完成签名后，这里会展示真实用户信息，充值接口也才能正常使用。
-            </div>
-          ) : isLoading ? (
-            <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4 sm:p-5">
-                <div className="h-4 w-20 rounded-full bg-white/6" />
-                <div className="mt-6 h-4 w-full rounded-full bg-white/6" />
-                <div className="mt-3 h-4 w-[78%] rounded-full bg-white/6" />
-                <div className="mt-3 h-4 w-[62%] rounded-full bg-white/6" />
-              </div>
-              <div className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4 sm:p-5">
-                <div className="h-4 w-28 rounded-full bg-white/6" />
-                <div className="mt-5 h-12 w-40 rounded-[18px] bg-white/6" />
-                <div className="mt-5 grid grid-cols-3 gap-2">
-                  <div className="h-16 rounded-[16px] bg-white/6" />
-                  <div className="h-16 rounded-[16px] bg-white/6" />
-                  <div className="h-16 rounded-[16px] bg-white/6" />
-                </div>
+        {!isConnected ? (
+          <section className="rounded-[22px] border border-dashed border-white/10 bg-panel/95 px-4 py-8 text-center text-[13px] text-ink-soft">
+            还没有连接钱包。连接后这里会展示账户、资产、充值、提现与记录入口。
+          </section>
+        ) : !isSessionForConnectedWallet ? (
+          <section className="rounded-[22px] border border-amber-400/20 bg-amber-400/10 px-4 py-8 text-center text-[13px] text-amber-100">
+            钱包已连接，完成签名登录后即可查看资产和资金记录。
+          </section>
+        ) : isLoading ? (
+          <section className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+            <div className="h-72 rounded-[22px] border border-white/8 bg-panel/95 p-4">
+              <div className="h-5 w-32 rounded-full bg-white/6" />
+              <div className="mt-8 h-12 w-56 rounded-[16px] bg-white/6" />
+              <div className="mt-8 grid gap-2 sm:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="h-20 rounded-[16px] bg-white/6" />
+                ))}
               </div>
             </div>
-          ) : isError ? (
-            <div className="mt-5 rounded-[20px] border border-rose-500/20 bg-rose-500/10 px-4 py-5 text-[13px] leading-6 text-rose-200 sm:px-5 sm:text-[14px]">
-              钱包用户信息读取失败: {error instanceof Error ? error.message : '未知错误'}
+            <div className="h-72 rounded-[22px] border border-white/8 bg-panel/95 p-4">
+              <div className="h-5 w-24 rounded-full bg-white/6" />
+              <div className="mt-5 grid gap-3">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="h-8 rounded-full bg-white/6" />
+                ))}
+              </div>
             </div>
-          ) : walletUser ? (
-            <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-              <div className="rounded-[20px] border border-white/8 bg-white/[0.03] p-4 sm:p-5">
-                <div className="text-[11px] uppercase tracking-[0.18em] text-ink-soft/80 sm:text-[12px]">Identity</div>
-                <div className="mt-4">
-                  <ProfileDataItem label="钱包地址" value={shortenAddress(walletUser.walletAddress)} />
-                  <ProfileDataItem label="用户 ID" value={String(walletUser.userId)} />
-                  <ProfileDataItem label="邀请码" value={walletUser.inviteCode || '--'} />
-                </div>
-
-                {inviteLink ? (
-                  <div className="mt-5 rounded-[18px] border border-white/8 bg-black/10 p-3.5 sm:p-4">
-                    <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">
-                      Invite Link
+          </section>
+        ) : isError ? (
+          <section className="rounded-[22px] border border-rose-500/20 bg-rose-500/10 px-4 py-8 text-center text-[13px] text-rose-200">
+            钱包用户信息读取失败: {error instanceof Error ? error.message : '未知错误'}
+          </section>
+        ) : walletUser ? (
+          <section className="grid gap-3 lg:grid-cols-[minmax(0,1.24fr)_minmax(320px,0.76fr)]">
+            <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
+              <div className="border-b border-white/8 px-4 py-4 sm:px-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-semibold uppercase text-brand">Balance</div>
+                    <div className="mt-1 text-[32px] font-semibold text-ink sm:text-[40px]">
+                      {primaryAsset ? formatAmount(primaryAsset.availableBalance, primaryAsset.coinCode) : '--'}
                     </div>
-                    <p className="mt-2 break-all text-[12px] leading-5 text-ink-soft sm:text-[13px]">{inviteLink}</p>
+                    <div className="mt-1 text-[12px] text-ink-soft">BSC-USDT 可用余额</div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:w-[16rem]">
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          setIsCopyingInviteLink(true)
-                          await navigator.clipboard.writeText(inviteLink)
-                          toast.success('邀请链接已复制')
-                        } catch {
-                          toast('复制失败，请手动复制')
-                        } finally {
-                          setIsCopyingInviteLink(false)
-                        }
-                      }}
-                      disabled={isCopyingInviteLink}
-                      className="mt-3 inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] px-4 text-[12px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => requireWalletReady(() => setActiveAction('deposit'))}
+                      className="inline-flex h-11 items-center justify-center rounded-[15px] border border-brand/20 bg-brand px-3 text-[13px] font-semibold text-black transition hover:bg-[#19ff53]"
                     >
-                      {isCopyingInviteLink ? '复制中...' : '复制邀请链接'}
+                      充值
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => requireWalletReady(() => setActiveAction('withdraw'))}
+                      className="inline-flex h-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-3 text-[13px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
+                    >
+                      提现
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => requireWalletReady(() => setActiveHistory('deposit'))}
+                      className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
+                    >
+                      充值记录
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => requireWalletReady(() => setActiveHistory('withdraw'))}
+                      className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
+                    >
+                      提现记录
                     </button>
                   </div>
-                ) : null}
+                </div>
               </div>
 
-              <div className="rounded-[20px] border border-brand/12 bg-[linear-gradient(180deg,rgba(0,255,65,0.08),rgba(255,255,255,0.02))] p-4 sm:p-5">
+              <div className="grid border-b border-white/8 sm:grid-cols-5">
+                <MetricCell label="总余额" value={primaryAsset?.totalBalance ?? '--'} />
+                <MetricCell label="冻结余额" value={primaryAsset?.frozenBalance ?? '--'} />
+                <MetricCell label="累计充值" value={primaryAsset?.rechargeTotal ?? '--'} />
+                <MetricCell label="累计提现" value={primaryAsset?.withdrawTotal ?? '--'} />
+                <MetricCell label="币种" value={primaryAsset ? `${primaryAsset.chainCode}-${primaryAsset.coinCode}` : '--'} />
+              </div>
+
+              <div className="grid gap-0 sm:grid-cols-2">
+                <div className="border-b border-white/8 px-4 py-4 sm:border-b-0 sm:border-r sm:px-5">
+                  <div className="text-[11px] font-semibold uppercase text-ink-soft">充值规则</div>
+                  <div className="mt-2 grid gap-0">
+                    <FieldLine label="最小金额" value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
+                    <FieldLine label="链类型" value={contractConfig?.chainType ?? 'BSC'} />
+                    <FieldLine label="合约数量" value={contractConfig?.contracts.length ?? '--'} />
+                  </div>
+                </div>
+                <div className="px-4 py-4 sm:px-5">
+                  <div className="text-[11px] font-semibold uppercase text-ink-soft">提现规则</div>
+                  <div className="mt-2 grid gap-0">
+                    <FieldLine label="限额" value={`${withdrawMinAmountLabel} / ${withdrawMaxAmountLabel}`} />
+                    <FieldLine label="手续费" value={withdrawFeeLabel} />
+                    <FieldLine label="可用余额" value={withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
+              <div className="border-b border-white/8 px-4 py-4 sm:px-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-[11px] uppercase tracking-[0.18em] text-ink-soft/80 sm:text-[12px]">Balance</div>
-                    <div className="mt-2 text-[30px] font-semibold tracking-[-0.04em] text-ink sm:text-[38px]">
-                      {primaryAsset ? `${primaryAsset.availableBalance} ${primaryAsset.coinCode}` : '--'}
-                    </div>
+                    <div className="text-[11px] font-semibold uppercase text-brand">Identity</div>
+                    <h2 className="mt-1 text-[20px] font-semibold text-ink">账户身份</h2>
                   </div>
-                  <div className="rounded-full border border-brand/20 bg-brand/12 px-3 py-1.5 text-[11px] font-semibold text-brand sm:text-[12px]">
-                    BSC-USDT
-                  </div>
-                </div>
-
-                <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 px-3 py-3">
-                    <div className="text-[11px] text-ink-soft sm:text-[12px]">累计充值</div>
-                    <div className="mt-2 text-[18px] font-semibold text-ink sm:text-[20px]">
-                      {primaryAsset?.rechargeTotal ?? '--'}
-                    </div>
-                  </div>
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 px-3 py-3">
-                    <div className="text-[11px] text-ink-soft sm:text-[12px]">累计提现</div>
-                    <div className="mt-2 text-[18px] font-semibold text-ink sm:text-[20px]">
-                      {primaryAsset?.withdrawTotal ?? '--'}
-                    </div>
-                  </div>
-                  <div className="rounded-[16px] border border-white/8 bg-black/10 px-3 py-3">
-                    <div className="text-[11px] text-ink-soft sm:text-[12px]">冻结余额</div>
-                    <div className="mt-2 text-[18px] font-semibold text-ink sm:text-[20px]">
-                      {primaryAsset?.frozenBalance ?? '--'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="grid gap-4">
-          <div className="rounded-[26px] border border-white/8 bg-panel/95 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] sm:p-5 lg:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-ink-soft/80 sm:text-[12px]">Recharge</div>
-                <h2 className="mt-1 text-[20px] font-semibold tracking-tight text-ink sm:text-[24px]">BSC USDT 充值</h2>
-              </div>
-              <div
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold sm:text-[12px] ${depositStatusMeta.tone}`}
-              >
-                {depositStatusMeta.label}
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-[20px] border border-white/8 bg-white/[0.03] p-4 sm:p-5">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">网络</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">BSC</div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">币种</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">USDT</div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">最小金额</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">
-                    {contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'}
-                  </div>
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
+                    {userTypeLabel}
+                  </span>
                 </div>
               </div>
 
-              {isContractConfigLoading ? (
-                <p className="mt-4 text-[12px] text-ink-soft sm:text-[13px]">正在加载资金配置...</p>
-              ) : null}
+              <div className="px-4 py-3 sm:px-5">
+                <FieldLine label="钱包地址" value={shortenAddress(walletUser.walletAddress)} />
+                <FieldLine label="用户 ID" value={String(walletUser.userId)} />
+                <FieldLine label="邀请码" value={walletUser.inviteCode || '--'} />
+                <FieldLine label="认证类型" value={walletUser.authType || '--'} />
+              </div>
+
+              <div className="border-t border-white/8 px-4 py-4 sm:px-5">
+                <div className="text-[11px] font-semibold uppercase text-ink-soft">Invite Link</div>
+                <div className="mt-2 min-h-10 break-all rounded-[14px] border border-white/8 bg-black/10 px-3 py-2 text-[12px] leading-5 text-ink-soft">
+                  {inviteLink || '--'}
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!inviteLink) {
+                      toast('暂无邀请链接')
+                      return
+                    }
+
+                    try {
+                      setIsCopyingInviteLink(true)
+                      await navigator.clipboard.writeText(inviteLink)
+                      toast.success('邀请链接已复制')
+                    } catch {
+                      toast('复制失败，请手动复制')
+                    } finally {
+                      setIsCopyingInviteLink(false)
+                    }
+                  }}
+                  disabled={isCopyingInviteLink}
+                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] px-4 text-[12px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isCopyingInviteLink ? '复制中...' : '复制邀请链接'}
+                </button>
+              </div>
 
               {isContractConfigError ? (
-                <div className="mt-4 rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200 sm:text-[13px]">
+                <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
                   资金配置读取失败: {contractConfigError instanceof Error ? contractConfigError.message : '未知错误'}
                 </div>
+              ) : isContractConfigLoading ? (
+                <div className="border-t border-white/8 px-4 py-3 text-[12px] text-ink-soft sm:px-5">正在加载资金配置...</div>
               ) : null}
-
-              {deposit.lastSuccessHash ? (
-                <div className="mt-4 rounded-[16px] border border-emerald-400/20 bg-emerald-400/10 px-3 py-3 text-[12px] text-emerald-100 sm:text-[13px]">
-                  最近一次充值交易哈希: {shortenHash(deposit.lastSuccessHash)}
-                </div>
-              ) : null}
-
-              <label className="mt-5 block">
-                <span className="block text-[12px] font-medium text-ink-soft sm:text-[13px]">充值金额</span>
-                <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
-                  <input
-                    value={depositAmount}
-                    onChange={(event) => setDepositAmount(event.target.value)}
-                    inputMode="decimal"
-                    placeholder={contractConfig?.rechargeMinAmount ? `最少 ${contractConfig.rechargeMinAmount}` : '请输入 USDT 数量'}
-                    className="h-14 w-full bg-transparent text-[18px] font-medium text-ink outline-none placeholder:text-ink-soft/45 sm:text-[20px]"
-                  />
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-soft sm:text-[13px]">
-                    USDT
-                  </span>
-                </div>
-              </label>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => setDepositAmount(contractConfig?.rechargeMinAmount ?? '')}
-                  className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3 text-[13px] font-medium text-ink-soft transition hover:border-white/14 hover:bg-white/[0.06] hover:text-ink"
-                >
-                  填入最小金额
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDepositAmount('100')}
-                  className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3 text-[13px] font-medium text-ink-soft transition hover:border-white/14 hover:bg-white/[0.06] hover:text-ink"
-                >
-                  快速填入 100
-                </button>
-              </div>
-
-              <div className="mt-4 grid gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isConnected) {
-                      open()
-                      return
-                    }
-
-                    if (!isSessionForConnectedWallet) {
-                      void startWalletAuth()
-                      return
-                    }
-
-                    void deposit.submitDeposit(depositAmount)
-                  }}
-                  disabled={authStatus === 'logging_in' || authStatus === 'signing' || deposit.isBusy || Boolean(deposit.providerWarning)}
-                  className="inline-flex h-12 items-center justify-center rounded-[16px] border border-brand/20 bg-brand px-4 text-[14px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {depositButtonLabel}
-                </button>
-
-                {deposit.hasPendingCallback ? (
-                  <button
-                    type="button"
-                    onClick={() => void deposit.retryCallback()}
-                    className="inline-flex h-12 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] px-4 text-[14px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
-                  >
-                    重新通知后端入账
-                  </button>
-                ) : null}
-
-                {deposit.providerWarning ? (
-                  <div className="rounded-[16px] border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-[12px] text-amber-100 sm:text-[13px]">
-                    {deposit.providerWarning}
-                  </div>
-                ) : null}
-
-                {(deposit.error || deposit.status === 'error') && deposit.error ? (
-                  <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200 sm:text-[13px]">
-                    {deposit.error}
-                  </div>
-                ) : null}
-              </div>
             </div>
-          </div>
+          </section>
+        ) : null}
+      </motion.section>
 
-          <div className="rounded-[26px] border border-white/8 bg-panel/95 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.14)] sm:p-5 lg:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.18em] text-ink-soft/80 sm:text-[12px]">Withdraw</div>
-                <h2 className="mt-1 text-[20px] font-semibold tracking-tight text-ink sm:text-[24px]">BSC USDT 提现</h2>
-              </div>
-              <div
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold sm:text-[12px] ${withdrawStatusMeta.tone}`}
-              >
-                {withdrawStatusMeta.label}
-              </div>
-            </div>
+      <DepositActionDialog
+        amount={depositAmount}
+        authStatus={authStatus}
+        contractConfigError={contractConfigError}
+        deposit={deposit}
+        isConnected={isConnected}
+        isContractConfigError={isContractConfigError}
+        isContractConfigLoading={isContractConfigLoading}
+        isOpen={activeAction === 'deposit'}
+        isSessionReady={isSessionForConnectedWallet}
+        minAmount={contractConfig?.rechargeMinAmount}
+        onAmountChange={setDepositAmount}
+        onClose={() => setActiveAction(null)}
+        onConnect={open}
+        onLogin={() => void startWalletAuth()}
+        onSubmit={() => void deposit.submitDeposit(depositAmount)}
+      />
 
-            <div className="mt-5 rounded-[20px] border border-white/8 bg-white/[0.03] p-4 sm:p-5">
-              <div className="grid gap-3 sm:grid-cols-4">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">可用余额</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">
-                    {withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">最小提现</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">
-                    {Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0
-                      ? `${contractConfig?.withdrawMinAmount} USDT`
-                      : '不限'}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">最大提现</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">
-                    {Number.isFinite(withdrawMaxAmount) && withdrawMaxAmount > 0
-                      ? `${contractConfig?.withdrawMaxAmount} USDT`
-                      : '不限'}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.14em] text-ink-soft/80 sm:text-[12px]">手续费</div>
-                  <div className="mt-1 text-[16px] font-semibold text-ink sm:text-[18px]">
-                    {contractConfig?.withdrawFeeValue
-                      ? contractConfig.withdrawFeeType === 2
-                        ? `${contractConfig.withdrawFeeValue}%`
-                        : `${contractConfig.withdrawFeeValue} USDT`
-                      : '--'}
-                  </div>
-                </div>
-              </div>
+      <WithdrawActionDialog
+        amount={withdrawAmount}
+        authStatus={authStatus}
+        availableBalance={withdraw.availableBalance}
+        feeLabel={withdrawFeeLabel}
+        isConnected={isConnected}
+        isOpen={activeAction === 'withdraw'}
+        isSessionReady={isSessionForConnectedWallet}
+        maxAmountLabel={withdrawMaxAmountLabel}
+        minAmount={Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? contractConfig?.withdrawMinAmount : undefined}
+        minAmountLabel={withdrawMinAmountLabel}
+        onAmountChange={setWithdrawAmount}
+        onClose={() => setActiveAction(null)}
+        onConnect={open}
+        onLogin={() => void startWalletAuth()}
+        onSubmit={() => void withdraw.submitWithdraw(withdrawAmount)}
+        withdraw={withdraw}
+      />
 
-              <label className="mt-5 block">
-                <span className="block text-[12px] font-medium text-ink-soft sm:text-[13px]">提现金额</span>
-                <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
-                  <input
-                    value={withdrawAmount}
-                    onChange={(event) => setWithdrawAmount(event.target.value)}
-                    inputMode="decimal"
-                    placeholder={
-                      Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0
-                        ? `最少 ${contractConfig?.withdrawMinAmount}`
-                        : '请输入 USDT 数量'
-                    }
-                    className="h-14 w-full bg-transparent text-[18px] font-medium text-ink outline-none placeholder:text-ink-soft/45 sm:text-[20px]"
-                  />
-                  <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ink-soft sm:text-[13px]">
-                    USDT
-                  </span>
-                </div>
-              </label>
-
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setWithdrawAmount(
-                      Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? contractConfig?.withdrawMinAmount ?? '' : '',
-                    )
-                  }
-                  className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3 text-[13px] font-medium text-ink-soft transition hover:border-white/14 hover:bg-white/[0.06] hover:text-ink"
-                >
-                  填入最小金额
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWithdrawAmount(withdraw.availableBalance || '')
-                  }}
-                  className="rounded-[16px] border border-white/8 bg-white/[0.04] px-3 py-3 text-[13px] font-medium text-ink-soft transition hover:border-white/14 hover:bg-white/[0.06] hover:text-ink"
-                >
-                  填入全部可用
-                </button>
-              </div>
-
-              <div className="mt-4 grid gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isConnected) {
-                      open()
-                      return
-                    }
-
-                    if (!isSessionForConnectedWallet) {
-                      void startWalletAuth()
-                      return
-                    }
-
-                    void withdraw.submitWithdraw(withdrawAmount)
-                  }}
-                  disabled={authStatus === 'logging_in' || authStatus === 'signing' || withdraw.isBusy}
-                  className="inline-flex h-12 items-center justify-center rounded-[16px] border border-brand/20 bg-brand px-4 text-[14px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {withdrawButtonLabel}
-                </button>
-
-                {(withdraw.error || withdraw.status === 'error') && withdraw.error ? (
-                  <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200 sm:text-[13px]">
-                    {withdraw.error}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </motion.section>
+      <WalletHistoryDialog
+        isOpen={activeHistory !== null}
+        isSessionReady={isSessionForConnectedWallet}
+        kind={activeHistory}
+        onClose={() => setActiveHistory(null)}
+      />
+    </>
   )
 }
