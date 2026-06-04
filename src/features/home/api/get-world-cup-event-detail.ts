@@ -152,27 +152,29 @@ function getOrderedTeams(teams?: WorldCupGameTeam[]) {
 function toExactScoreBadge(scoreLabel: string, homeTeam?: WorldCupGameTeam, awayTeam?: WorldCupGameTeam) {
   const match = scoreLabel.match(/(\d+)\s*-\s*(\d+)/)
   if (!match) {
-    return { badge: '◌', badgeLogo: undefined as string | undefined }
+    return { badge: '', badgeLogo: undefined as string | undefined }
   }
 
   const homeScore = Number(match[1])
   const awayScore = Number(match[2])
+  const homeBadge = homeTeam?.abbreviation?.toUpperCase() ?? homeTeam?.name?.slice(0, 3).toUpperCase() ?? ''
+  const awayBadge = awayTeam?.abbreviation?.toUpperCase() ?? awayTeam?.name?.slice(0, 3).toUpperCase() ?? ''
 
   if (homeScore > awayScore) {
     return {
-      badge: homeTeam?.abbreviation?.toUpperCase() ?? homeTeam?.name?.slice(0, 3).toUpperCase() ?? 'HOME',
+      badge: homeBadge,
       badgeLogo: homeTeam?.logo,
     }
   }
 
   if (awayScore > homeScore) {
     return {
-      badge: awayTeam?.abbreviation?.toUpperCase() ?? awayTeam?.name?.slice(0, 3).toUpperCase() ?? 'AWY',
+      badge: awayBadge,
       badgeLogo: awayTeam?.logo,
     }
   }
 
-  return { badge: '◌', badgeLogo: undefined }
+  return { badge: '', badgeLogo: undefined }
 }
 
 function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchDetail['match']): MatchDetailThreeWay | undefined {

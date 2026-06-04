@@ -69,6 +69,10 @@ function getMobileSubject(selection: MarketSelection) {
 }
 
 function MobileSelectionBadge({ value, logo }: { value: string; logo?: string }) {
+  if (!value && !logo) {
+    return null
+  }
+
   return (
     <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-white/8 text-[18px] font-semibold text-ink">
       <TeamMark

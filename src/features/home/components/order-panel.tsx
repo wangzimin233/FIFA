@@ -29,6 +29,10 @@ function getResultTone(selection: MarketSelection) {
 }
 
 function SelectionBadge({ value, logo }: { value: string; logo?: string }) {
+  if (!value && !logo) {
+    return null
+  }
+
   return (
     <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-white/8 text-[18px] font-semibold text-ink">
       <TeamMark
