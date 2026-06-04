@@ -1,19 +1,19 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-
-const DEV_API_TARGET = 'http://192.168.0.12:8080'
+import { createBackendHttpOrigin, normalizeBackendHost } from './src/config/backend'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, process.cwd(), '')
+  const backendHost = normalizeBackendHost(env.VITE_BACKEND_HOST)
 
   return {
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {
         '/api': {
-          target: DEV_API_TARGET,
+          target: createBackendHttpOrigin(backendHost),
           changeOrigin: true,
           secure: false,
         },

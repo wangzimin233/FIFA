@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { env } from '../../config/env'
 import { parsePriceToCents } from '../home/api/get-world-cup-games'
 
 type ConnectionStatus = 'idle' | 'connecting' | 'open' | 'closed'
@@ -27,7 +28,6 @@ type PolymarketPriceState = {
   unsubscribeAssets: (assetIds: string[]) => void
 }
 
-const WS_URL = 'ws://192.168.101.65:8080/ws/polymarket/market'
 const PRICE_FLUSH_INTERVAL_MS = 16
 
 const assetSubscriberCounts = new Map<string, number>()
@@ -387,7 +387,7 @@ function ensureSocket() {
   suppressReconnect = false
   clearReconnectTimer()
   usePolymarketPriceStore.setState({ connectionStatus: 'connecting' })
-  const nextSocket = new WebSocket(WS_URL)
+  const nextSocket = new WebSocket(env.polymarketMarketWsUrl)
   const socketId = ++socketSequence
   socket = nextSocket
 
