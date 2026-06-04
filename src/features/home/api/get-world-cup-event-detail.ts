@@ -5,8 +5,10 @@ import {
   buildTotalLines,
   formatTimeLabel,
   formatVolumeLabel,
+  getMarketVolumeNumTotal,
   getYesNoAssetIds,
   getYesNoPrices,
+  getOrderMarketId,
   hasMarketType,
   normalizeGame,
   type WorldCupGameEvent,
@@ -49,11 +51,6 @@ function resolveEvent(payload: WorldCupEventDetailEnvelope['data']) {
   return payload.event ?? null
 }
 
-function parseNumericValue(value?: number | string) {
-  const numeric = typeof value === 'string' ? Number(value) : value
-  return numeric !== undefined && Number.isFinite(numeric) ? numeric : 0
-}
-
 function getEventForMarketType(event: WorldCupGameEvent | null | undefined, type: string) {
   if (!event) {
     return undefined
@@ -75,12 +72,8 @@ function buildTypedVolumeLabel(
   }
 
   const typedMarkets = event.markets?.filter((market) => market.sportsMarketType === marketType) ?? []
-  const totalVolume = typedMarkets.reduce(
-    (sum, market) => sum + parseNumericValue(market.volumeNum ?? market.volume),
-    0,
-  )
 
-  return formatVolumeLabel(totalVolume || event.volume)
+  return formatVolumeLabel(getMarketVolumeNumTotal(typedMarkets))
 }
 
 function sanitizeMatchTitle(title?: string) {
@@ -202,6 +195,8 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       if (/draw/i.test(label)) {
         return {
           id: String(market.id),
+          marketId: getOrderMarketId(market),
+          negRisk: market.negRisk,
           shortLabel: 'DRAW',
           subject: 'Draw',
           badge: '◌',
@@ -220,6 +215,8 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       if (label.toLowerCase() === home?.subject?.toLowerCase()) {
         return {
           id: String(market.id),
+          marketId: getOrderMarketId(market),
+          negRisk: market.negRisk,
           shortLabel: home.shortLabel,
           subject: home.subject,
           badge: home.badge,
@@ -236,6 +233,8 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       if (label.toLowerCase() === away?.subject?.toLowerCase()) {
         return {
           id: String(market.id),
+          marketId: getOrderMarketId(market),
+          negRisk: market.negRisk,
           shortLabel: away.shortLabel,
           subject: away.subject,
           badge: away.badge,
@@ -266,7 +265,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
   return {
     id: String(event.id),
     title: event.title ?? 'Halftime Result',
-    volumeLabel: formatVolumeLabel(event.volume),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets)),
     outcomes,
   }
 }
@@ -293,8 +292,10 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
 
       return {
         id: String(market.id),
+        marketId: getOrderMarketId(market),
+        negRisk: market.negRisk,
         title: rawTitle,
-        volumeLabel: formatVolumeLabel(market.volumeNum ?? market.volume),
+        volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market])),
         badge,
         badgeLogo,
         shortLabel: scoreLabel,
@@ -322,8 +323,10 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined) {
 
   return {
     id: String(market.id),
+    marketId: getOrderMarketId(market),
+    negRisk: market.negRisk,
     title,
-    volumeLabel: formatVolumeLabel(market.volumeNum ?? market.volume ?? event?.volume),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market])),
     badge: '⚽',
     shortLabel: 'BTTS',
     subject: title,
@@ -418,7 +421,7 @@ export async function getWorldCupEventDetail(slug: string): Promise<MatchDetail 
     headerTimeLabel: formatTimeLabel(eventTime),
     headerDateLabel: formatEventDate(baseEvent?.eventDate ?? primaryEvent.eventDate, eventTime),
     contextDescription: primaryEvent.eventMetadata?.context_description ?? primaryEvent.description,
-    moneylineVolumeLabel: formatVolumeLabel(baseEvent?.volume ?? matchEvent.volume),
+    moneylineVolumeLabel: formatVolumeLabel(getMarketVolumeNumTotal((baseEvent ?? matchEvent).markets)),
     spreadVolumeLabel: buildTypedVolumeLabel(spreadEvent, 'spreads'),
     totalVolumeLabel: buildTypedVolumeLabel(totalEvent, 'totals'),
     spreadVariants,

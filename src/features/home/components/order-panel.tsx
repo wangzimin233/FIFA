@@ -4,8 +4,9 @@ import { type ReactNode, useMemo } from 'react'
 import { useActiveSelectionPrice, useDisplayPrice } from '../../market-realtime/price-utils'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
+import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
 
-const quickAmounts = [1, 5, 10, 100]
+const quickAmounts = [2, 5, 10, 100]
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
@@ -64,6 +65,7 @@ function PanelShell({
 function AmountSection() {
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
+  const { canSubmit, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
   const amountDisplay = useMemo(() => `$${amount}`, [amount])
   const amountTone = amount > 0 ? 'text-ink' : 'text-[#66758d]'
   const computedResult = useMemo(() => {
@@ -133,8 +135,16 @@ function AmountSection() {
         </div>
       ) : null}
 
-      <Button className="mt-5 h-11 w-full rounded-[15px] bg-sky-500 text-[13px] font-semibold text-white shadow-[inset_0_-7px_0_rgba(0,0,0,0.14)] sm:h-12 sm:text-sm">
-        交易
+      <div className="mt-3 text-center text-[11px] font-medium text-ink-soft">
+        最低下单金额 ${MIN_POLYMARKET_ORDER_AMOUNT}
+      </div>
+
+      <Button
+        isDisabled={!canSubmit}
+        onPress={submitOrder}
+        className="mt-5 h-11 w-full rounded-[15px] bg-sky-500 text-[13px] font-semibold text-white shadow-[inset_0_-7px_0_rgba(0,0,0,0.14)] disabled:opacity-60 sm:h-12 sm:text-sm"
+      >
+        {isSubmitting ? '提交中...' : slippageConfirmed ? '确认滑点并交易' : '交易'}
       </Button>
     </>
   )

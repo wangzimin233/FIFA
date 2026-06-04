@@ -6,6 +6,12 @@ import { type ReactNode, useMemo, useState } from 'react'
 import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
+import {
+  getPolymarketOrderDetail,
+  getPolymarketOrdersPage,
+  type PolymarketOrderDetail,
+  type PolymarketOrderPageItem,
+} from '../features/home/api/polymarket-orders'
 import { getWalletContractConfig } from '../features/wallet/deposit/api'
 import { useDeposit } from '../features/wallet/deposit/use-deposit'
 import {
@@ -19,6 +25,7 @@ import { useWithdraw } from '../features/wallet/withdraw/use-withdraw'
 import { shortenAddress, shortenHash } from '../lib/format'
 
 const WALLET_HISTORY_PAGE_SIZE = 10
+const ORDER_HISTORY_PAGE_SIZE = 10
 
 type ActiveAction = 'deposit' | 'withdraw' | null
 type ActiveHistory = 'deposit' | 'withdraw' | null
@@ -222,6 +229,30 @@ function resolveWithdrawRecordStatus(status: number) {
   return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
+function resolvePolymarketOrderStatus(status?: number, errorMessage?: string) {
+  if (errorMessage) {
+    return { label: '异常', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+  }
+
+  if (status === undefined || status === null) {
+    return { label: '--', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  }
+
+  if (status === 1) {
+    return { label: '处理中', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+  }
+
+  if (status === 2) {
+    return { label: '已完成', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+  }
+
+  if (status === 3) {
+    return { label: '失败', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+  }
+
+  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+}
+
 function formatMaybeDate(value?: string) {
   if (!value) {
     return '--'
@@ -247,6 +278,40 @@ function formatAmount(value?: string, coinCode = 'USDT') {
   }
 
   return `${value} ${coinCode}`
+}
+
+function formatNumberValue(value?: number) {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return '--'
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 6,
+  }).format(value)
+}
+
+function formatPercentValue(value?: number) {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return '--'
+  }
+
+  return `${formatNumberValue(value * 100)}%`
+}
+
+function formatOrderDisplayId(item: Pick<PolymarketOrderPageItem, 'orderNo' | 'polymarketOrderId' | 'id'>) {
+  return item.orderNo || item.polymarketOrderId || String(item.id)
+}
+
+function formatJsonPreview(value?: string) {
+  if (!value) {
+    return '--'
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2)
+  } catch {
+    return value
+  }
 }
 
 function IconMark({ children }: { children: ReactNode }) {
@@ -720,6 +785,280 @@ function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
   )
 }
 
+function OrderRecordRow({
+  isSelected,
+  item,
+  onSelect,
+}: {
+  isSelected: boolean
+  item: PolymarketOrderPageItem
+  onSelect: () => void
+}) {
+  const status = resolvePolymarketOrderStatus(item.status, item.errorMessage)
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={[
+        'block w-full border-b border-white/6 px-4 py-3 text-left transition last:border-b-0',
+        isSelected ? 'bg-brand/8' : 'hover:bg-white/[0.03]',
+      ].join(' ')}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-ink">{formatOrderDisplayId(item)}</div>
+          <div className="mt-1 text-[12px] text-ink-soft">{formatMaybeDate(item.createTime)}</div>
+        </div>
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}>
+          {status.label}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
+        <span>金额: <b className="font-semibold text-ink">{formatNumberValue(item.requestAmount)}</b></span>
+        <span>价格: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
+        <span>成交: <b className="font-semibold text-ink">{formatNumberValue(item.filledAmount)}</b></span>
+      </div>
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
+        <span>类型: <b className="font-semibold text-ink">{item.orderType || '--'}</b></span>
+        <span>方向: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
+      </div>
+    </button>
+  )
+}
+
+function DetailCodeBlock({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="border-t border-white/8 px-4 py-4 sm:px-5">
+      <div className="mb-2 text-[11px] font-semibold uppercase text-ink-soft">{label}</div>
+      <pre className="max-h-44 overflow-auto rounded-[14px] border border-white/8 bg-black/20 p-3 text-[11px] leading-5 text-ink-soft">
+        {formatJsonPreview(value)}
+      </pre>
+    </div>
+  )
+}
+
+function OrderDetailPanel({
+  detail,
+  error,
+  isLoading,
+}: {
+  detail?: PolymarketOrderDetail | null
+  error: unknown
+  isLoading: boolean
+}) {
+  if (isLoading) {
+    return (
+      <div className="grid gap-2 px-4 py-4 sm:px-5">
+        {Array.from({ length: 8 }).map((_, index) => (
+          <div key={index} className="h-10 rounded-[14px] bg-white/[0.04]" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="px-4 py-8 text-center text-[13px] text-rose-200 sm:px-5">
+        订单详情读取失败: {error instanceof Error ? error.message : '未知错误'}
+      </div>
+    )
+  }
+
+  if (!detail) {
+    return <div className="px-4 py-8 text-center text-[13px] text-ink-soft sm:px-5">点击左侧订单查看详情。</div>
+  }
+
+  const status = resolvePolymarketOrderStatus(detail.status, detail.errorMessage)
+
+  return (
+    <div>
+      <div className="border-b border-white/8 bg-brand/8 px-4 py-4 sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase text-brand">Selected Order</div>
+            <div className="mt-1 break-all text-[18px] font-semibold text-ink">{formatOrderDisplayId(detail)}</div>
+            <div className="mt-2 text-[12px] text-ink-soft">{formatMaybeDate(detail.createTime)}</div>
+          </div>
+          <span className={`w-fit shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${status.tone}`}>
+            {status.label}
+          </span>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 sm:px-5">
+        <FieldLine label="Polymarket ID" value={detail.polymarketOrderId || '--'} />
+        <FieldLine label="Market" value={<span className="break-all font-mono text-[12px]">{detail.market || '--'}</span>} />
+        <FieldLine label="Token ID" value={<span className="break-all font-mono text-[12px]">{detail.tokenId || '--'}</span>} />
+        <FieldLine label="方向 / 类型" value={`${detail.side || '--'} / ${detail.orderType || '--'}`} />
+        <FieldLine label="委托价格" value={formatNumberValue(detail.price)} />
+        <FieldLine label="实际买入价" value={formatNumberValue(detail.actualBuyPrice)} />
+        <FieldLine label="请求金额" value={formatNumberValue(detail.requestAmount)} />
+        <FieldLine label="实际买入金额" value={formatNumberValue(detail.actualBuyAmount)} />
+        <FieldLine label="净买入金额" value={formatNumberValue(detail.netBuyAmount)} />
+        <FieldLine label="佣金" value={`${formatNumberValue(detail.commissionAmount)} / ${formatPercentValue(detail.commissionRate)}`} />
+        <FieldLine label="数量" value={`${formatNumberValue(detail.size)} / ${formatNumberValue(detail.filledSize)}`} />
+        <FieldLine label="成交金额" value={formatNumberValue(detail.filledAmount)} />
+        <FieldLine label="创建时间" value={formatMaybeDate(detail.createTime)} />
+        <FieldLine label="更新时间" value={formatMaybeDate(detail.updateTime)} />
+        <FieldLine label="Maker" value={<span className="break-all font-mono text-[12px]">{detail.maker || '--'}</span>} />
+        <FieldLine label="Signer" value={<span className="break-all font-mono text-[12px]">{detail.signer || '--'}</span>} />
+      </div>
+
+      {detail.errorMessage ? (
+        <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
+          {detail.errorMessage}
+        </div>
+      ) : null}
+
+      <DetailCodeBlock label="Request Body" value={detail.requestBody} />
+      <DetailCodeBlock label="Response Body" value={detail.responseBody} />
+    </div>
+  )
+}
+
+function buildOrderPage(data: Awaited<ReturnType<typeof getPolymarketOrdersPage>> | null, fallbackPage: number) {
+  const list = data?.data?.list ?? []
+  const page = Number(data?.data?.page ?? fallbackPage)
+  const pageSize = Number(data?.data?.pageSize ?? ORDER_HISTORY_PAGE_SIZE)
+  const total = Number(data?.data?.total ?? list.length)
+
+  return {
+    list,
+    total,
+    page,
+    pageSize,
+    hasNext: page * pageSize < total,
+  }
+}
+
+function OrderHistoryDialog({
+  isOpen,
+  isSessionReady,
+  onClose,
+}: {
+  isOpen: boolean
+  isSessionReady: boolean
+  onClose: () => void
+}) {
+  const [selectedOrderId, setSelectedOrderId] = useState<number | string | null>(null)
+
+  const orderQuery = useInfiniteQuery<
+    ReturnType<typeof buildOrderPage>,
+    Error
+  >({
+    queryKey: ['polymarket-orders', ORDER_HISTORY_PAGE_SIZE],
+    queryFn: async ({ pageParam }) => {
+      const page = Number(pageParam)
+      const data = await getPolymarketOrdersPage({
+        pageNum: page,
+        pageSize: ORDER_HISTORY_PAGE_SIZE,
+        orderByColumn: 'create_time',
+        isAsc: 'desc',
+      })
+
+      return buildOrderPage(data, page)
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
+    enabled: isOpen && isSessionReady,
+  })
+
+  const detailQuery = useQuery({
+    queryKey: ['polymarket-order-detail', selectedOrderId],
+    queryFn: async () => {
+      if (selectedOrderId === null) {
+        return null
+      }
+
+      const result = await getPolymarketOrderDetail(selectedOrderId)
+      return result.data
+    },
+    enabled: isOpen && isSessionReady && selectedOrderId !== null,
+  })
+
+  const items = orderQuery.data?.pages.flatMap((page) => page.list) ?? []
+  const total = orderQuery.data?.pages[0]?.total ?? 0
+  const closeList = () => {
+    setSelectedOrderId(null)
+    onClose()
+  }
+
+  return (
+    <>
+      <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={closeList}>
+        <DialogHeader
+          eyebrow="Order History"
+          title="订单记录"
+          status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+          onClose={closeList}
+        />
+        <div
+          className="max-h-[calc(92vh-73px)] overflow-y-auto"
+          onScroll={(event) => {
+            const target = event.currentTarget
+            const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
+            if (isNearBottom && orderQuery.hasNextPage && !orderQuery.isFetchingNextPage) {
+              void orderQuery.fetchNextPage()
+            }
+          }}
+        >
+          {!isSessionReady ? (
+            <div className="px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看订单。</div>
+          ) : orderQuery.isLoading ? (
+            <div className="grid gap-2 px-4 py-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={index} className="h-24 rounded-[16px] border border-white/8 bg-white/[0.03]" />
+              ))}
+            </div>
+          ) : orderQuery.isError ? (
+            <div className="px-4 py-8 text-center text-[13px] text-rose-200">
+              订单读取失败: {orderQuery.error instanceof Error ? orderQuery.error.message : '未知错误'}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="px-4 py-8 text-center text-[13px] text-ink-soft">暂无订单。</div>
+          ) : (
+            <div>
+              {items.map((item) => (
+                <OrderRecordRow
+                  key={`${item.id}-${item.orderNo ?? item.polymarketOrderId ?? 'order'}`}
+                  item={item}
+                  isSelected={String(selectedOrderId) === String(item.id)}
+                  onSelect={() => setSelectedOrderId(item.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {orderQuery.isFetchingNextPage ? (
+            <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+          ) : null}
+
+          {!orderQuery.hasNextPage && items.length > 0 ? (
+            <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+          ) : null}
+        </div>
+      </DialogFrame>
+
+      <DialogFrame isOpen={isOpen && selectedOrderId !== null} maxWidthClass="max-w-3xl" onClose={() => setSelectedOrderId(null)}>
+        <DialogHeader
+          eyebrow="Order Detail"
+          title="订单详情"
+          status={<span className="rounded-full border border-brand/20 bg-brand/12 px-3 py-1.5 text-[11px] font-semibold text-brand">详情</span>}
+          onClose={() => setSelectedOrderId(null)}
+        />
+        <div className="max-h-[calc(92vh-73px)] overflow-y-auto">
+          <OrderDetailPanel
+            detail={detailQuery.data}
+            error={detailQuery.isError ? detailQuery.error : null}
+            isLoading={detailQuery.isLoading}
+          />
+        </div>
+      </DialogFrame>
+    </>
+  )
+}
+
 function WalletHistoryDialog({
   isOpen,
   isSessionReady,
@@ -847,6 +1186,7 @@ export function ProfilePage() {
   const session = useWalletAuthStore((state) => state.session)
   const [activeAction, setActiveAction] = useState<ActiveAction>(null)
   const [activeHistory, setActiveHistory] = useState<ActiveHistory>(null)
+  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false)
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
@@ -1041,6 +1381,13 @@ export function ProfilePage() {
                     >
                       提现记录
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => requireWalletReady(() => setIsOrderHistoryOpen(true))}
+                      className="col-span-2 inline-flex h-10 items-center justify-center rounded-[14px] border border-sky-400/20 bg-sky-400/10 px-3 text-[12px] font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/14"
+                    >
+                      订单记录
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1177,6 +1524,12 @@ export function ProfilePage() {
         isSessionReady={isSessionForConnectedWallet}
         kind={activeHistory}
         onClose={() => setActiveHistory(null)}
+      />
+
+      <OrderHistoryDialog
+        isOpen={isOrderHistoryOpen}
+        isSessionReady={isSessionForConnectedWallet}
+        onClose={() => setIsOrderHistoryOpen(false)}
       />
     </>
   )

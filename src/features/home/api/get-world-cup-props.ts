@@ -2,8 +2,10 @@ import { apiClient } from '../../../lib/api-client'
 import type { MarketCard, MarketListCandidate } from '../home-data'
 import {
   formatVolumeLabel,
+  getMarketVolumeNumTotal,
   getYesNoAssetIds,
   getYesNoPrices,
+  getOrderMarketId,
   type WorldCupGameEvent,
   type WorldCupGameMarket,
 } from './get-world-cup-games'
@@ -84,6 +86,8 @@ function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCa
 
   return {
     id: String(market.id ?? `${index}`),
+    marketId: getOrderMarketId(market),
+    negRisk: market.negRisk,
     name: getCandidateName(market, index),
     probability: yesPrice,
     yesPrice,
@@ -117,9 +121,11 @@ function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
       probability: candidate.probability,
       yesPrice: candidate.yesPrice,
       noPrice: candidate.noPrice,
+      marketId: candidate.marketId,
+      negRisk: candidate.negRisk,
       yesAssetId: candidate.yesAssetId,
       noAssetId: candidate.noAssetId,
-      volumeLabel: formatVolumeLabel(markets[0].volumeNum ?? markets[0].volume ?? event.volume),
+      volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([markets[0]])),
     }
   }
 
@@ -131,7 +137,7 @@ function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
     title,
     icon,
     iconLogo,
-    volumeLabel: formatVolumeLabel(event.volume),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(markets)),
     candidates,
     detailCount: candidates.length > 2 ? candidates.length - 2 : undefined,
   }

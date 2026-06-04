@@ -4,8 +4,9 @@ import { useMemo } from 'react'
 import { useActiveSelectionPrice } from '../../market-realtime/price-utils'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
+import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
 
-const quickAmounts = [1, 5, 10, 100]
+const quickAmounts = [2, 5, 10, 100]
 
 function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
@@ -287,6 +288,7 @@ function MobileQuickAmounts() {
 
 function MobileDrawerContent() {
   const { activeSelection } = useOrderStore()
+  const { canSubmit, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
 
   if (!activeSelection) {
     return null
@@ -304,9 +306,16 @@ function MobileDrawerContent() {
         <MobileTotalSegment />
       )}
       <MobileComputedResult />
+      <div className="mt-4 text-center text-[13px] font-medium text-ink-soft">
+        最低下单金额 ${MIN_POLYMARKET_ORDER_AMOUNT}
+      </div>
       <MobileQuickAmounts />
-      <Button className="mt-8 h-16 w-full rounded-[18px] bg-sky-500 text-[18px] font-semibold text-white shadow-[inset_0_-8px_0_rgba(0,0,0,0.14)]">
-        交易
+      <Button
+        isDisabled={!canSubmit}
+        onPress={submitOrder}
+        className="mt-8 h-16 w-full rounded-[18px] bg-sky-500 text-[18px] font-semibold text-white shadow-[inset_0_-8px_0_rgba(0,0,0,0.14)] disabled:opacity-60"
+      >
+        {isSubmitting ? '提交中...' : slippageConfirmed ? '确认滑点并交易' : '交易'}
       </Button>
     </div>
   )

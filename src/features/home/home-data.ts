@@ -2,6 +2,8 @@ export type HomeTab = 'matches' | 'markets'
 
 export type WinnerOutcome = {
   id: string
+  marketId?: string
+  negRisk?: boolean
   shortLabel: string
   subject: string
   badge: string
@@ -15,6 +17,8 @@ export type WinnerOutcome = {
 
 export type SpreadVariant = {
   id: string
+  marketId?: string
+  negRisk?: boolean
   displayLine: string
   homeHandicap: string
   awayHandicap: string
@@ -27,6 +31,8 @@ export type SpreadVariant = {
 
 export type TotalLine = {
   id: string
+  marketId?: string
+  negRisk?: boolean
   line: string
   overPrice: number
   underPrice: number
@@ -66,6 +72,8 @@ export type MatchCard = {
 
 export type MarketListCandidate = {
   id?: string
+  marketId?: string
+  negRisk?: boolean
   name: string
   probability: number
   yesPrice: number
@@ -95,6 +103,8 @@ export type MarketCard =
       probability: number
       yesPrice: number
       noPrice: number
+      marketId?: string
+      negRisk?: boolean
       yesAssetId?: string
       noAssetId?: string
       volumeLabel: string

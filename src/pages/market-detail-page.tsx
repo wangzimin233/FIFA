@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
 import { usePolymarketAssetSubscription } from '../features/market-realtime/use-polymarket-asset-subscription'
@@ -57,6 +57,7 @@ export function MarketDetailPage() {
   const location = useLocation()
   const state = location.state as MarketDetailLocationState | null
   const initialMarket = state?.marketCard?.id === marketId ? state.marketCard : undefined
+  const initialSelectionKeyRef = useRef<string | null>(null)
   const { activeSelection, selectProposition } = useOrderStore()
   const isActiveMarketWinnerSelection =
     activeSelection?.contextType === 'market' && activeSelection.template === 'winner'
@@ -81,6 +82,13 @@ export function MarketDetailPage() {
     }
 
     if (market.kind === 'list') {
+      const requestedCandidateName = state?.preselectedCandidateName ?? market.candidates[0]?.name ?? ''
+      const initialSelectionKey = `${market.id}:${requestedCandidateName}`
+
+      if (initialSelectionKeyRef.current === initialSelectionKey) {
+        return
+      }
+
       const candidate =
         market.candidates.find((item) => item.name === state?.preselectedCandidateName) ?? market.candidates[0]
 
@@ -88,17 +96,24 @@ export function MarketDetailPage() {
         return
       }
 
-      const shouldReselect =
-        !isActiveMarketWinnerSelection ||
-        activeSelection.matchId !== market.id ||
-        activeSelection.subject !== candidate.name
+      const hasSelectionForCurrentMarket =
+        isActiveMarketWinnerSelection &&
+        activeSelection.matchId === market.id &&
+        market.candidates.some((item) => item.name === activeSelection.subject)
+      const shouldApplyRequestedCandidate =
+        Boolean(state?.preselectedCandidateName) &&
+        (!isActiveMarketWinnerSelection ||
+          activeSelection.matchId !== market.id ||
+          activeSelection.subject !== candidate.name)
 
-      if (shouldReselect) {
+      if (!hasSelectionForCurrentMarket || shouldApplyRequestedCandidate) {
         selectProposition(
           {
             contextType: 'market',
             sourceTab: 'markets',
             matchId: market.id,
+            marketId: candidate.marketId ?? candidate.id,
+            negRisk: candidate.negRisk,
             title: market.title,
             badge: market.icon,
             badgeLogo: market.iconLogo,
@@ -114,6 +129,13 @@ export function MarketDetailPage() {
         )
       }
 
+      initialSelectionKeyRef.current = initialSelectionKey
+      return
+    }
+
+    const initialSelectionKey = `${market.id}:${market.subject}`
+
+    if (initialSelectionKeyRef.current === initialSelectionKey) {
       return
     }
 
@@ -128,6 +150,8 @@ export function MarketDetailPage() {
           contextType: 'market',
           sourceTab: 'markets',
           matchId: market.id,
+          marketId: market.marketId ?? market.id,
+          negRisk: market.negRisk,
           title: market.title,
           badge: market.icon,
           badgeLogo: market.iconLogo,
@@ -142,6 +166,8 @@ export function MarketDetailPage() {
         { openPanel: false },
       )
     }
+
+    initialSelectionKeyRef.current = initialSelectionKey
   }, [activeSelection, isActiveMarketWinnerSelection, market, selectProposition, state?.preselectedCandidateName])
 
   if (isLoading && !market) {
@@ -234,6 +260,8 @@ export function MarketDetailPage() {
                               contextType: 'market',
                               sourceTab: 'markets',
                               matchId: market.id,
+                              marketId: candidate.marketId ?? candidate.id,
+                              negRisk: candidate.negRisk,
                               title: market.title,
                               badge: market.icon,
                               badgeLogo: market.iconLogo,
@@ -263,6 +291,8 @@ export function MarketDetailPage() {
                               contextType: 'market',
                               sourceTab: 'markets',
                               matchId: market.id,
+                              marketId: candidate.marketId ?? candidate.id,
+                              negRisk: candidate.negRisk,
                               title: market.title,
                               badge: market.icon,
                               badgeLogo: market.iconLogo,
@@ -311,6 +341,8 @@ export function MarketDetailPage() {
                       contextType: 'market',
                       sourceTab: 'markets',
                       matchId: market.id,
+                      marketId: market.marketId ?? market.id,
+                      negRisk: market.negRisk,
                       title: market.title,
                       badge: market.icon,
                       badgeLogo: market.iconLogo,
@@ -344,6 +376,8 @@ export function MarketDetailPage() {
                       contextType: 'market',
                       sourceTab: 'markets',
                       matchId: market.id,
+                      marketId: market.marketId ?? market.id,
+                      negRisk: market.negRisk,
                       title: market.title,
                       badge: market.icon,
                       badgeLogo: market.iconLogo,

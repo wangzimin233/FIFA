@@ -14,6 +14,8 @@ type BaseSelection = {
 export type WinnerSelection = BaseSelection & {
   template: 'winner'
   marketType: MatchMarketType
+  marketId?: string
+  negRisk?: boolean
   badge: string
   badgeLogo?: string
   subject: string
@@ -63,6 +65,8 @@ type PropositionSelectionInput = {
   contextType: OrderContextType
   sourceTab: HomeTab
   matchId: string
+  marketId?: string
+  negRisk?: boolean
   title: string
   badge: string
   badgeLogo?: string
@@ -122,6 +126,8 @@ const buildWinnerSelection = ({
   sourceTab,
   matchId,
   title,
+  marketId,
+  negRisk,
   badge,
   badgeLogo,
   subject,
@@ -137,6 +143,8 @@ const buildWinnerSelection = ({
   template: 'winner',
   marketType: 'winner',
   matchId,
+  marketId,
+  negRisk,
   title,
   badge,
   badgeLogo,
@@ -166,6 +174,8 @@ export const useOrderStore = create<OrderStore>((set) => ({
         sourceTab: 'matches',
         matchId: match.id,
         title: match.matchup,
+        marketId: outcome.marketId ?? outcome.id,
+        negRisk: outcome.negRisk,
         badge: outcome.badge,
         badgeLogo: outcome.badgeLogo,
         subject: outcome.subject,

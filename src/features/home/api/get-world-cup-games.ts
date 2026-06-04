@@ -356,6 +356,15 @@ export function formatVolumeLabel(value?: number | string) {
   return `$${amount.toFixed(2)} 交易量`
 }
 
+function parseNumericValue(value?: number | string) {
+  const amount = typeof value === 'string' ? Number(value) : value
+  return amount && Number.isFinite(amount) ? amount : 0
+}
+
+export function getMarketVolumeNumTotal(markets?: WorldCupGameMarket[]) {
+  return markets?.reduce((sum, market) => sum + parseNumericValue(market.volumeNum), 0) ?? 0
+}
+
 export function parseJsonStringArray(value?: string[] | string) {
   if (Array.isArray(value)) {
     return value
@@ -415,6 +424,10 @@ export function getYesNoAssetIds(market: WorldCupGameMarket) {
     yesAssetId: clobTokenIds[0],
     noAssetId: clobTokenIds[1],
   }
+}
+
+export function getOrderMarketId(market: WorldCupGameMarket) {
+  return market.conditionId
 }
 
 export function getEventType(event: WorldCupGameEvent) {
@@ -507,6 +520,8 @@ function normalizeWinnerOutcomes(
     if (/draw/i.test(label)) {
       fallback.draw = {
         id: String(market.id),
+        marketId: getOrderMarketId(market),
+        negRisk: market.negRisk,
         shortLabel: 'DRAW',
         subject: 'Draw',
         badge: '◌',
@@ -522,6 +537,8 @@ function normalizeWinnerOutcomes(
     if (label.toLowerCase() === homeTeam.toLowerCase()) {
       fallback.home = {
         id: String(market.id),
+        marketId: getOrderMarketId(market),
+        negRisk: market.negRisk,
         shortLabel: homeCode,
         subject: homeTeam,
         badge: homeFlag,
@@ -538,6 +555,8 @@ function normalizeWinnerOutcomes(
     if (label.toLowerCase() === awayTeam.toLowerCase()) {
       fallback.away = {
         id: String(market.id),
+        marketId: getOrderMarketId(market),
+        negRisk: market.negRisk,
         shortLabel: awayCode,
         subject: awayTeam,
         badge: awayFlag,
@@ -584,6 +603,8 @@ export function buildSpreadVariants(
 
       return {
         id: String(market.id),
+        marketId: getOrderMarketId(market),
+        negRisk: market.negRisk,
         displayLine: formatLineNumber(lineValue),
         homeHandicap: favoredSide === 'home' ? formatHandicap(lineValue) : formatHandicap(oppositeLineValue),
         awayHandicap: favoredSide === 'away' ? formatHandicap(lineValue) : formatHandicap(oppositeLineValue),
@@ -616,6 +637,8 @@ export function buildTotalLines(event: WorldCupGameEvent | undefined) {
       const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
       return {
         id: String(market.id),
+        marketId: getOrderMarketId(market),
+        negRisk: market.negRisk,
         line: formatLineNumber(lineValue),
         overPrice: yesPrice,
         underPrice: noPrice,
@@ -650,7 +673,7 @@ export function normalizeGame(event: WorldCupGameEvent): MatchCard {
     slug: event.slug ?? event.ticker,
     date: formatDateLabel(event.eventDate ?? matchTime),
     timeLabel: formatTimeLabel(matchTime),
-    volumeLabel: formatVolumeLabel(event.volume),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets)),
     matchup: `${home} vs ${away}`,
     primaryTeam: home,
     secondaryTeam: away,
