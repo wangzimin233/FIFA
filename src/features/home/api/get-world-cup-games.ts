@@ -18,6 +18,7 @@ export type WorldCupGameMarket = {
   name?: string
   outcomes?: string[] | string
   outcomePrices?: string[] | string
+  decimalOdds?: number[] | string[] | string
   price?: number | string
   volume?: number | string
   active?: boolean
@@ -365,9 +366,9 @@ export function getMarketVolumeNumTotal(markets?: WorldCupGameMarket[]) {
   return markets?.reduce((sum, market) => sum + parseNumericValue(market.volumeNum), 0) ?? 0
 }
 
-export function parseJsonStringArray(value?: string[] | string) {
+export function parseJsonStringArray(value?: Array<string | number> | string) {
   if (Array.isArray(value)) {
-    return value
+    return value.map(String)
   }
 
   if (!value) {
@@ -391,6 +392,22 @@ export function parsePriceToCents(value?: string | number) {
   return Math.round(numeric * 1000) / 10
 }
 
+function parseDecimalOdds(value?: string | number) {
+  const numeric = typeof value === 'string' ? Number(value) : value
+  return numeric !== undefined && Number.isFinite(numeric) && numeric > 0
+    ? Math.round(numeric * 100) / 100
+    : null
+}
+
+function convertPriceToDecimalOdds(value?: string | number) {
+  const numeric = typeof value === 'string' ? Number(value) : value
+  if (numeric === undefined || Number.isNaN(numeric) || numeric <= 0) {
+    return null
+  }
+
+  return Math.round((1 / numeric) * 100) / 100
+}
+
 function splitMatchTitle(title?: string) {
   if (!title) {
     return { home: 'Home', away: 'Away' }
@@ -411,10 +428,22 @@ function getOrderedTeams(event: WorldCupGameEvent) {
 }
 
 export function getYesNoPrices(market: WorldCupGameMarket) {
+  const decimalOdds = parseJsonStringArray(market.decimalOdds)
+  const outcomePrices = parseJsonStringArray(market.outcomePrices)
+  const yesFallbackOdds = convertPriceToDecimalOdds(outcomePrices[0] ?? market.price)
+  const noFallbackOdds = convertPriceToDecimalOdds(outcomePrices[1])
+
+  return {
+    yesPrice: parseDecimalOdds(decimalOdds[0]) ?? yesFallbackOdds ?? 2,
+    noPrice: parseDecimalOdds(decimalOdds[1]) ?? noFallbackOdds ?? 2,
+  }
+}
+
+export function getYesNoOrderPrices(market: WorldCupGameMarket) {
   const outcomePrices = parseJsonStringArray(market.outcomePrices)
   return {
-    yesPrice: parsePriceToCents(outcomePrices[0] ?? market.price),
-    noPrice: parsePriceToCents(outcomePrices[1]),
+    yesOrderPrice: parsePriceToCents(outcomePrices[0] ?? market.price),
+    noOrderPrice: parsePriceToCents(outcomePrices[1]),
   }
 }
 
@@ -487,8 +516,10 @@ function createFallbackOutcome(id: string, label: string, subject: string, badge
     shortLabel: label,
     subject,
     badge,
-    yesPrice: 50,
-    noPrice: 50,
+    yesPrice: 2,
+    noPrice: 2,
+    yesOrderPrice: 50,
+    noOrderPrice: 50,
     tone,
   }
 }
@@ -512,9 +543,8 @@ function normalizeWinnerOutcomes(
 
   for (const market of event.markets ?? []) {
     const label = (market.groupItemTitle ?? '').trim()
-    const outcomePrices = parseJsonStringArray(market.outcomePrices)
-    const yesPrice = parsePriceToCents(outcomePrices[0] ?? market.price)
-    const noPrice = parsePriceToCents(outcomePrices[1])
+    const { yesPrice, noPrice } = getYesNoPrices(market)
+    const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
     const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
     if (/draw/i.test(label)) {
@@ -527,6 +557,8 @@ function normalizeWinnerOutcomes(
         badge: '◌',
         yesPrice,
         noPrice,
+        yesOrderPrice,
+        noOrderPrice,
         yesAssetId,
         noAssetId,
         tone: 'slate',
@@ -545,6 +577,8 @@ function normalizeWinnerOutcomes(
         badgeLogo: homeLogo,
         yesPrice,
         noPrice,
+        yesOrderPrice,
+        noOrderPrice,
         yesAssetId,
         noAssetId,
         tone: 'emerald',
@@ -563,6 +597,8 @@ function normalizeWinnerOutcomes(
         badgeLogo: awayLogo,
         yesPrice,
         noPrice,
+        yesOrderPrice,
+        noOrderPrice,
         yesAssetId,
         noAssetId,
         tone: 'emerald',
@@ -598,6 +634,7 @@ export function buildSpreadVariants(
           ? 'away'
           : 'home'
       const { yesPrice, noPrice } = getYesNoPrices(market)
+      const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
       const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
       const oppositeLineValue = lineValue * -1
 
@@ -610,6 +647,8 @@ export function buildSpreadVariants(
         awayHandicap: favoredSide === 'away' ? formatHandicap(lineValue) : formatHandicap(oppositeLineValue),
         homePrice: favoredSide === 'home' ? yesPrice : noPrice,
         awayPrice: favoredSide === 'away' ? yesPrice : noPrice,
+        homeOrderPrice: favoredSide === 'home' ? yesOrderPrice : noOrderPrice,
+        awayOrderPrice: favoredSide === 'away' ? yesOrderPrice : noOrderPrice,
         homeAssetId: favoredSide === 'home' ? yesAssetId : noAssetId,
         awayAssetId: favoredSide === 'away' ? yesAssetId : noAssetId,
         favoredSide,
@@ -634,6 +673,7 @@ export function buildTotalLines(event: WorldCupGameEvent | undefined) {
       }
 
       const { yesPrice, noPrice } = getYesNoPrices(market)
+      const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
       const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
       return {
         id: String(market.id),
@@ -642,6 +682,8 @@ export function buildTotalLines(event: WorldCupGameEvent | undefined) {
         line: formatLineNumber(lineValue),
         overPrice: yesPrice,
         underPrice: noPrice,
+        overOrderPrice: yesOrderPrice,
+        underOrderPrice: noOrderPrice,
         overAssetId: yesAssetId,
         underAssetId: noAssetId,
       }
@@ -709,8 +751,10 @@ export function normalizeGame(event: WorldCupGameEvent): MatchCard {
           displayLine: '0.5',
           homeHandicap: '-0.5',
           awayHandicap: '+0.5',
-          homePrice: winnerOutcomes[0]?.yesPrice ?? 50,
-          awayPrice: winnerOutcomes[2]?.yesPrice ?? 50,
+          homePrice: winnerOutcomes[0]?.yesPrice ?? 2,
+          awayPrice: winnerOutcomes[2]?.yesPrice ?? 2,
+          homeOrderPrice: winnerOutcomes[0]?.yesOrderPrice ?? 50,
+          awayOrderPrice: winnerOutcomes[2]?.yesOrderPrice ?? 50,
           favoredSide: 'home',
         },
       ],
@@ -721,8 +765,10 @@ export function normalizeGame(event: WorldCupGameEvent): MatchCard {
         {
           id: fallbackTotalId,
           line: '2.5',
-          overPrice: 50,
-          underPrice: 50,
+          overPrice: 2,
+          underPrice: 2,
+          overOrderPrice: 50,
+          underOrderPrice: 50,
         },
       ],
     },

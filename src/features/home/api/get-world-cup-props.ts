@@ -4,6 +4,7 @@ import {
   formatVolumeLabel,
   getMarketVolumeNumTotal,
   getYesNoAssetIds,
+  getYesNoOrderPrices,
   getYesNoPrices,
   getOrderMarketId,
   type WorldCupGameEvent,
@@ -82,6 +83,7 @@ function getCandidateName(market: WorldCupGameMarket, index: number) {
 
 function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCandidate {
   const { yesPrice, noPrice } = getYesNoPrices(market)
+  const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
   const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
   return {
@@ -92,6 +94,8 @@ function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCa
     probability: yesPrice,
     yesPrice,
     noPrice,
+    yesOrderPrice,
+    noOrderPrice,
     yesAssetId,
     noAssetId,
   }
@@ -121,6 +125,8 @@ function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
       probability: candidate.probability,
       yesPrice: candidate.yesPrice,
       noPrice: candidate.noPrice,
+      yesOrderPrice: candidate.yesOrderPrice,
+      noOrderPrice: candidate.noOrderPrice,
       marketId: candidate.marketId,
       negRisk: candidate.negRisk,
       yesAssetId: candidate.yesAssetId,

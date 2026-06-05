@@ -36,7 +36,7 @@ function actionButtonClass(active: boolean, tone: 'positive' | 'negative' = 'pos
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
-  suffix = '¢',
+  suffix = '',
 }: {
   assetId?: string
   fallbackPrice: number
@@ -121,6 +121,8 @@ export function MarketDetailPage() {
             shortLabel: candidate.name,
             yesPrice: candidate.yesPrice,
             noPrice: candidate.noPrice,
+            yesOrderPrice: candidate.yesOrderPrice,
+            noOrderPrice: candidate.noOrderPrice,
             yesAssetId: candidate.yesAssetId,
             noAssetId: candidate.noAssetId,
             activeSide: 'yes',
@@ -159,6 +161,8 @@ export function MarketDetailPage() {
           shortLabel: market.subject,
           yesPrice: market.yesPrice,
           noPrice: market.noPrice,
+          yesOrderPrice: market.yesOrderPrice,
+          noOrderPrice: market.noOrderPrice,
           yesAssetId: market.yesAssetId,
           noAssetId: market.noAssetId,
           activeSide: 'yes',
@@ -244,11 +248,7 @@ export function MarketDetailPage() {
                     <div className="min-w-0">
                       <div className="text-[18px] font-semibold text-ink">{candidate.name}</div>
                       <div className="mt-1 text-[13px] text-ink-soft">
-                        <RealtimePriceValue
-                          assetId={candidate.yesAssetId}
-                          fallbackPrice={candidate.yesPrice}
-                          suffix="%"
-                        />
+                        <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                       </div>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
@@ -269,6 +269,8 @@ export function MarketDetailPage() {
                               shortLabel: candidate.name,
                               yesPrice: candidate.yesPrice,
                               noPrice: candidate.noPrice,
+                              yesOrderPrice: candidate.yesOrderPrice,
+                              noOrderPrice: candidate.noOrderPrice,
                               yesAssetId: candidate.yesAssetId,
                               noAssetId: candidate.noAssetId,
                               activeSide: 'yes',
@@ -300,6 +302,8 @@ export function MarketDetailPage() {
                               shortLabel: candidate.name,
                               yesPrice: candidate.yesPrice,
                               noPrice: candidate.noPrice,
+                              yesOrderPrice: candidate.yesOrderPrice,
+                              noOrderPrice: candidate.noOrderPrice,
                               yesAssetId: candidate.yesAssetId,
                               noAssetId: candidate.noAssetId,
                               activeSide: 'no',
@@ -328,7 +332,7 @@ export function MarketDetailPage() {
                 <div className="mt-2 text-[14px] text-ink-soft">{market.subject}</div>
               </div>
               <div className="text-[32px] font-semibold text-brand sm:text-[38px]">
-                <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} suffix="%" />
+                <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} />
               </div>
             </div>
 
@@ -350,6 +354,8 @@ export function MarketDetailPage() {
                       shortLabel: market.subject,
                       yesPrice: market.yesPrice,
                       noPrice: market.noPrice,
+                      yesOrderPrice: market.yesOrderPrice,
+                      noOrderPrice: market.noOrderPrice,
                       yesAssetId: market.yesAssetId,
                       noAssetId: market.noAssetId,
                       activeSide: 'yes',
@@ -385,6 +391,8 @@ export function MarketDetailPage() {
                       shortLabel: market.subject,
                       yesPrice: market.yesPrice,
                       noPrice: market.noPrice,
+                      yesOrderPrice: market.yesOrderPrice,
+                      noOrderPrice: market.noOrderPrice,
                       yesAssetId: market.yesAssetId,
                       noAssetId: market.noAssetId,
                       activeSide: 'no',

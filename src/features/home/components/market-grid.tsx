@@ -10,9 +10,8 @@ import {
 } from '../api/get-world-cup-props'
 import { TeamMark } from './team-mark'
 
-function ProbabilityRing({ value }: { value: number }) {
+function OddsRing({ value }: { value: number }) {
   const circumference = 2 * Math.PI * 42
-  const offset = circumference * (1 - value / 100)
 
   return (
     <svg viewBox="0 0 120 120" className="h-16 w-16 shrink-0 sm:h-18 sm:w-18 lg:h-20 lg:w-20">
@@ -26,14 +25,14 @@ function ProbabilityRing({ value }: { value: number }) {
         strokeWidth="10"
         strokeLinecap="round"
         strokeDasharray={circumference}
-        strokeDashoffset={offset}
+        strokeDashoffset="0"
         transform="rotate(-90 60 60)"
       />
       <text x="60" y="58" textAnchor="middle" className="fill-[#f7fff1] text-[18px] font-semibold sm:text-[20px] lg:text-[22px]">
-        {value}%
+        {value}
       </text>
       <text x="60" y="82" textAnchor="middle" className="fill-[#8e9488] text-[11px] font-semibold sm:text-[12px] lg:text-[13px]">
-        是
+        赔率
       </text>
     </svg>
   )
@@ -42,7 +41,7 @@ function ProbabilityRing({ value }: { value: number }) {
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
-  suffix = '¢',
+  suffix = '',
 }: {
   assetId?: string
   fallbackPrice: number
@@ -57,7 +56,7 @@ function RealtimePriceValue({
   )
 }
 
-function RealtimeProbabilityRing({
+function RealtimeOddsRing({
   assetId,
   fallbackPrice,
 }: {
@@ -65,7 +64,7 @@ function RealtimeProbabilityRing({
   fallbackPrice: number
 }) {
   const price = useDisplayPrice(assetId, fallbackPrice)
-  return <ProbabilityRing value={price} />
+  return <OddsRing value={price} />
 }
 
 export function MarketGrid() {
@@ -194,7 +193,7 @@ export function MarketGrid() {
                           {candidate.name}
                         </div>
                         <div className="mt-0.5 text-[10px] text-ink-soft sm:text-[11px]">
-                          <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} suffix="%" />
+                          <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                         </div>
                       </div>
                       <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
@@ -247,7 +246,7 @@ export function MarketGrid() {
                     </h3>
                   </div>
                 </div>
-                <RealtimeProbabilityRing assetId={card.yesAssetId} fallbackPrice={card.probability} />
+                <RealtimeOddsRing assetId={card.yesAssetId} fallbackPrice={card.probability} />
               </button>
 
               <div className="mt-5 grid gap-2 sm:grid-cols-2">

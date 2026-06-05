@@ -12,8 +12,8 @@ function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
 }
 
-function formatCents(value: number) {
-  return Number.isInteger(value) ? `${value}¢` : `${value.toFixed(1)}¢`
+function formatOdds(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function getMobilePriceTone(selection: MarketSelection) {
@@ -258,7 +258,7 @@ function MobileComputedResult() {
     return null
   }
 
-  const potentialReturn = activePrice > 0 ? amount / (activePrice / 100) : 0
+  const potentialReturn = activePrice > 0 ? amount * activePrice : 0
 
   return (
     <div className="mt-9 text-center">
@@ -266,7 +266,7 @@ function MobileComputedResult() {
         <span className="text-ink">赢取 </span>
         <span className={getMobilePriceTone(activeSelection)}>{formatCurrency(potentialReturn)}</span>
       </div>
-      <div className="mt-2 text-[14px] font-medium text-ink-soft">{formatCents(activePrice)}</div>
+      <div className="mt-2 text-[14px] font-medium text-ink-soft">{formatOdds(activePrice)}</div>
     </div>
   )
 }

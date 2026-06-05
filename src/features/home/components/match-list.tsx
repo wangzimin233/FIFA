@@ -31,7 +31,7 @@ const pairedToneClass = (isActive: boolean, tone: 'positive' | 'negative' | 'neu
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
-  suffix = '¢',
+  suffix = '',
 }: {
   assetId?: string
   fallbackPrice: number

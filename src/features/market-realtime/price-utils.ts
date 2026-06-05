@@ -1,5 +1,4 @@
 import type { MarketSelection } from '../home/order-store'
-import { usePolymarketPriceStore } from './polymarket-price-store'
 
 export function getDisplayPrice(
   priceByAssetId: Record<string, number>,
@@ -19,11 +18,11 @@ function resolveSelectionPriceTarget(selection: MarketSelection) {
     return selection.activeSide === 'yes'
       ? {
           assetId: selection.yesAssetId,
-          fallbackPrice: selection.yesPrice,
+          fallbackPrice: selection.yesOrderPrice ?? selection.yesPrice,
         }
       : {
           assetId: selection.noAssetId,
-          fallbackPrice: selection.noPrice,
+          fallbackPrice: selection.noOrderPrice ?? selection.noPrice,
         }
   }
 
@@ -35,11 +34,11 @@ function resolveSelectionPriceTarget(selection: MarketSelection) {
     return selection.activeTeamSide === 'away'
       ? {
           assetId: activeVariant.awayAssetId,
-          fallbackPrice: activeVariant.awayPrice,
+          fallbackPrice: activeVariant.awayOrderPrice ?? activeVariant.awayPrice,
         }
       : {
           assetId: activeVariant.homeAssetId,
-          fallbackPrice: activeVariant.homePrice,
+          fallbackPrice: activeVariant.homeOrderPrice ?? activeVariant.homePrice,
         }
   }
 
@@ -48,36 +47,38 @@ function resolveSelectionPriceTarget(selection: MarketSelection) {
   return selection.activeSide === 'over'
     ? {
         assetId: activeLine.overAssetId,
-        fallbackPrice: activeLine.overPrice,
+        fallbackPrice: activeLine.overOrderPrice ?? activeLine.overPrice,
       }
     : {
         assetId: activeLine.underAssetId,
-        fallbackPrice: activeLine.underPrice,
+        fallbackPrice: activeLine.underOrderPrice ?? activeLine.underPrice,
       }
 }
 
-export function useDisplayPrice(assetId: string | undefined, fallbackPrice: number) {
-  return usePolymarketPriceStore((state) => {
-    if (!assetId) {
-      return fallbackPrice
-    }
+function resolveSelectionDisplayPrice(selection: MarketSelection) {
+  if (selection.template === 'winner') {
+    return selection.activeSide === 'yes' ? selection.yesPrice : selection.noPrice
+  }
 
-    const realtimePrice = state.priceByAssetId[assetId]
-    return typeof realtimePrice === 'number' ? realtimePrice : fallbackPrice
-  })
+  if (selection.template === 'spread') {
+    const activeVariant =
+      selection.variants.find((variant) => variant.id === selection.activeVariantId) ??
+      selection.variants[0]
+
+    return selection.activeTeamSide === 'away' ? activeVariant.awayPrice : activeVariant.homePrice
+  }
+
+  const activeLine = selection.lines.find((line) => line.id === selection.activeLineId) ?? selection.lines[0]
+  return selection.activeSide === 'over' ? activeLine.overPrice : activeLine.underPrice
+}
+
+export function useDisplayPrice(assetId: string | undefined, fallbackPrice: number) {
+  void assetId
+  return fallbackPrice
 }
 
 export function useActiveSelectionPrice(selection: MarketSelection | null | undefined) {
-  const target = selection ? resolveSelectionPriceTarget(selection) : null
-
-  return usePolymarketPriceStore((state) => {
-    if (!target) {
-      return null
-    }
-
-    const realtimePrice = target.assetId ? state.priceByAssetId[target.assetId] : undefined
-    return typeof realtimePrice === 'number' ? realtimePrice : target.fallbackPrice
-  })
+  return selection ? resolveSelectionDisplayPrice(selection) : null
 }
 
 export function getActiveSelectionPrice(

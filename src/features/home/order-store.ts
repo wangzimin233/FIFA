@@ -22,6 +22,8 @@ export type WinnerSelection = BaseSelection & {
   shortLabel: string
   yesPrice: number
   noPrice: number
+  yesOrderPrice?: number
+  noOrderPrice?: number
   yesAssetId?: string
   noAssetId?: string
   activeSide: 'yes' | 'no'
@@ -74,6 +76,8 @@ type PropositionSelectionInput = {
   shortLabel: string
   yesPrice: number
   noPrice: number
+  yesOrderPrice?: number
+  noOrderPrice?: number
   yesAssetId?: string
   noAssetId?: string
   activeSide?: 'yes' | 'no'
@@ -134,6 +138,8 @@ const buildWinnerSelection = ({
   shortLabel,
   yesPrice,
   noPrice,
+  yesOrderPrice,
+  noOrderPrice,
   yesAssetId,
   noAssetId,
   activeSide = 'yes',
@@ -152,6 +158,8 @@ const buildWinnerSelection = ({
   shortLabel,
   yesPrice,
   noPrice,
+  yesOrderPrice,
+  noOrderPrice,
   yesAssetId,
   noAssetId,
   activeSide,
@@ -182,6 +190,8 @@ export const useOrderStore = create<OrderStore>((set) => ({
         shortLabel: outcome.shortLabel,
         yesPrice: outcome.yesPrice,
         noPrice: outcome.noPrice,
+        yesOrderPrice: outcome.yesOrderPrice,
+        noOrderPrice: outcome.noOrderPrice,
         yesAssetId: outcome.yesAssetId,
         noAssetId: outcome.noAssetId,
         activeSide,

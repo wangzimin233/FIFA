@@ -12,8 +12,8 @@ function formatCurrency(value: number) {
   return `$${value.toFixed(2)}`
 }
 
-function formatCents(value: number) {
-  return Number.isInteger(value) ? `${value}¢` : `${value.toFixed(1)}¢`
+function formatOdds(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
 function getResultTone(selection: MarketSelection) {
@@ -77,7 +77,7 @@ function AmountSection() {
       return null
     }
 
-    const potentialReturn = activePrice > 0 ? amount / (activePrice / 100) : 0
+    const potentialReturn = activePrice > 0 ? amount * activePrice : 0
 
     return {
       activePrice,
@@ -134,7 +134,7 @@ function AmountSection() {
             <span className={computedResult.toneClass}>{formatCurrency(computedResult.potentialReturn)}</span>
           </div>
           <div className="mt-1 text-[11px] font-medium text-ink-soft">
-            {formatCents(computedResult.activePrice)}
+            {formatOdds(computedResult.activePrice)}
           </div>
         </div>
       ) : null}
@@ -231,7 +231,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
             yesActive ? 'bg-emerald-500/85 text-white' : 'bg-white/4 text-ink-soft hover:text-ink',
           ].join(' ')}
         >
-          <div className="text-[15px] font-semibold sm:text-[16px]">Yes {yesPrice}¢</div>
+          <div className="text-[15px] font-semibold sm:text-[16px]">Yes {formatOdds(yesPrice)}</div>
         </button>
         <button
           type="button"
@@ -241,7 +241,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
             !yesActive ? 'bg-rose-500/90 text-white' : 'bg-white/4 text-ink-soft hover:text-ink',
           ].join(' ')}
         >
-          <div className="text-[15px] font-semibold sm:text-[16px]">No {noPrice}¢</div>
+          <div className="text-[15px] font-semibold sm:text-[16px]">No {formatOdds(noPrice)}</div>
         </button>
       </div>
 
@@ -290,7 +290,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            {spreadSelection.awayShortLabel} {activeVariant.awayHandicap} {awayPrice}¢
+            {spreadSelection.awayShortLabel} {activeVariant.awayHandicap} {formatOdds(awayPrice)}
           </div>
         </button>
         <button
@@ -302,7 +302,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            {spreadSelection.homeShortLabel} {activeVariant.homeHandicap} {homePrice}¢
+            {spreadSelection.homeShortLabel} {activeVariant.homeHandicap} {formatOdds(homePrice)}
           </div>
         </button>
       </div>
@@ -348,7 +348,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            O {activeLine.line} {overPrice}¢
+            O {activeLine.line} {formatOdds(overPrice)}
           </div>
         </button>
         <button
@@ -360,7 +360,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            U {activeLine.line} {underPrice}¢
+            U {activeLine.line} {formatOdds(underPrice)}
           </div>
         </button>
       </div>

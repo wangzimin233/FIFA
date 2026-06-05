@@ -59,7 +59,7 @@ function EmptyDataSection({ title }: { title: string }) {
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
-  suffix = '¢',
+  suffix = '',
 }: {
   assetId?: string
   fallbackPrice: number
@@ -510,6 +510,8 @@ export function MatchDetailPage() {
                             shortLabel: detail.bothTeamsToScore.shortLabel,
                             yesPrice: detail.bothTeamsToScore.yesPrice,
                             noPrice: detail.bothTeamsToScore.noPrice,
+                            yesOrderPrice: detail.bothTeamsToScore.yesOrderPrice,
+                            noOrderPrice: detail.bothTeamsToScore.noOrderPrice,
                             yesAssetId: detail.bothTeamsToScore.yesAssetId,
                             noAssetId: detail.bothTeamsToScore.noAssetId,
                             activeSide: 'yes',
@@ -551,6 +553,8 @@ export function MatchDetailPage() {
                             shortLabel: detail.bothTeamsToScore.shortLabel,
                             yesPrice: detail.bothTeamsToScore.yesPrice,
                             noPrice: detail.bothTeamsToScore.noPrice,
+                            yesOrderPrice: detail.bothTeamsToScore.yesOrderPrice,
+                            noOrderPrice: detail.bothTeamsToScore.noOrderPrice,
                             yesAssetId: detail.bothTeamsToScore.yesAssetId,
                             noAssetId: detail.bothTeamsToScore.noAssetId,
                             activeSide: 'no',
@@ -622,6 +626,8 @@ export function MatchDetailPage() {
                                 shortLabel: item.shortLabel,
                                 yesPrice: item.yesPrice,
                                 noPrice: item.noPrice,
+                                yesOrderPrice: item.yesOrderPrice,
+                                noOrderPrice: item.noOrderPrice,
                                 yesAssetId: item.yesAssetId,
                                 noAssetId: item.noAssetId,
                                 activeSide: 'yes',
@@ -653,6 +659,8 @@ export function MatchDetailPage() {
                                 shortLabel: item.shortLabel,
                                 yesPrice: item.yesPrice,
                                 noPrice: item.noPrice,
+                                yesOrderPrice: item.yesOrderPrice,
+                                noOrderPrice: item.noOrderPrice,
                                 yesAssetId: item.yesAssetId,
                                 noAssetId: item.noAssetId,
                                 activeSide: 'no',
@@ -722,6 +730,8 @@ export function MatchDetailPage() {
                               shortLabel: outcome.shortLabel,
                               yesPrice: outcome.yesPrice,
                               noPrice: outcome.noPrice,
+                              yesOrderPrice: outcome.yesOrderPrice,
+                              noOrderPrice: outcome.noOrderPrice,
                               yesAssetId: outcome.yesAssetId,
                               noAssetId: outcome.noAssetId,
                               activeSide: 'yes',

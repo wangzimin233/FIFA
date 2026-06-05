@@ -12,6 +12,8 @@ export type MatchDetailProposition = {
   subject: string
   yesPrice: number
   noPrice: number
+  yesOrderPrice?: number
+  noOrderPrice?: number
   yesAssetId?: string
   noAssetId?: string
 }
