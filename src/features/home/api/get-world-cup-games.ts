@@ -508,7 +508,7 @@ function formatHandicap(value: number) {
 }
 
 function getRecordLabel(record?: string) {
-  return record?.trim() || 'vs'
+  return record?.trim() ?? ''
 }
 
 function getTeamCodes(event: WorldCupGameEvent) {

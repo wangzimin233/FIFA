@@ -371,7 +371,9 @@ export function MatchList() {
                               fallbackClassName="text-[26px]"
                             />
                             <span className="text-[16px] font-semibold">{match.primaryTeam}</span>
-                            <span className="text-[13px] text-ink-soft">{match.primaryRecord}</span>
+                            {match.primaryRecord ? (
+                              <span className="text-[13px] text-ink-soft">{match.primaryRecord}</span>
+                            ) : null}
                           </div>
                           <div className="flex items-center gap-3 text-ink">
                             <TeamMark
@@ -382,7 +384,9 @@ export function MatchList() {
                               fallbackClassName="text-[26px]"
                             />
                             <span className="text-[16px] font-semibold">{match.secondaryTeam}</span>
-                            <span className="text-[13px] text-ink-soft">{match.secondaryRecord}</span>
+                            {match.secondaryRecord ? (
+                              <span className="text-[13px] text-ink-soft">{match.secondaryRecord}</span>
+                            ) : null}
                           </div>
                         </div>
                     </button>
@@ -442,7 +446,9 @@ export function MatchList() {
                           <span className="text-[14px] font-semibold sm:text-[15px]">
                             {match.primaryTeam}
                           </span>
-                          <span className="text-[12px] text-ink-soft">{match.primaryRecord}</span>
+                          {match.primaryRecord ? (
+                            <span className="text-[12px] text-ink-soft">{match.primaryRecord}</span>
+                          ) : null}
                         </div>
                         <div className="flex items-center gap-2.5 text-ink sm:gap-3">
                           <TeamMark
@@ -455,7 +461,9 @@ export function MatchList() {
                           <span className="text-[14px] font-semibold sm:text-[15px]">
                             {match.secondaryTeam}
                           </span>
-                          <span className="text-[12px] text-ink-soft">{match.secondaryRecord}</span>
+                          {match.secondaryRecord ? (
+                            <span className="text-[12px] text-ink-soft">{match.secondaryRecord}</span>
+                          ) : null}
                         </div>
                       </div>
                     </button>
