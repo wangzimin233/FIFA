@@ -2,7 +2,7 @@ import { useAppKit } from '@reown/appkit/react'
 import { toast } from '@heroui/react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ReactNode, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
@@ -21,11 +21,22 @@ import {
   type WalletHistoryPage,
   type WithdrawOrderPageItem,
 } from '../features/wallet/history/api'
+import {
+  getWalletRewardPage,
+  getWalletUserDirectPage,
+  getWalletUserRelationStats,
+  type WalletProfilePage,
+  type WalletRewardBizType,
+  type WalletRewardPageItem,
+  type WalletUserDirectPageItem,
+} from '../features/wallet/profile/api'
 import { useWithdraw } from '../features/wallet/withdraw/use-withdraw'
 import { shortenAddress, shortenHash } from '../lib/format'
 
 const WALLET_HISTORY_PAGE_SIZE = 10
 const ORDER_HISTORY_PAGE_SIZE = 10
+const DIRECT_USER_PAGE_SIZE = 10
+const REWARD_PAGE_SIZE = 10
 
 type ActiveAction = 'deposit' | 'withdraw' | null
 type ActiveHistory = 'deposit' | 'withdraw' | null
@@ -55,6 +66,15 @@ const WITHDRAW_HISTORY_STATUS_OPTIONS: Array<{
   { label: '驳回', value: 5 },
   { label: '失败', value: 6 },
   { label: '已取消', value: 7 },
+]
+
+const REWARD_BIZ_TYPE_OPTIONS: Array<{
+  label: string
+  value?: WalletRewardBizType
+}> = [
+  { label: '全部' },
+  { label: '直推奖励', value: 11 },
+  { label: '节点奖励', value: 12 },
 ]
 
 function resolveDepositStatusMeta(status: ReturnType<typeof useDeposit>['status']) {
@@ -253,6 +273,46 @@ function resolvePolymarketOrderStatus(status?: number, errorMessage?: string) {
   return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
+function resolveDirectUserType(userType: number) {
+  if (userType === 2) {
+    return { label: '节点用户', tone: 'border-brand/20 bg-brand/12 text-brand' }
+  }
+
+  if (userType === 1) {
+    return { label: '普通用户', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  }
+
+  return { label: `类型 ${userType}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+}
+
+function resolveDirectUserStatus(status: number) {
+  if (status === 1) {
+    return { label: '正常', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+  }
+
+  if (status === 2) {
+    return { label: '禁用', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+  }
+
+  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+}
+
+function resolveRewardBizType(bizType: number, bizTypeName?: string) {
+  if (bizTypeName) {
+    return bizTypeName
+  }
+
+  if (bizType === 11) {
+    return '直推奖励'
+  }
+
+  if (bizType === 12) {
+    return '节点奖励'
+  }
+
+  return `类型 ${bizType}`
+}
+
 function formatMaybeDate(value?: string) {
   if (!value) {
     return '--'
@@ -290,6 +350,16 @@ function formatNumberValue(value?: number) {
   }).format(value)
 }
 
+function formatIntegerValue(value?: number) {
+  if (value === undefined || value === null || !Number.isFinite(value)) {
+    return '--'
+  }
+
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 function formatPercentValue(value?: number) {
   if (value === undefined || value === null || !Number.isFinite(value)) {
     return '--'
@@ -320,6 +390,17 @@ function IconMark({ children }: { children: ReactNode }) {
       {children}
     </span>
   )
+}
+
+function useDebouncedValue<TValue>(value: TValue, delay = 350) {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delay)
+    return () => window.clearTimeout(timeout)
+  }, [delay, value])
+
+  return debouncedValue
 }
 
 function FieldLine({ label, value }: { label: string; value: ReactNode }) {
@@ -827,6 +908,121 @@ function OrderRecordRow({
   )
 }
 
+function DirectUserRow({ item }: { item: WalletUserDirectPageItem }) {
+  const userType = resolveDirectUserType(item.userType)
+  const status = resolveDirectUserStatus(item.status)
+
+  return (
+    <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-ink">{shortenAddress(item.walletAddress)}</div>
+          <div className="mt-1 text-[12px] text-ink-soft">
+            {item.nickname || '未设置昵称'} · ID {item.userId}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+          <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${userType.tone}`}>{userType.label}</span>
+          <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}>{status.label}</span>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
+        <span>链: <b className="font-semibold text-ink">{item.authType || '--'}</b></span>
+        <span>邀请码: <b className="font-semibold text-ink">{item.inviteCode || '--'}</b></span>
+        <span>注册: <b className="font-semibold text-ink">{formatMaybeDate(item.createTime)}</b></span>
+      </div>
+    </div>
+  )
+}
+
+function RewardRecordRow({ item }: { item: WalletRewardPageItem }) {
+  return (
+    <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[13px] font-semibold text-ink">{item.detailNo}</div>
+          <div className="mt-1 text-[12px] text-ink-soft">{formatMaybeDate(item.createTime)}</div>
+        </div>
+        <div className="shrink-0 text-right">
+          <div className="text-[15px] font-semibold text-brand">+{formatAmount(item.changeAmount, item.coinCode)}</div>
+          <div className="mt-1 text-[11px] text-ink-soft">{resolveRewardBizType(item.bizType, item.bizTypeName)}</div>
+        </div>
+      </div>
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
+        <span>币种: <b className="font-semibold text-ink">{item.coinCode || '--'}</b></span>
+        <span>备注: <b className="font-semibold text-ink">{item.remark || '--'}</b></span>
+      </div>
+    </div>
+  )
+}
+
+function RelationRewardOverview({
+  onOpenDirectUsers,
+  onOpenRewards,
+  relationError,
+  relationLoading,
+  relationStats,
+}: {
+  onOpenDirectUsers: () => void
+  onOpenRewards: () => void
+  relationError?: unknown
+  relationLoading: boolean
+  relationStats?: {
+    directCount?: number
+    umbrellaCount?: number
+  }
+}) {
+  const relationHasError = Boolean(relationError)
+
+  return (
+    <section className="grid gap-3 lg:grid-cols-2">
+      <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
+        <div className="flex items-start justify-between gap-3 border-b border-white/8 px-4 py-4 sm:px-5">
+          <div>
+            <div className="text-[11px] font-semibold uppercase text-brand">Relation</div>
+            <h2 className="mt-1 text-[20px] font-semibold text-ink">邀请关系</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenDirectUsers}
+            className="inline-flex h-9 items-center justify-center rounded-[13px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
+          >
+            直推列表
+          </button>
+        </div>
+
+        <div className="grid sm:grid-cols-2">
+          <MetricCell label="直推人数" value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.directCount)} />
+          <MetricCell label="伞下总人数" value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.umbrellaCount)} />
+        </div>
+
+        {relationHasError ? (
+          <div className="border-b border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200">
+            关系统计读取失败: {relationError instanceof Error ? relationError.message : '未知错误'}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
+        <div className="flex h-full flex-col justify-between gap-6 px-4 py-4 sm:px-5">
+          <div>
+            <div className="text-[11px] font-semibold uppercase text-brand">Rewards</div>
+            <h2 className="mt-1 text-[20px] font-semibold text-ink">奖励记录</h2>
+            <p className="mt-3 text-[13px] leading-5 text-ink-soft">查看直推奖励和节点奖励的到账明细。</p>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenRewards}
+            className="inline-flex h-11 w-full items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-4 text-[13px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
+          >
+            查看奖励记录
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function DetailCodeBlock({ label, value }: { label: string; value?: string }) {
   return (
     <div className="border-t border-white/8 px-4 py-4 sm:px-5">
@@ -1059,6 +1255,186 @@ function OrderHistoryDialog({
   )
 }
 
+function DirectUsersDialog({
+  isOpen,
+  isSessionReady,
+  onClose,
+  userId,
+}: {
+  isOpen: boolean
+  isSessionReady: boolean
+  onClose: () => void
+  userId?: number
+}) {
+  const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search.trim())
+  const isSearchSettling = search.trim() !== debouncedSearch
+
+  const directQuery = useInfiniteQuery<WalletProfilePage<WalletUserDirectPageItem>, Error>({
+    queryKey: ['wallet-user-direct-page', userId ?? null, debouncedSearch, DIRECT_USER_PAGE_SIZE],
+    queryFn: ({ pageParam }) =>
+      getWalletUserDirectPage({
+        userId: userId!,
+        page: Number(pageParam),
+        pageSize: DIRECT_USER_PAGE_SIZE,
+        username: debouncedSearch || undefined,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
+    enabled: isOpen && isSessionReady && Boolean(userId),
+  })
+
+  const items = directQuery.data?.pages.flatMap((page) => page.list) ?? []
+  const total = directQuery.data?.pages[0]?.total ?? 0
+
+  return (
+    <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
+      <DialogHeader
+        eyebrow="Direct Users"
+        title="直推列表"
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 人</span>}
+        onClose={onClose}
+      />
+      <div className="border-b border-white/8 px-4 py-3 sm:px-5">
+        <label className="block">
+          <span className="flex items-center justify-between gap-3 text-[12px] font-medium text-ink-soft">
+            <span>钱包地址搜索</span>
+            {isSearchSettling ? <span className="text-brand">等待输入完成...</span> : null}
+          </span>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="输入钱包地址片段"
+            className="mt-2 h-11 w-full rounded-[15px] border border-white/10 bg-[#101211] px-3 text-[13px] text-ink outline-none placeholder:text-ink-soft/45 focus:border-brand/30"
+          />
+        </label>
+      </div>
+      <div
+        className="h-[min(26rem,calc(92vh-172px))] overflow-y-auto"
+        onScroll={(event) => {
+          const target = event.currentTarget
+          const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
+          if (isNearBottom && directQuery.hasNextPage && !directQuery.isFetchingNextPage) {
+            void directQuery.fetchNextPage()
+          }
+        }}
+      >
+        {!isSessionReady ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看直推用户。</div>
+        ) : !userId ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">缺少用户 ID。</div>
+        ) : directQuery.isLoading ? (
+          <div className="grid gap-2 px-4 py-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-20 rounded-[16px] border border-white/8 bg-white/[0.03]" />
+            ))}
+          </div>
+        ) : directQuery.isError ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
+            直推列表读取失败: {directQuery.error instanceof Error ? directQuery.error.message : '未知错误'}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无直推用户。</div>
+        ) : (
+          <div>
+            {items.map((item) => (
+              <DirectUserRow key={`${item.userId}-${item.walletAddress}`} item={item} />
+            ))}
+          </div>
+        )}
+
+        {directQuery.isFetchingNextPage ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+        ) : null}
+
+        {!directQuery.hasNextPage && items.length > 0 ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+        ) : null}
+      </div>
+    </DialogFrame>
+  )
+}
+
+function RewardRecordsDialog({
+  isOpen,
+  isSessionReady,
+  onClose,
+}: {
+  isOpen: boolean
+  isSessionReady: boolean
+  onClose: () => void
+}) {
+  const [rewardType, setRewardType] = useState<WalletRewardBizType | undefined>()
+
+  const rewardQuery = useInfiniteQuery<WalletProfilePage<WalletRewardPageItem>, Error>({
+    queryKey: ['wallet-reward-page', rewardType ?? 'all', REWARD_PAGE_SIZE],
+    queryFn: ({ pageParam }) =>
+      getWalletRewardPage({
+        page: Number(pageParam),
+        pageSize: REWARD_PAGE_SIZE,
+        bizTypes: rewardType ? [rewardType] : undefined,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
+    enabled: isOpen && isSessionReady,
+  })
+
+  const items = rewardQuery.data?.pages.flatMap((page) => page.list) ?? []
+  const total = rewardQuery.data?.pages[0]?.total ?? 0
+
+  return (
+    <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
+      <DialogHeader
+        eyebrow="Reward History"
+        title="奖励记录"
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+        onClose={onClose}
+      />
+      <HistoryStatusFilter<WalletRewardBizType> options={REWARD_BIZ_TYPE_OPTIONS} value={rewardType} onChange={setRewardType} />
+      <div
+        className="max-h-[calc(92vh-130px)] overflow-y-auto"
+        onScroll={(event) => {
+          const target = event.currentTarget
+          const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
+          if (isNearBottom && rewardQuery.hasNextPage && !rewardQuery.isFetchingNextPage) {
+            void rewardQuery.fetchNextPage()
+          }
+        }}
+      >
+        {!isSessionReady ? (
+          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看奖励记录。</div>
+        ) : rewardQuery.isLoading ? (
+          <div className="grid gap-2 px-4 py-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-20 rounded-[16px] border border-white/8 bg-white/[0.03]" />
+            ))}
+          </div>
+        ) : rewardQuery.isError ? (
+          <div className="px-4 py-8 text-center text-[13px] text-rose-200">
+            奖励记录读取失败: {rewardQuery.error instanceof Error ? rewardQuery.error.message : '未知错误'}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">暂无奖励记录。</div>
+        ) : (
+          <div>
+            {items.map((item) => (
+              <RewardRecordRow key={`${item.id}-${item.detailNo}`} item={item} />
+            ))}
+          </div>
+        )}
+
+        {rewardQuery.isFetchingNextPage ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+        ) : null}
+
+        {!rewardQuery.hasNextPage && items.length > 0 ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+        ) : null}
+      </div>
+    </DialogFrame>
+  )
+}
+
 function WalletHistoryDialog({
   isOpen,
   isSessionReady,
@@ -1187,6 +1563,8 @@ export function ProfilePage() {
   const [activeAction, setActiveAction] = useState<ActiveAction>(null)
   const [activeHistory, setActiveHistory] = useState<ActiveHistory>(null)
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false)
+  const [isDirectUsersOpen, setIsDirectUsersOpen] = useState(false)
+  const [isRewardRecordsOpen, setIsRewardRecordsOpen] = useState(false)
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
@@ -1210,9 +1588,21 @@ export function ProfilePage() {
 
   const walletUser = data?.data
   const contractConfig = contractConfigResult?.data ?? undefined
+  const walletUserId = walletUser?.userId
   const primaryAsset =
     walletUser?.assets.find((asset) => asset.chainCode === 'BSC' && asset.coinCode.toUpperCase() === 'USDT') ??
     walletUser?.assets[0]
+
+  const {
+    data: relationStatsResult,
+    isLoading: isRelationStatsLoading,
+    isError: isRelationStatsError,
+    error: relationStatsError,
+  } = useQuery({
+    queryKey: ['wallet-user-relation-stats', walletUserId ?? null, session?.token ?? null],
+    queryFn: () => getWalletUserRelationStats(walletUserId!),
+    enabled: isSessionForConnectedWallet && Boolean(walletUserId),
+  })
 
   const deposit = useDeposit({
     contractConfig,
@@ -1341,144 +1731,154 @@ export function ProfilePage() {
             钱包用户信息读取失败: {error instanceof Error ? error.message : '未知错误'}
           </section>
         ) : walletUser ? (
-          <section className="grid gap-3 lg:grid-cols-[minmax(0,1.24fr)_minmax(320px,0.76fr)]">
-            <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
-              <div className="border-b border-white/8 px-4 py-4 sm:px-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0">
-                    <div className="text-[11px] font-semibold uppercase text-brand">Balance</div>
-                    <div className="mt-1 text-[32px] font-semibold text-ink sm:text-[40px]">
-                      {primaryAsset ? formatAmount(primaryAsset.availableBalance, primaryAsset.coinCode) : '--'}
+          <>
+            <section className="grid gap-3 lg:grid-cols-[minmax(0,1.24fr)_minmax(320px,0.76fr)]">
+              <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
+                <div className="border-b border-white/8 px-4 py-4 sm:px-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-semibold uppercase text-brand">Balance</div>
+                      <div className="mt-1 text-[32px] font-semibold text-ink sm:text-[40px]">
+                        {primaryAsset ? formatAmount(primaryAsset.availableBalance, primaryAsset.coinCode) : '--'}
+                      </div>
+                      <div className="mt-1 text-[12px] text-ink-soft">BSC-USDT 可用余额</div>
                     </div>
-                    <div className="mt-1 text-[12px] text-ink-soft">BSC-USDT 可用余额</div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:w-[16rem]">
-                    <button
-                      type="button"
-                      onClick={() => requireWalletReady(() => setActiveAction('deposit'))}
-                      className="inline-flex h-11 items-center justify-center rounded-[15px] border border-brand/20 bg-brand px-3 text-[13px] font-semibold text-black transition hover:bg-[#19ff53]"
-                    >
-                      充值
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => requireWalletReady(() => setActiveAction('withdraw'))}
-                      className="inline-flex h-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-3 text-[13px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
-                    >
-                      提现
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => requireWalletReady(() => setActiveHistory('deposit'))}
-                      className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
-                    >
-                      充值记录
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => requireWalletReady(() => setActiveHistory('withdraw'))}
-                      className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
-                    >
-                      提现记录
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => requireWalletReady(() => setIsOrderHistoryOpen(true))}
-                      className="col-span-2 inline-flex h-10 items-center justify-center rounded-[14px] border border-sky-400/20 bg-sky-400/10 px-3 text-[12px] font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/14"
-                    >
-                      订单记录
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid border-b border-white/8 sm:grid-cols-5">
-                <MetricCell label="总余额" value={primaryAsset?.totalBalance ?? '--'} />
-                <MetricCell label="冻结余额" value={primaryAsset?.frozenBalance ?? '--'} />
-                <MetricCell label="累计充值" value={primaryAsset?.rechargeTotal ?? '--'} />
-                <MetricCell label="累计提现" value={primaryAsset?.withdrawTotal ?? '--'} />
-                <MetricCell label="币种" value={primaryAsset ? `${primaryAsset.chainCode}-${primaryAsset.coinCode}` : '--'} />
-              </div>
-
-              <div className="grid gap-0 sm:grid-cols-2">
-                <div className="border-b border-white/8 px-4 py-4 sm:border-b-0 sm:border-r sm:px-5">
-                  <div className="text-[11px] font-semibold uppercase text-ink-soft">充值规则</div>
-                  <div className="mt-2 grid gap-0">
-                    <FieldLine label="最小金额" value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
-                    <FieldLine label="链类型" value={contractConfig?.chainType ?? 'BSC'} />
-                    <FieldLine label="合约数量" value={contractConfig?.contracts.length ?? '--'} />
+                    <div className="grid grid-cols-2 gap-2 sm:w-[16rem]">
+                      <button
+                        type="button"
+                        onClick={() => requireWalletReady(() => setActiveAction('deposit'))}
+                        className="inline-flex h-11 items-center justify-center rounded-[15px] border border-brand/20 bg-brand px-3 text-[13px] font-semibold text-black transition hover:bg-[#19ff53]"
+                      >
+                        充值
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requireWalletReady(() => setActiveAction('withdraw'))}
+                        className="inline-flex h-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-3 text-[13px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
+                      >
+                        提现
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requireWalletReady(() => setActiveHistory('deposit'))}
+                        className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
+                      >
+                        充值记录
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requireWalletReady(() => setActiveHistory('withdraw'))}
+                        className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
+                      >
+                        提现记录
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requireWalletReady(() => setIsOrderHistoryOpen(true))}
+                        className="col-span-2 inline-flex h-10 items-center justify-center rounded-[14px] border border-sky-400/20 bg-sky-400/10 px-3 text-[12px] font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/14"
+                      >
+                        订单记录
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="px-4 py-4 sm:px-5">
-                  <div className="text-[11px] font-semibold uppercase text-ink-soft">提现规则</div>
-                  <div className="mt-2 grid gap-0">
-                    <FieldLine label="限额" value={`${withdrawMinAmountLabel} / ${withdrawMaxAmountLabel}`} />
-                    <FieldLine label="手续费" value={withdrawFeeLabel} />
-                    <FieldLine label="可用余额" value={withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'} />
+
+                <div className="grid border-b border-white/8 sm:grid-cols-5">
+                  <MetricCell label="总余额" value={primaryAsset?.totalBalance ?? '--'} />
+                  <MetricCell label="冻结余额" value={primaryAsset?.frozenBalance ?? '--'} />
+                  <MetricCell label="累计充值" value={primaryAsset?.rechargeTotal ?? '--'} />
+                  <MetricCell label="累计提现" value={primaryAsset?.withdrawTotal ?? '--'} />
+                  <MetricCell label="币种" value={primaryAsset ? `${primaryAsset.chainCode}-${primaryAsset.coinCode}` : '--'} />
+                </div>
+
+                <div className="grid gap-0 sm:grid-cols-2">
+                  <div className="border-b border-white/8 px-4 py-4 sm:border-b-0 sm:border-r sm:px-5">
+                    <div className="text-[11px] font-semibold uppercase text-ink-soft">充值规则</div>
+                    <div className="mt-2 grid gap-0">
+                      <FieldLine label="最小金额" value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
+                      <FieldLine label="链类型" value={contractConfig?.chainType ?? 'BSC'} />
+                      <FieldLine label="合约数量" value={contractConfig?.contracts.length ?? '--'} />
+                    </div>
+                  </div>
+                  <div className="px-4 py-4 sm:px-5">
+                    <div className="text-[11px] font-semibold uppercase text-ink-soft">提现规则</div>
+                    <div className="mt-2 grid gap-0">
+                      <FieldLine label="限额" value={`${withdrawMinAmountLabel} / ${withdrawMaxAmountLabel}`} />
+                      <FieldLine label="手续费" value={withdrawFeeLabel} />
+                      <FieldLine label="可用余额" value={withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'} />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
-              <div className="border-b border-white/8 px-4 py-4 sm:px-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase text-brand">Identity</div>
-                    <h2 className="mt-1 text-[20px] font-semibold text-ink">账户身份</h2>
+              <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
+                <div className="border-b border-white/8 px-4 py-4 sm:px-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase text-brand">Identity</div>
+                      <h2 className="mt-1 text-[20px] font-semibold text-ink">账户身份</h2>
+                    </div>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
+                      {userTypeLabel}
+                    </span>
                   </div>
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
-                    {userTypeLabel}
-                  </span>
                 </div>
-              </div>
 
-              <div className="px-4 py-3 sm:px-5">
-                <FieldLine label="钱包地址" value={shortenAddress(walletUser.walletAddress)} />
-                <FieldLine label="用户 ID" value={String(walletUser.userId)} />
-                <FieldLine label="邀请码" value={walletUser.inviteCode || '--'} />
-                <FieldLine label="认证类型" value={walletUser.authType || '--'} />
-              </div>
-
-              <div className="border-t border-white/8 px-4 py-4 sm:px-5">
-                <div className="text-[11px] font-semibold uppercase text-ink-soft">Invite Link</div>
-                <div className="mt-2 min-h-10 break-all rounded-[14px] border border-white/8 bg-black/10 px-3 py-2 text-[12px] leading-5 text-ink-soft">
-                  {inviteLink || '--'}
+                <div className="px-4 py-3 sm:px-5">
+                  <FieldLine label="钱包地址" value={shortenAddress(walletUser.walletAddress)} />
+                  <FieldLine label="用户 ID" value={String(walletUser.userId)} />
+                  <FieldLine label="邀请码" value={walletUser.inviteCode || '--'} />
+                  <FieldLine label="认证类型" value={walletUser.authType || '--'} />
                 </div>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!inviteLink) {
-                      toast('暂无邀请链接')
-                      return
-                    }
 
-                    try {
-                      setIsCopyingInviteLink(true)
-                      await navigator.clipboard.writeText(inviteLink)
-                      toast.success('邀请链接已复制')
-                    } catch {
-                      toast('复制失败，请手动复制')
-                    } finally {
-                      setIsCopyingInviteLink(false)
-                    }
-                  }}
-                  disabled={isCopyingInviteLink}
-                  className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] px-4 text-[12px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isCopyingInviteLink ? '复制中...' : '复制邀请链接'}
-                </button>
-              </div>
+                <div className="border-t border-white/8 px-4 py-4 sm:px-5">
+                  <div className="text-[11px] font-semibold uppercase text-ink-soft">Invite Link</div>
+                  <div className="mt-2 min-h-10 break-all rounded-[14px] border border-white/8 bg-black/10 px-3 py-2 text-[12px] leading-5 text-ink-soft">
+                    {inviteLink || '--'}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!inviteLink) {
+                        toast('暂无邀请链接')
+                        return
+                      }
 
-              {isContractConfigError ? (
-                <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
-                  资金配置读取失败: {contractConfigError instanceof Error ? contractConfigError.message : '未知错误'}
+                      try {
+                        setIsCopyingInviteLink(true)
+                        await navigator.clipboard.writeText(inviteLink)
+                        toast.success('邀请链接已复制')
+                      } catch {
+                        toast('复制失败，请手动复制')
+                      } finally {
+                        setIsCopyingInviteLink(false)
+                      }
+                    }}
+                    disabled={isCopyingInviteLink}
+                    className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] px-4 text-[12px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isCopyingInviteLink ? '复制中...' : '复制邀请链接'}
+                  </button>
                 </div>
-              ) : isContractConfigLoading ? (
-                <div className="border-t border-white/8 px-4 py-3 text-[12px] text-ink-soft sm:px-5">正在加载资金配置...</div>
-              ) : null}
-            </div>
-          </section>
+
+                {isContractConfigError ? (
+                  <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
+                    资金配置读取失败: {contractConfigError instanceof Error ? contractConfigError.message : '未知错误'}
+                  </div>
+                ) : isContractConfigLoading ? (
+                  <div className="border-t border-white/8 px-4 py-3 text-[12px] text-ink-soft sm:px-5">正在加载资金配置...</div>
+                ) : null}
+              </div>
+            </section>
+
+            <RelationRewardOverview
+              onOpenDirectUsers={() => requireWalletReady(() => setIsDirectUsersOpen(true))}
+              onOpenRewards={() => requireWalletReady(() => setIsRewardRecordsOpen(true))}
+              relationError={isRelationStatsError ? relationStatsError : undefined}
+              relationLoading={isRelationStatsLoading}
+              relationStats={relationStatsResult?.data ?? undefined}
+            />
+          </>
         ) : null}
       </motion.section>
 
@@ -1530,6 +1930,19 @@ export function ProfilePage() {
         isOpen={isOrderHistoryOpen}
         isSessionReady={isSessionForConnectedWallet}
         onClose={() => setIsOrderHistoryOpen(false)}
+      />
+
+      <DirectUsersDialog
+        isOpen={isDirectUsersOpen}
+        isSessionReady={isSessionForConnectedWallet}
+        onClose={() => setIsDirectUsersOpen(false)}
+        userId={walletUserId}
+      />
+
+      <RewardRecordsDialog
+        isOpen={isRewardRecordsOpen}
+        isSessionReady={isSessionForConnectedWallet}
+        onClose={() => setIsRewardRecordsOpen(false)}
       />
     </>
   )
