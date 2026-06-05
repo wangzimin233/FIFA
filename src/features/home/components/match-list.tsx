@@ -30,6 +30,10 @@ const pairedToneClass = (isActive: boolean, tone: 'positive' | 'negative' | 'neu
   return 'border-transparent bg-emerald-500/82 text-white'
 }
 
+function getWinnerOutcomeDisplayLabel(index: number) {
+  return index === 0 ? '主' : index === 1 ? '和' : '客'
+}
+
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
@@ -392,7 +396,7 @@ export function MatchList() {
                     </button>
 
                     <div className="grid grid-cols-3 gap-2.5">
-                      {match.winnerMarket.outcomes.map((outcome) => {
+                      {match.winnerMarket.outcomes.map((outcome, outcomeIndex) => {
                         const isActive =
                           isWinnerActive && activeSelection.shortLabel === outcome.shortLabel
                         const toneClass = winnerToneClass[outcome.tone ?? 'slate']
@@ -409,7 +413,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="block text-[13px] font-semibold">
-                              {outcome.shortLabel} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
+                              {getWinnerOutcomeDisplayLabel(outcomeIndex)} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                             </span>
                           </button>
                         )
@@ -492,7 +496,7 @@ export function MatchList() {
                           <p className="px-2 text-[10px] uppercase tracking-[0.14em] text-ink-soft lg:hidden">
                             胜负线
                           </p>
-                          {match.winnerMarket.outcomes.map((outcome) => {
+                          {match.winnerMarket.outcomes.map((outcome, outcomeIndex) => {
                             const isActive =
                               isWinnerActive && activeSelection.shortLabel === outcome.shortLabel
                             const toneClass = winnerToneClass[outcome.tone ?? 'slate']
@@ -509,7 +513,7 @@ export function MatchList() {
                                 ].join(' ')}
                               >
                                 <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                                  {outcome.shortLabel} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
+                                  {getWinnerOutcomeDisplayLabel(outcomeIndex)} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                                 </span>
                               </button>
                             )
@@ -533,7 +537,7 @@ export function MatchList() {
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
                               <span className="truncate">
-                                {match.winnerMarket.outcomes[0].shortLabel} {activeSpreadVariant.homeHandicap}
+                                主 {activeSpreadVariant.homeHandicap}
                               </span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeSpreadVariant.homeAssetId} fallbackPrice={activeSpreadVariant.homePrice} />
@@ -553,7 +557,7 @@ export function MatchList() {
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
                               <span className="truncate">
-                                {match.winnerMarket.outcomes[2].shortLabel} {activeSpreadVariant.awayHandicap}
+                                客 {activeSpreadVariant.awayHandicap}
                               </span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeSpreadVariant.awayAssetId} fallbackPrice={activeSpreadVariant.awayPrice} />
@@ -578,7 +582,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
-                              <span className="truncate">O {activeTotalLine.line}</span>
+                              <span className="truncate">大 {activeTotalLine.line}</span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeTotalLine.overAssetId} fallbackPrice={activeTotalLine.overPrice} />
                               </span>
@@ -596,7 +600,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
-                              <span className="truncate">U {activeTotalLine.line}</span>
+                              <span className="truncate">小 {activeTotalLine.line}</span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeTotalLine.underAssetId} fallbackPrice={activeTotalLine.underPrice} />
                               </span>

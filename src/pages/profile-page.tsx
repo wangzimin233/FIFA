@@ -375,18 +375,6 @@ function formatOrderDisplayId(item: Pick<PolymarketOrderPageItem, 'orderNo' | 'p
   return item.orderNo || item.polymarketOrderId || String(item.id)
 }
 
-function formatJsonPreview(value?: string) {
-  if (!value) {
-    return '--'
-  }
-
-  try {
-    return JSON.stringify(JSON.parse(value), null, 2)
-  } catch {
-    return value
-  }
-}
-
 function IconMark({ children }: { children: ReactNode }) {
   return (
     <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-[15px] text-brand">
@@ -903,8 +891,7 @@ function OrderRecordRow({
         <span>价格: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
         <span>成交: <b className="font-semibold text-ink">{formatNumberValue(item.filledAmount)}</b></span>
       </div>
-      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
-        <span>类型: <b className="font-semibold text-ink">{item.orderType || '--'}</b></span>
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft">
         <span>方向: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
       </div>
     </button>
@@ -1026,17 +1013,6 @@ function RelationRewardOverview({
   )
 }
 
-function DetailCodeBlock({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className="border-t border-white/8 px-4 py-4 sm:px-5">
-      <div className="mb-2 text-[11px] font-semibold uppercase text-ink-soft">{label}</div>
-      <pre className="max-h-44 overflow-auto rounded-[14px] border border-white/8 bg-black/20 p-3 text-[11px] leading-5 text-ink-soft">
-        {formatJsonPreview(value)}
-      </pre>
-    </div>
-  )
-}
-
 function OrderDetailPanel({
   detail,
   error,
@@ -1086,13 +1062,10 @@ function OrderDetailPanel({
       </div>
 
       <div className="px-4 py-3 sm:px-5">
-        <FieldLine label="Polymarket ID" value={detail.polymarketOrderId || '--'} />
         <FieldLine label="Market" value={<span className="break-all font-mono text-[12px]">{detail.market || '--'}</span>} />
         <FieldLine label="Token ID" value={<span className="break-all font-mono text-[12px]">{detail.tokenId || '--'}</span>} />
-        <FieldLine label="方向 / 类型" value={`${detail.side || '--'} / ${detail.orderType || '--'}`} />
+        <FieldLine label="方向" value={detail.side || '--'} />
         <FieldLine label="委托价格" value={formatNumberValue(detail.price)} />
-        <FieldLine label="实际买入价" value={formatNumberValue(detail.actualBuyPrice)} />
-        <FieldLine label="请求金额" value={formatNumberValue(detail.requestAmount)} />
         <FieldLine label="实际买入金额" value={formatNumberValue(detail.actualBuyAmount)} />
         <FieldLine label="净买入金额" value={formatNumberValue(detail.netBuyAmount)} />
         <FieldLine label="佣金" value={`${formatNumberValue(detail.commissionAmount)} / ${formatPercentValue(detail.commissionRate)}`} />
@@ -1109,9 +1082,6 @@ function OrderDetailPanel({
           {detail.errorMessage}
         </div>
       ) : null}
-
-      <DetailCodeBlock label="Request Body" value={detail.requestBody} />
-      <DetailCodeBlock label="Response Body" value={detail.responseBody} />
     </div>
   )
 }

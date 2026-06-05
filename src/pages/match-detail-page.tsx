@@ -39,6 +39,10 @@ function outcomeButtonClass(active: boolean, tone: 'positive' | 'negative' | 'ne
   return 'border-transparent bg-emerald-500/85 text-white'
 }
 
+function getWinnerOutcomeDisplayLabel(index: number) {
+  return index === 0 ? '主' : index === 1 ? '和' : '客'
+}
+
 function getSpreadFavoredSide(variant: { favoredSide?: 'home' | 'away'; homeHandicap: string }) {
   if (variant.favoredSide) {
     return variant.favoredSide
@@ -304,7 +308,7 @@ export function MatchDetailPage() {
                     <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.moneylineVolumeLabel}</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                    {detail.match.winnerMarket.outcomes.map((outcome) => {
+                    {detail.match.winnerMarket.outcomes.map((outcome, outcomeIndex) => {
                       const isActive =
                         isCurrentMatchSelection &&
                         activeSelection?.template === 'winner' &&
@@ -320,7 +324,7 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
                           ].join(' ')}
                         >
-                          {outcome.shortLabel}{' '}
+                          {getWinnerOutcomeDisplayLabel(outcomeIndex)}{' '}
                           <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                         </button>
                       )
@@ -350,7 +354,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        {detail.match.winnerMarket.outcomes[0]?.shortLabel} {currentSpreadVariant.homeHandicap}{' '}
+                        主 {currentSpreadVariant.homeHandicap}{' '}
                         <RealtimePriceValue
                           assetId={currentSpreadVariant.homeAssetId}
                           fallbackPrice={currentSpreadVariant.homePrice}
@@ -369,7 +373,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        {detail.match.winnerMarket.outcomes[2]?.shortLabel} {currentSpreadVariant.awayHandicap}{' '}
+                        客 {currentSpreadVariant.awayHandicap}{' '}
                         <RealtimePriceValue
                           assetId={currentSpreadVariant.awayAssetId}
                           fallbackPrice={currentSpreadVariant.awayPrice}
@@ -428,7 +432,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        O {currentTotalLine.line}{' '}
+                        大 {currentTotalLine.line}{' '}
                         <RealtimePriceValue
                           assetId={currentTotalLine.overAssetId}
                           fallbackPrice={currentTotalLine.overPrice}
@@ -447,7 +451,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        U {currentTotalLine.line}{' '}
+                        小 {currentTotalLine.line}{' '}
                         <RealtimePriceValue
                           assetId={currentTotalLine.underAssetId}
                           fallbackPrice={currentTotalLine.underPrice}

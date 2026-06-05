@@ -38,7 +38,7 @@ function getMobilePriceTone(selection: MarketSelection) {
 }
 
 function getMobileTitle(selection: MarketSelection) {
-  return selection.template === 'total' ? 'Over vs Under' : selection.title
+  return selection.template === 'total' ? '大小' : selection.title
 }
 
 function getMobileSubject(selection: MarketSelection) {
@@ -60,8 +60,8 @@ function getMobileSubject(selection: MarketSelection) {
       selection.variants[0]
     const label =
       selection.activeTeamSide === 'away'
-        ? `${selection.awayTeam} ${activeVariant.awayHandicap}`
-        : `${selection.homeTeam} ${activeVariant.homeHandicap}`
+        ? `客 ${activeVariant.awayHandicap}`
+        : `主 ${activeVariant.homeHandicap}`
 
     return <span className="text-brand">{label}</span>
   }
@@ -70,7 +70,7 @@ function getMobileSubject(selection: MarketSelection) {
 
   return (
     <>
-      <span className="text-ink">{selection.activeSide === 'over' ? 'Over' : 'Under'}</span>
+      <span className="text-ink">{selection.activeSide === 'over' ? '大' : '小'}</span>
       <span className="mx-2 text-ink-soft">•</span>
       <span className={getMobilePriceTone(selection)}>{activeLine.line}</span>
     </>
@@ -204,7 +204,7 @@ function MobileSpreadSegment() {
             awayActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          {activeSelection.awayShortLabel} {activeVariant.awayHandicap}
+          客 {activeVariant.awayHandicap}
         </button>
         <button
           type="button"
@@ -214,7 +214,7 @@ function MobileSpreadSegment() {
             !awayActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          {activeSelection.homeShortLabel} {activeVariant.homeHandicap}
+          主 {activeVariant.homeHandicap}
         </button>
       </div>
     </div>
@@ -242,7 +242,7 @@ function MobileTotalSegment() {
             overActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          O {activeLine.line}
+          大 {activeLine.line}
         </button>
         <button
           type="button"
@@ -252,7 +252,7 @@ function MobileTotalSegment() {
             !overActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          U {activeLine.line}
+          小 {activeLine.line}
         </button>
       </div>
     </div>

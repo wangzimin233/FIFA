@@ -289,8 +289,8 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
         title={spreadSelection.title}
         subject={
           awayActive
-            ? `${spreadSelection.awayTeam} ${activeVariant.awayHandicap}`
-            : `${spreadSelection.homeTeam} ${activeVariant.homeHandicap}`
+            ? `客 ${activeVariant.awayHandicap}`
+            : `主 ${activeVariant.homeHandicap}`
         }
         onClose={onClose}
       />
@@ -305,7 +305,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            {spreadSelection.awayShortLabel} {activeVariant.awayHandicap} <RollingOdds value={awayPrice} />
+            客 {activeVariant.awayHandicap} <RollingOdds value={awayPrice} />
           </div>
         </button>
         <button
@@ -317,7 +317,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            {spreadSelection.homeShortLabel} {activeVariant.homeHandicap} <RollingOdds value={homePrice} />
+            主 {activeVariant.homeHandicap} <RollingOdds value={homePrice} />
           </div>
         </button>
       </div>
@@ -348,8 +348,8 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
       <PanelHeader
         badge={totalSelection.badge}
         badgeLogo={totalSelection.badgeLogo}
-        title="Over vs Under"
-        subject={overActive ? `Over ${activeLine.line}` : `Under ${activeLine.line}`}
+        title="大小"
+        subject={overActive ? `大 ${activeLine.line}` : `小 ${activeLine.line}`}
         onClose={onClose}
       />
 
@@ -363,7 +363,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            O {activeLine.line} <RollingOdds value={overPrice} />
+            大 {activeLine.line} <RollingOdds value={overPrice} />
           </div>
         </button>
         <button
@@ -375,7 +375,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            U {activeLine.line} <RollingOdds value={underPrice} />
+            小 {activeLine.line} <RollingOdds value={underPrice} />
           </div>
         </button>
       </div>
