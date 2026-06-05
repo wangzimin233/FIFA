@@ -218,11 +218,13 @@ export function MarketGrid() {
                       </div>
                       {canPlaceOrder ? (
                         <>
-                          <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
-                            {t('markets.outcomes.yes')} <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
+                          <div className="flex h-8 min-w-[58px] items-center justify-center gap-1 rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
+                            <span>{t('markets.outcomes.yes')}</span>
+                            <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                           </div>
-                          <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
-                            {t('markets.outcomes.no')} <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
+                          <div className="flex h-8 min-w-[58px] items-center justify-center gap-1 rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
+                            <span>{t('markets.outcomes.no')}</span>
+                            <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
                           </div>
                         </>
                       ) : null}
@@ -282,9 +284,10 @@ export function MarketGrid() {
                         state: { marketCard: card, backTo: '/markets' },
                       })
                     }
-                    className="rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
+                    className="inline-flex items-center justify-center gap-1 rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
                   >
-                    {t('markets.outcomes.yes')} <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
+                    <span>{t('markets.outcomes.yes')}</span>
+                    <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
                   </button>
                   <button
                     type="button"
@@ -293,9 +296,10 @@ export function MarketGrid() {
                         state: { marketCard: card, backTo: '/markets' },
                       })
                     }
-                    className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
+                    className="inline-flex items-center justify-center gap-1 rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
                   >
-                    {t('markets.outcomes.no')} <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
+                    <span>{t('markets.outcomes.no')}</span>
+                    <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
                   </button>
                 </div>
               ) : null}

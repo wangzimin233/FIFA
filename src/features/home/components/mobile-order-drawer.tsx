@@ -44,7 +44,7 @@ function getMobileTitle(selection: MarketSelection, totalLabel: string) {
 
 function getMobileSubject(
   selection: MarketSelection,
-  labels: { away: string; home: string; over: string; under: string },
+  labels: { away: string; home: string; over: string; under: string; yes: string; no: string },
 ) {
   if (selection.template === 'winner') {
     return (
@@ -52,7 +52,7 @@ function getMobileSubject(
         <span className="text-ink">{selection.subject}</span>
         <span className="mx-2 text-ink-soft">•</span>
         <span className={getMobilePriceTone(selection)}>
-          {selection.activeSide === 'yes' ? 'Yes' : 'No'}
+          {selection.activeSide === 'yes' ? labels.yes : labels.no}
         </span>
       </>
     )
@@ -125,6 +125,8 @@ function MobileHeader() {
               home: t('markets.outcomes.home'),
               over: t('markets.outcomes.over'),
               under: t('markets.outcomes.under'),
+              yes: t('markets.outcomes.yes'),
+              no: t('markets.outcomes.no'),
             })}
           </div>
         </div>

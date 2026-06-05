@@ -38,6 +38,24 @@ function getResultTone(selection: MarketSelection) {
   return 'text-brand'
 }
 
+function getLocalizedText({
+  en,
+  zh,
+  fallback,
+  language,
+}: {
+  en?: string
+  zh?: string
+  fallback: string
+  language?: string
+}) {
+  const normalizedLanguage = language?.toLowerCase()
+  const primaryText = normalizedLanguage?.startsWith('zh') ? zh : en
+  const secondaryText = normalizedLanguage?.startsWith('zh') ? en : zh
+
+  return primaryText?.trim() || secondaryText?.trim() || fallback
+}
+
 function SelectionBadge({ value, logo }: { value: string; logo?: string }) {
   if (!value && !logo) {
     return null
@@ -224,7 +242,7 @@ function PanelHeader({
 }
 
 function WinnerContent({ onClose }: { onClose?: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { activeSelection, setWinnerSide } = useOrderStore()
   const winnerSelection = activeSelection?.template === 'winner' ? activeSelection : null
   const yesPrice = useDisplayPrice(winnerSelection?.yesAssetId, winnerSelection?.yesPrice ?? 50)
@@ -235,14 +253,26 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
   }
 
   const yesActive = winnerSelection.activeSide === 'yes'
+  const headerTitle = getLocalizedText({
+    en: winnerSelection.eventTitle,
+    zh: winnerSelection.eventTitleZh,
+    fallback: winnerSelection.title,
+    language: i18n.resolvedLanguage,
+  })
+  const headerSubject = getLocalizedText({
+    en: winnerSelection.marketTitle,
+    zh: winnerSelection.marketTitleZh,
+    fallback: winnerSelection.subject,
+    language: i18n.resolvedLanguage,
+  })
 
   return (
     <>
       <PanelHeader
         badge={winnerSelection.badge}
         badgeLogo={winnerSelection.badgeLogo}
-        title={winnerSelection.title}
-        subject={winnerSelection.subject}
+        title={headerTitle}
+        subject={headerSubject}
         onClose={onClose}
       />
 
@@ -279,7 +309,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
 }
 
 function SpreadContent({ onClose }: { onClose?: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { activeSelection, setSpreadTeamSide } = useOrderStore()
   const spreadSelection = activeSelection?.template === 'spread' ? activeSelection : null
 
@@ -294,13 +324,19 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
   }
 
   const awayActive = spreadSelection.activeTeamSide === 'away'
+  const headerTitle = getLocalizedText({
+    en: activeVariant.eventTitle ?? spreadSelection.eventTitle,
+    zh: activeVariant.eventTitleZh ?? spreadSelection.eventTitleZh,
+    fallback: spreadSelection.title,
+    language: i18n.resolvedLanguage,
+  })
 
   return (
     <>
       <PanelHeader
         badge={spreadSelection.badge}
         badgeLogo={spreadSelection.badgeLogo}
-        title={spreadSelection.title}
+        title={headerTitle}
         subject={
           awayActive
             ? `${t('markets.outcomes.away')} ${activeVariant.awayHandicap}`
