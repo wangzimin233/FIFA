@@ -2,6 +2,7 @@ import { Button } from '@heroui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo } from 'react'
 import { useActiveSelectionPrice } from '../../market-realtime/price-utils'
+import { RollingNumber } from '../../market-realtime/rolling-number'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
@@ -14,6 +15,14 @@ function formatCurrency(value: number) {
 
 function formatOdds(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+function RollingOdds({ value }: { value: number }) {
+  return <RollingNumber value={formatOdds(value)} />
+}
+
+function RollingCurrency({ value }: { value: number }) {
+  return <RollingNumber value={formatCurrency(value)} />
 }
 
 function getMobilePriceTone(selection: MarketSelection) {
@@ -264,9 +273,13 @@ function MobileComputedResult() {
     <div className="mt-9 text-center">
       <div className="text-[18px] font-semibold">
         <span className="text-ink">赢取 </span>
-        <span className={getMobilePriceTone(activeSelection)}>{formatCurrency(potentialReturn)}</span>
+        <span className={getMobilePriceTone(activeSelection)}>
+          <RollingCurrency value={potentialReturn} />
+        </span>
       </div>
-      <div className="mt-2 text-[14px] font-medium text-ink-soft">{formatOdds(activePrice)}</div>
+      <div className="mt-2 text-[14px] font-medium text-ink-soft">
+        <RollingOdds value={activePrice} />
+      </div>
     </div>
   )
 }

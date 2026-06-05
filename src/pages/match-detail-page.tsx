@@ -12,6 +12,7 @@ import { OrderPanel } from '../features/home/components/order-panel'
 import { TeamMark } from '../features/home/components/team-mark'
 import { useOrderStore } from '../features/home/order-store'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
+import { RollingNumber } from '../features/market-realtime/rolling-number'
 import { usePolymarketAssetSubscription } from '../features/market-realtime/use-polymarket-asset-subscription'
 
 type MatchDetailTab = 'markets' | 'exact' | 'halftime'
@@ -69,7 +70,7 @@ function RealtimePriceValue({
   const price = useDisplayPrice(assetId, fallbackPrice)
   return (
     <>
-      {price}
+      <RollingNumber value={price} />
       {suffix}
     </>
   )

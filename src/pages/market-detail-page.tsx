@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
+import { RollingNumber } from '../features/market-realtime/rolling-number'
 import { usePolymarketAssetSubscription } from '../features/market-realtime/use-polymarket-asset-subscription'
 import {
   getWorldCupPropCardById,
@@ -45,7 +46,7 @@ function RealtimePriceValue({
   const price = useDisplayPrice(assetId, fallbackPrice)
   return (
     <>
-      {price}
+      <RollingNumber value={price} />
       {suffix}
     </>
   )

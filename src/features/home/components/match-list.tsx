@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useDisplayPrice } from '../../market-realtime/price-utils'
+import { RollingNumber } from '../../market-realtime/rolling-number'
 import { usePolymarketAssetSubscription } from '../../market-realtime/use-polymarket-asset-subscription'
 import { getWorldCupGames } from '../api/get-world-cup-games'
 import { TeamMark } from './team-mark'
@@ -41,7 +42,7 @@ function RealtimePriceValue({
   const price = useDisplayPrice(assetId, fallbackPrice)
   return (
     <>
-      {price}
+      <RollingNumber value={price} />
       {suffix}
     </>
   )

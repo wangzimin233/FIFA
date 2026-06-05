@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useDisplayPrice } from '../../market-realtime/price-utils'
+import { RollingNumber } from '../../market-realtime/rolling-number'
 import { usePolymarketAssetSubscription } from '../../market-realtime/use-polymarket-asset-subscription'
 import {
   getWorldCupPropsPage,
@@ -15,27 +16,34 @@ function OddsRing({ value }: { value: number }) {
   const circumference = 2 * Math.PI * 42
 
   return (
-    <svg viewBox="0 0 120 120" className="h-16 w-16 shrink-0 sm:h-18 sm:w-18 lg:h-20 lg:w-20">
-      <circle cx="60" cy="60" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
-      <circle
-        cx="60"
-        cy="60"
-        r="42"
-        fill="none"
-        stroke="rgba(74,222,128,0.95)"
-        strokeWidth="10"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset="0"
-        transform="rotate(-90 60 60)"
-      />
-      <text x="60" y="58" textAnchor="middle" className="fill-[#f7fff1] text-[18px] font-semibold sm:text-[20px] lg:text-[22px]">
-        {value}
-      </text>
-      <text x="60" y="82" textAnchor="middle" className="fill-[#8e9488] text-[11px] font-semibold sm:text-[12px] lg:text-[13px]">
-        赔率
-      </text>
-    </svg>
+    <div className="relative h-16 w-16 shrink-0 sm:h-18 sm:w-18 lg:h-20 lg:w-20">
+      <svg viewBox="0 0 120 120" className="absolute inset-0 h-full w-full">
+        <circle cx="60" cy="60" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10" />
+        <circle
+          cx="60"
+          cy="60"
+          r="42"
+          fill="none"
+          stroke="rgba(74,222,128,0.95)"
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset="0"
+          transform="rotate(-90 60 60)"
+        />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center text-center">
+        <div>
+          <RollingNumber
+            value={value}
+            className="justify-center text-[18px] font-semibold leading-none text-ink sm:text-[20px] lg:text-[22px]"
+          />
+          <div className="mt-1 text-[11px] font-semibold leading-none text-ink-soft sm:text-[12px] lg:text-[13px]">
+            赔率
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -51,7 +59,7 @@ function RealtimePriceValue({
   const price = useDisplayPrice(assetId, fallbackPrice)
   return (
     <>
-      {price}
+      <RollingNumber value={price} />
       {suffix}
     </>
   )

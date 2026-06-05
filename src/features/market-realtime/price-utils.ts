@@ -58,7 +58,15 @@ function resolveSelectionPriceTarget(selection: MarketSelection) {
 
 function resolveSelectionDisplayPrice(selection: MarketSelection) {
   if (selection.template === 'winner') {
-    return selection.activeSide === 'yes' ? selection.yesPrice : selection.noPrice
+    return selection.activeSide === 'yes'
+      ? {
+          assetId: selection.yesAssetId,
+          fallbackPrice: selection.yesPrice,
+        }
+      : {
+          assetId: selection.noAssetId,
+          fallbackPrice: selection.noPrice,
+        }
   }
 
   if (selection.template === 'spread') {
@@ -66,11 +74,27 @@ function resolveSelectionDisplayPrice(selection: MarketSelection) {
       selection.variants.find((variant) => variant.id === selection.activeVariantId) ??
       selection.variants[0]
 
-    return selection.activeTeamSide === 'away' ? activeVariant.awayPrice : activeVariant.homePrice
+    return selection.activeTeamSide === 'away'
+      ? {
+          assetId: activeVariant.awayAssetId,
+          fallbackPrice: activeVariant.awayPrice,
+        }
+      : {
+          assetId: activeVariant.homeAssetId,
+          fallbackPrice: activeVariant.homePrice,
+        }
   }
 
   const activeLine = selection.lines.find((line) => line.id === selection.activeLineId) ?? selection.lines[0]
-  return selection.activeSide === 'over' ? activeLine.overPrice : activeLine.underPrice
+  return selection.activeSide === 'over'
+    ? {
+        assetId: activeLine.overAssetId,
+        fallbackPrice: activeLine.overPrice,
+      }
+    : {
+        assetId: activeLine.underAssetId,
+        fallbackPrice: activeLine.underPrice,
+      }
 }
 
 export function useDisplayPrice(assetId: string | undefined, fallbackPrice: number) {
@@ -78,7 +102,14 @@ export function useDisplayPrice(assetId: string | undefined, fallbackPrice: numb
 }
 
 export function useActiveSelectionPrice(selection: MarketSelection | null | undefined) {
-  return selection ? resolveSelectionDisplayPrice(selection) : null
+  return usePolymarketPriceStore((state) => {
+    if (!selection) {
+      return null
+    }
+
+    const target = resolveSelectionDisplayPrice(selection)
+    return getDisplayPrice(state.displayPriceByAssetId, target.assetId, target.fallbackPrice)
+  })
 }
 
 export function getActiveSelectionPrice(
