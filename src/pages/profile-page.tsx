@@ -37,6 +37,9 @@ const WALLET_HISTORY_PAGE_SIZE = 10
 const ORDER_HISTORY_PAGE_SIZE = 10
 const DIRECT_USER_PAGE_SIZE = 10
 const REWARD_PAGE_SIZE = 10
+const DIALOG_LIST_HEIGHT_CLASS = 'h-[min(30rem,calc(92vh-130px))]'
+const DIALOG_TALL_LIST_HEIGHT_CLASS = 'h-[min(32rem,calc(92vh-73px))]'
+const DIALOG_SEARCH_LIST_HEIGHT_CLASS = 'h-[min(26rem,calc(92vh-172px))]'
 
 type ActiveAction = 'deposit' | 'withdraw' | null
 type ActiveHistory = 'deposit' | 'withdraw' | null
@@ -1055,14 +1058,14 @@ function OrderDetailPanel({
 
   if (error) {
     return (
-      <div className="px-4 py-8 text-center text-[13px] text-rose-200 sm:px-5">
+      <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200 sm:px-5">
         订单详情读取失败: {error instanceof Error ? error.message : '未知错误'}
       </div>
     )
   }
 
   if (!detail) {
-    return <div className="px-4 py-8 text-center text-[13px] text-ink-soft sm:px-5">点击左侧订单查看详情。</div>
+    return <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft sm:px-5">点击左侧订单查看详情。</div>
   }
 
   const status = resolvePolymarketOrderStatus(detail.status, detail.errorMessage)
@@ -1190,7 +1193,7 @@ function OrderHistoryDialog({
           onClose={closeList}
         />
         <div
-          className="max-h-[calc(92vh-73px)] overflow-y-auto"
+          className={`${DIALOG_TALL_LIST_HEIGHT_CLASS} overflow-y-auto`}
           onScroll={(event) => {
             const target = event.currentTarget
             const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
@@ -1200,7 +1203,7 @@ function OrderHistoryDialog({
           }}
         >
           {!isSessionReady ? (
-            <div className="px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看订单。</div>
+            <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看订单。</div>
           ) : orderQuery.isLoading ? (
             <div className="grid gap-2 px-4 py-4">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -1208,11 +1211,11 @@ function OrderHistoryDialog({
               ))}
             </div>
           ) : orderQuery.isError ? (
-            <div className="px-4 py-8 text-center text-[13px] text-rose-200">
+            <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
               订单读取失败: {orderQuery.error instanceof Error ? orderQuery.error.message : '未知错误'}
             </div>
           ) : items.length === 0 ? (
-            <div className="px-4 py-8 text-center text-[13px] text-ink-soft">暂无订单。</div>
+            <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无订单。</div>
           ) : (
             <div>
               {items.map((item) => (
@@ -1243,7 +1246,7 @@ function OrderHistoryDialog({
           status={<span className="rounded-full border border-brand/20 bg-brand/12 px-3 py-1.5 text-[11px] font-semibold text-brand">详情</span>}
           onClose={() => setSelectedOrderId(null)}
         />
-        <div className="max-h-[calc(92vh-73px)] overflow-y-auto">
+        <div className={`${DIALOG_TALL_LIST_HEIGHT_CLASS} overflow-y-auto`}>
           <OrderDetailPanel
             detail={detailQuery.data}
             error={detailQuery.isError ? detailQuery.error : null}
@@ -1310,7 +1313,7 @@ function DirectUsersDialog({
         </label>
       </div>
       <div
-        className="h-[min(26rem,calc(92vh-172px))] overflow-y-auto"
+        className={`${DIALOG_SEARCH_LIST_HEIGHT_CLASS} overflow-y-auto`}
         onScroll={(event) => {
           const target = event.currentTarget
           const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
@@ -1392,7 +1395,7 @@ function RewardRecordsDialog({
       />
       <HistoryStatusFilter<WalletRewardBizType> options={REWARD_BIZ_TYPE_OPTIONS} value={rewardType} onChange={setRewardType} />
       <div
-        className="max-h-[calc(92vh-130px)] overflow-y-auto"
+        className={`${DIALOG_LIST_HEIGHT_CLASS} overflow-y-auto`}
         onScroll={(event) => {
           const target = event.currentTarget
           const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
@@ -1402,7 +1405,7 @@ function RewardRecordsDialog({
         }}
       >
         {!isSessionReady ? (
-          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看奖励记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看奖励记录。</div>
         ) : rewardQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -1410,11 +1413,11 @@ function RewardRecordsDialog({
             ))}
           </div>
         ) : rewardQuery.isError ? (
-          <div className="px-4 py-8 text-center text-[13px] text-rose-200">
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
             奖励记录读取失败: {rewardQuery.error instanceof Error ? rewardQuery.error.message : '未知错误'}
           </div>
         ) : items.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">暂无奖励记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无奖励记录。</div>
         ) : (
           <div>
             {items.map((item) => (
@@ -1486,10 +1489,6 @@ function WalletHistoryDialog({
   const total = historyQuery.data?.pages[0]?.total ?? 0
   const title = kind === 'deposit' ? '充值记录' : '提现记录'
   const eyebrow = kind === 'deposit' ? 'Deposit History' : 'Withdraw History'
-  const historyListMaxHeightClass =
-    kind === 'withdraw'
-      ? 'max-h-[calc(92vh-224px)] sm:max-h-[calc(92vh-178px)]'
-      : 'max-h-[calc(92vh-178px)] sm:max-h-[calc(92vh-130px)]'
 
   return (
     <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
@@ -1513,7 +1512,7 @@ function WalletHistoryDialog({
         />
       )}
       <div
-        className={`${historyListMaxHeightClass} overflow-y-auto`}
+        className={`${DIALOG_LIST_HEIGHT_CLASS} overflow-y-auto`}
         onScroll={(event) => {
           const target = event.currentTarget
           const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
@@ -1523,7 +1522,7 @@ function WalletHistoryDialog({
         }}
       >
         {!isSessionReady ? (
-          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看记录。</div>
         ) : historyQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -1531,11 +1530,11 @@ function WalletHistoryDialog({
             ))}
           </div>
         ) : historyQuery.isError ? (
-          <div className="px-4 py-8 text-center text-[13px] text-rose-200">
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
             记录读取失败: {historyQuery.error instanceof Error ? historyQuery.error.message : '未知错误'}
           </div>
         ) : items.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[13px] text-ink-soft">暂无记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无记录。</div>
         ) : (
           <div>
             {kind === 'deposit'
