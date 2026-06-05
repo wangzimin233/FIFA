@@ -1,11 +1,20 @@
-import { marketCards, matchGroups, type MatchCard, type SpreadVariant, type TotalLine, type WinnerOutcome } from './home-data'
+import {
+  marketCards,
+  matchGroups,
+  type MatchCard,
+  type OrderTextMetadata,
+  type SpreadVariant,
+  type TotalLine,
+  type WinnerOutcome,
+} from './home-data'
 
-export type MatchDetailProposition = {
+export type MatchDetailProposition = OrderTextMetadata & {
   id: string
   eventSlug?: string
   marketId?: string
   marketSlug?: string
   conditionId?: string
+  acceptingOrders?: boolean
   negRisk?: boolean
   title: string
   volumeLabel: string

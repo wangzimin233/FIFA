@@ -21,6 +21,12 @@ export type PolymarketCreateOrderRequest = {
   marketId: string
   conditionId: string
   market: string
+  eventTitle: string
+  eventTitleZh: string
+  marketTitle: string
+  marketTitleZh: string
+  outcomeTitle: string
+  outcomeTitleZh: string
   tokenId: string
   amount: number
   negRisk: boolean

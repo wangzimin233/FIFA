@@ -25,6 +25,10 @@ function wrapperClass() {
   return 'rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_12px_28px_rgba(0,0,0,0.14)]'
 }
 
+function isAcceptingOrders(item: { acceptingOrders?: boolean }) {
+  return item.acceptingOrders === true
+}
+
 function actionButtonClass(active: boolean, tone: 'positive' | 'negative' = 'positive') {
   if (!active) {
     return 'border-transparent bg-white/4 text-ink-soft hover:border-white/14 hover:text-ink'
@@ -62,7 +66,7 @@ export function MarketDetailPage() {
   const state = location.state as MarketDetailLocationState | null
   const initialMarket = state?.marketCard?.id === marketId ? state.marketCard : undefined
   const initialSelectionKeyRef = useRef<string | null>(null)
-  const { activeSelection, selectProposition } = useOrderStore()
+  const { activeSelection, clearSelection, selectProposition } = useOrderStore()
   const isActiveMarketWinnerSelection =
     activeSelection?.contextType === 'market' && activeSelection.template === 'winner'
   const { data: market, isLoading, isError } = useQuery({
@@ -93,17 +97,28 @@ export function MarketDetailPage() {
         return
       }
 
+      const requestedCandidate = market.candidates.find((item) => item.name === state?.preselectedCandidateName)
+      if (requestedCandidate && !isAcceptingOrders(requestedCandidate)) {
+        initialSelectionKeyRef.current = initialSelectionKey
+        clearSelection()
+        return
+      }
+
       const candidate =
-        market.candidates.find((item) => item.name === state?.preselectedCandidateName) ?? market.candidates[0]
+        requestedCandidate && isAcceptingOrders(requestedCandidate)
+          ? requestedCandidate
+          : market.candidates.find(isAcceptingOrders)
 
       if (!candidate) {
+        initialSelectionKeyRef.current = initialSelectionKey
+        clearSelection()
         return
       }
 
       const hasSelectionForCurrentMarket =
         isActiveMarketWinnerSelection &&
         activeSelection.matchId === market.id &&
-        market.candidates.some((item) => item.name === activeSelection.subject)
+        market.candidates.some((item) => item.name === activeSelection.subject && isAcceptingOrders(item))
       const shouldApplyRequestedCandidate =
         Boolean(state?.preselectedCandidateName) &&
         (!isActiveMarketWinnerSelection ||
@@ -120,7 +135,16 @@ export function MarketDetailPage() {
             marketId: candidate.marketId ?? candidate.id,
             marketSlug: candidate.marketSlug,
             conditionId: candidate.conditionId,
+            acceptingOrders: candidate.acceptingOrders,
             negRisk: candidate.negRisk,
+            eventTitle: candidate.eventTitle,
+            eventTitleZh: candidate.eventTitleZh,
+            marketTitle: candidate.marketTitle,
+            marketTitleZh: candidate.marketTitleZh,
+            yesOutcomeTitle: candidate.yesOutcomeTitle,
+            noOutcomeTitle: candidate.noOutcomeTitle,
+            yesOutcomeTitleZh: candidate.yesOutcomeTitleZh,
+            noOutcomeTitleZh: candidate.noOutcomeTitleZh,
             title: market.title,
             badge: market.icon,
             badgeLogo: market.iconLogo,
@@ -154,6 +178,12 @@ export function MarketDetailPage() {
       activeSelection.subject !== market.subject
 
     if (shouldReselect) {
+      if (!isAcceptingOrders(market)) {
+        initialSelectionKeyRef.current = initialSelectionKey
+        clearSelection()
+        return
+      }
+
       selectProposition(
         {
           contextType: 'market',
@@ -163,7 +193,16 @@ export function MarketDetailPage() {
           marketId: market.marketId ?? market.id,
           marketSlug: market.marketSlug,
           conditionId: market.conditionId,
+          acceptingOrders: market.acceptingOrders,
           negRisk: market.negRisk,
+          eventTitle: market.eventTitle,
+          eventTitleZh: market.eventTitleZh,
+          marketTitle: market.marketTitle,
+          marketTitleZh: market.marketTitleZh,
+          yesOutcomeTitle: market.yesOutcomeTitle,
+          noOutcomeTitle: market.noOutcomeTitle,
+          yesOutcomeTitleZh: market.yesOutcomeTitleZh,
+          noOutcomeTitleZh: market.noOutcomeTitleZh,
           title: market.title,
           badge: market.icon,
           badgeLogo: market.iconLogo,
@@ -182,7 +221,7 @@ export function MarketDetailPage() {
     }
 
     initialSelectionKeyRef.current = initialSelectionKey
-  }, [activeSelection, isActiveMarketWinnerSelection, market, selectProposition, state?.preselectedCandidateName])
+  }, [activeSelection, clearSelection, isActiveMarketWinnerSelection, market, selectProposition, state?.preselectedCandidateName])
 
   if (isLoading && !market) {
     return (
@@ -247,7 +286,9 @@ export function MarketDetailPage() {
         {market.kind === 'list' ? (
           <div className="mt-4 grid gap-4">
             {market.candidates.map((candidate) => {
+              const canPlaceOrder = isAcceptingOrders(candidate)
               const isActive =
+                canPlaceOrder &&
                 isActiveMarketWinnerSelection &&
                 activeSelection.matchId === market.id &&
                 activeSelection.subject === candidate.name
@@ -261,80 +302,100 @@ export function MarketDetailPage() {
                         <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                       </div>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          selectProposition(
-                            {
-                              contextType: 'market',
-                              sourceTab: 'markets',
-                              matchId: market.id,
-                              eventSlug: candidate.eventSlug ?? market.id,
-                              marketId: candidate.marketId ?? candidate.id,
-                              marketSlug: candidate.marketSlug,
-                              conditionId: candidate.conditionId,
-                              negRisk: candidate.negRisk,
-                              title: market.title,
-                              badge: market.icon,
-                              badgeLogo: market.iconLogo,
-                              subject: candidate.name,
-                              shortLabel: candidate.name,
-                              yesPrice: candidate.yesPrice,
-                              noPrice: candidate.noPrice,
-                              yesOrderPrice: candidate.yesOrderPrice,
-                              noOrderPrice: candidate.noOrderPrice,
-                              yesAssetId: candidate.yesAssetId,
-                              noAssetId: candidate.noAssetId,
-                              activeSide: 'yes',
-                            },
-                            { openPanel: true },
-                          )
-                        }
-                        className={[
-                          'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px]',
-                          actionButtonClass(isActive && activeSelection.activeSide === 'yes', 'positive'),
-                        ].join(' ')}
-                      >
-                        YES <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          selectProposition(
-                            {
-                              contextType: 'market',
-                              sourceTab: 'markets',
-                              matchId: market.id,
-                              eventSlug: candidate.eventSlug ?? market.id,
-                              marketId: candidate.marketId ?? candidate.id,
-                              marketSlug: candidate.marketSlug,
-                              conditionId: candidate.conditionId,
-                              negRisk: candidate.negRisk,
-                              title: market.title,
-                              badge: market.icon,
-                              badgeLogo: market.iconLogo,
-                              subject: candidate.name,
-                              shortLabel: candidate.name,
-                              yesPrice: candidate.yesPrice,
-                              noPrice: candidate.noPrice,
-                              yesOrderPrice: candidate.yesOrderPrice,
-                              noOrderPrice: candidate.noOrderPrice,
-                              yesAssetId: candidate.yesAssetId,
-                              noAssetId: candidate.noAssetId,
-                              activeSide: 'no',
-                            },
-                            { openPanel: true },
-                          )
-                        }
-                        className={[
-                          'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px]',
-                          actionButtonClass(isActive && activeSelection.activeSide === 'no', 'negative'),
-                        ].join(' ')}
-                      >
-                        NO <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
-                      </button>
-                    </div>
+                    {canPlaceOrder ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            selectProposition(
+                              {
+                                contextType: 'market',
+                                sourceTab: 'markets',
+                                matchId: market.id,
+                                eventSlug: candidate.eventSlug ?? market.id,
+                                marketId: candidate.marketId ?? candidate.id,
+                                marketSlug: candidate.marketSlug,
+                                conditionId: candidate.conditionId,
+                                acceptingOrders: candidate.acceptingOrders,
+                                negRisk: candidate.negRisk,
+                                eventTitle: candidate.eventTitle,
+                                eventTitleZh: candidate.eventTitleZh,
+                                marketTitle: candidate.marketTitle,
+                                marketTitleZh: candidate.marketTitleZh,
+                                yesOutcomeTitle: candidate.yesOutcomeTitle,
+                                noOutcomeTitle: candidate.noOutcomeTitle,
+                                yesOutcomeTitleZh: candidate.yesOutcomeTitleZh,
+                                noOutcomeTitleZh: candidate.noOutcomeTitleZh,
+                                title: market.title,
+                                badge: market.icon,
+                                badgeLogo: market.iconLogo,
+                                subject: candidate.name,
+                                shortLabel: candidate.name,
+                                yesPrice: candidate.yesPrice,
+                                noPrice: candidate.noPrice,
+                                yesOrderPrice: candidate.yesOrderPrice,
+                                noOrderPrice: candidate.noOrderPrice,
+                                yesAssetId: candidate.yesAssetId,
+                                noAssetId: candidate.noAssetId,
+                                activeSide: 'yes',
+                              },
+                              { openPanel: true },
+                            )
+                          }
+                          className={[
+                            'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px]',
+                            actionButtonClass(isActive && activeSelection.activeSide === 'yes', 'positive'),
+                          ].join(' ')}
+                        >
+                          YES <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            selectProposition(
+                              {
+                                contextType: 'market',
+                                sourceTab: 'markets',
+                                matchId: market.id,
+                                eventSlug: candidate.eventSlug ?? market.id,
+                                marketId: candidate.marketId ?? candidate.id,
+                                marketSlug: candidate.marketSlug,
+                                conditionId: candidate.conditionId,
+                                acceptingOrders: candidate.acceptingOrders,
+                                negRisk: candidate.negRisk,
+                                eventTitle: candidate.eventTitle,
+                                eventTitleZh: candidate.eventTitleZh,
+                                marketTitle: candidate.marketTitle,
+                                marketTitleZh: candidate.marketTitleZh,
+                                yesOutcomeTitle: candidate.yesOutcomeTitle,
+                                noOutcomeTitle: candidate.noOutcomeTitle,
+                                yesOutcomeTitleZh: candidate.yesOutcomeTitleZh,
+                                noOutcomeTitleZh: candidate.noOutcomeTitleZh,
+                                title: market.title,
+                                badge: market.icon,
+                                badgeLogo: market.iconLogo,
+                                subject: candidate.name,
+                                shortLabel: candidate.name,
+                                yesPrice: candidate.yesPrice,
+                                noPrice: candidate.noPrice,
+                                yesOrderPrice: candidate.yesOrderPrice,
+                                noOrderPrice: candidate.noOrderPrice,
+                                yesAssetId: candidate.yesAssetId,
+                                noAssetId: candidate.noAssetId,
+                                activeSide: 'no',
+                              },
+                              { openPanel: true },
+                            )
+                          }
+                          className={[
+                            'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px]',
+                            actionButtonClass(isActive && activeSelection.activeSide === 'no', 'negative'),
+                          ].join(' ')}
+                        >
+                          NO <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </section>
               )
@@ -352,89 +413,110 @@ export function MarketDetailPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() =>
-                  selectProposition(
-                    {
-                      contextType: 'market',
-                      sourceTab: 'markets',
-                      matchId: market.id,
-                      eventSlug: market.eventSlug ?? market.id,
-                      marketId: market.marketId ?? market.id,
-                      marketSlug: market.marketSlug,
-                      conditionId: market.conditionId,
-                      negRisk: market.negRisk,
-                      title: market.title,
-                      badge: market.icon,
-                      badgeLogo: market.iconLogo,
-                      subject: market.subject,
-                      shortLabel: market.subject,
-                      yesPrice: market.yesPrice,
-                      noPrice: market.noPrice,
-                      yesOrderPrice: market.yesOrderPrice,
-                      noOrderPrice: market.noOrderPrice,
-                      yesAssetId: market.yesAssetId,
-                      noAssetId: market.noAssetId,
-                      activeSide: 'yes',
-                    },
-                    { openPanel: true },
-                  )
-                }
-                className={[
-                  'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition',
-                  actionButtonClass(
-                    isActiveMarketWinnerSelection &&
-                      activeSelection.matchId === market.id &&
-                      activeSelection.activeSide === 'yes',
-                  ),
-                ].join(' ')}
-              >
-                YES <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} />
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  selectProposition(
-                    {
-                      contextType: 'market',
-                      sourceTab: 'markets',
-                      matchId: market.id,
-                      eventSlug: market.eventSlug ?? market.id,
-                      marketId: market.marketId ?? market.id,
-                      marketSlug: market.marketSlug,
-                      conditionId: market.conditionId,
-                      negRisk: market.negRisk,
-                      title: market.title,
-                      badge: market.icon,
-                      badgeLogo: market.iconLogo,
-                      subject: market.subject,
-                      shortLabel: market.subject,
-                      yesPrice: market.yesPrice,
-                      noPrice: market.noPrice,
-                      yesOrderPrice: market.yesOrderPrice,
-                      noOrderPrice: market.noOrderPrice,
-                      yesAssetId: market.yesAssetId,
-                      noAssetId: market.noAssetId,
-                      activeSide: 'no',
-                    },
-                    { openPanel: true },
-                  )
-                }
-                className={[
-                  'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition',
-                  actionButtonClass(
-                    isActiveMarketWinnerSelection &&
-                      activeSelection.matchId === market.id &&
-                      activeSelection.activeSide === 'no',
-                    'negative',
-                  ),
-                ].join(' ')}
-              >
-                NO <RealtimePriceValue assetId={market.noAssetId} fallbackPrice={market.noPrice} />
-              </button>
-            </div>
+            {isAcceptingOrders(market) ? (
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    selectProposition(
+                      {
+                        contextType: 'market',
+                        sourceTab: 'markets',
+                        matchId: market.id,
+                        eventSlug: market.eventSlug ?? market.id,
+                        marketId: market.marketId ?? market.id,
+                        marketSlug: market.marketSlug,
+                        conditionId: market.conditionId,
+                        acceptingOrders: market.acceptingOrders,
+                        negRisk: market.negRisk,
+                        eventTitle: market.eventTitle,
+                        eventTitleZh: market.eventTitleZh,
+                        marketTitle: market.marketTitle,
+                        marketTitleZh: market.marketTitleZh,
+                        yesOutcomeTitle: market.yesOutcomeTitle,
+                        noOutcomeTitle: market.noOutcomeTitle,
+                        yesOutcomeTitleZh: market.yesOutcomeTitleZh,
+                        noOutcomeTitleZh: market.noOutcomeTitleZh,
+                        title: market.title,
+                        badge: market.icon,
+                        badgeLogo: market.iconLogo,
+                        subject: market.subject,
+                        shortLabel: market.subject,
+                        yesPrice: market.yesPrice,
+                        noPrice: market.noPrice,
+                        yesOrderPrice: market.yesOrderPrice,
+                        noOrderPrice: market.noOrderPrice,
+                        yesAssetId: market.yesAssetId,
+                        noAssetId: market.noAssetId,
+                        activeSide: 'yes',
+                      },
+                      { openPanel: true },
+                    )
+                  }
+                  className={[
+                    'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition',
+                    actionButtonClass(
+                      isActiveMarketWinnerSelection &&
+                        activeSelection.matchId === market.id &&
+                        activeSelection.activeSide === 'yes',
+                      'positive',
+                    ),
+                  ].join(' ')}
+                >
+                  YES <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    selectProposition(
+                      {
+                        contextType: 'market',
+                        sourceTab: 'markets',
+                        matchId: market.id,
+                        eventSlug: market.eventSlug ?? market.id,
+                        marketId: market.marketId ?? market.id,
+                        marketSlug: market.marketSlug,
+                        conditionId: market.conditionId,
+                        acceptingOrders: market.acceptingOrders,
+                        negRisk: market.negRisk,
+                        eventTitle: market.eventTitle,
+                        eventTitleZh: market.eventTitleZh,
+                        marketTitle: market.marketTitle,
+                        marketTitleZh: market.marketTitleZh,
+                        yesOutcomeTitle: market.yesOutcomeTitle,
+                        noOutcomeTitle: market.noOutcomeTitle,
+                        yesOutcomeTitleZh: market.yesOutcomeTitleZh,
+                        noOutcomeTitleZh: market.noOutcomeTitleZh,
+                        title: market.title,
+                        badge: market.icon,
+                        badgeLogo: market.iconLogo,
+                        subject: market.subject,
+                        shortLabel: market.subject,
+                        yesPrice: market.yesPrice,
+                        noPrice: market.noPrice,
+                        yesOrderPrice: market.yesOrderPrice,
+                        noOrderPrice: market.noOrderPrice,
+                        yesAssetId: market.yesAssetId,
+                        noAssetId: market.noAssetId,
+                        activeSide: 'no',
+                      },
+                      { openPanel: true },
+                    )
+                  }
+                  className={[
+                    'rounded-[16px] border px-4 py-3 text-[15px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition',
+                    actionButtonClass(
+                      isActiveMarketWinnerSelection &&
+                        activeSelection.matchId === market.id &&
+                        activeSelection.activeSide === 'no',
+                      'negative',
+                    ),
+                  ].join(' ')}
+                >
+                  NO <RealtimePriceValue assetId={market.noAssetId} fallbackPrice={market.noPrice} />
+                </button>
+              </div>
+            ) : null}
           </section>
         )}
       </div>

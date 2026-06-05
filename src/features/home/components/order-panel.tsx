@@ -78,7 +78,7 @@ function PanelShell({
 function AmountSection() {
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
-  const { canSubmit, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
+  const { canSubmit, isAcceptingOrders, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
   const amountDisplay = useMemo(() => `$${amount}`, [amount])
   const amountTone = amount > 0 ? 'text-ink' : 'text-[#66758d]'
   const computedResult = useMemo(() => {
@@ -151,7 +151,7 @@ function AmountSection() {
       ) : null}
 
       <div className="mt-3 text-center text-[11px] font-medium text-ink-soft">
-        最低下单金额 ${MIN_POLYMARKET_ORDER_AMOUNT}
+        {isAcceptingOrders ? `最低下单金额 $${MIN_POLYMARKET_ORDER_AMOUNT}` : '当前盘口暂不支持挂单'}
       </div>
 
       <Button
@@ -159,7 +159,7 @@ function AmountSection() {
         onPress={submitOrder}
         className="mt-5 h-11 w-full rounded-[15px] bg-sky-500 text-[13px] font-semibold text-white shadow-[inset_0_-7px_0_rgba(0,0,0,0.14)] disabled:opacity-60 sm:h-12 sm:text-sm"
       >
-        {isSubmitting ? '提交中...' : slippageConfirmed ? '确认滑点并交易' : '交易'}
+        {isSubmitting ? '提交中...' : !isAcceptingOrders ? '暂不支持挂单' : slippageConfirmed ? '确认滑点并交易' : '交易'}
       </Button>
     </>
   )

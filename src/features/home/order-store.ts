@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { HomeTab, MatchCard, SpreadVariant, TotalLine, WinnerOutcome } from './home-data'
+import type { HomeTab, MatchCard, OrderTextMetadata, SpreadVariant, TotalLine, WinnerOutcome } from './home-data'
 
 export type OrderContextType = 'match' | 'market'
 export type MatchMarketType = 'winner' | 'spread' | 'total'
@@ -16,7 +16,8 @@ type OrderMarketMetadata = {
   marketId?: string
   marketSlug?: string
   conditionId?: string
-}
+  acceptingOrders?: boolean
+} & OrderTextMetadata
 
 export type WinnerSelection = BaseSelection & {
   template: 'winner'
@@ -69,7 +70,7 @@ type SelectionOptions = {
   openPanel?: boolean
 }
 
-type PropositionSelectionInput = {
+type PropositionSelectionInput = OrderTextMetadata & {
   contextType: OrderContextType
   sourceTab: HomeTab
   matchId: string
@@ -77,6 +78,7 @@ type PropositionSelectionInput = {
   marketId?: string
   marketSlug?: string
   conditionId?: string
+  acceptingOrders?: boolean
   negRisk?: boolean
   title: string
   badge: string
@@ -143,10 +145,19 @@ const buildWinnerSelection = ({
   sourceTab,
   matchId,
   title,
+  eventTitle,
+  eventTitleZh,
+  marketTitle,
+  marketTitleZh,
+  yesOutcomeTitle,
+  noOutcomeTitle,
+  yesOutcomeTitleZh,
+  noOutcomeTitleZh,
   eventSlug,
   marketId,
   marketSlug,
   conditionId,
+  acceptingOrders,
   negRisk,
   badge,
   badgeLogo,
@@ -165,10 +176,19 @@ const buildWinnerSelection = ({
   template: 'winner',
   marketType: 'winner',
   matchId,
+  eventTitle,
+  eventTitleZh,
+  marketTitle,
+  marketTitleZh,
+  yesOutcomeTitle,
+  noOutcomeTitle,
+  yesOutcomeTitleZh,
+  noOutcomeTitleZh,
   eventSlug,
   marketId,
   marketSlug,
   conditionId,
+  acceptingOrders,
   negRisk,
   title,
   badge,
@@ -201,10 +221,19 @@ export const useOrderStore = create<OrderStore>((set) => ({
         sourceTab: 'matches',
         matchId: match.id,
         title: match.matchup,
+        eventTitle: outcome.eventTitle,
+        eventTitleZh: outcome.eventTitleZh,
+        marketTitle: outcome.marketTitle,
+        marketTitleZh: outcome.marketTitleZh,
+        yesOutcomeTitle: outcome.yesOutcomeTitle,
+        noOutcomeTitle: outcome.noOutcomeTitle,
+        yesOutcomeTitleZh: outcome.yesOutcomeTitleZh,
+        noOutcomeTitleZh: outcome.noOutcomeTitleZh,
         eventSlug: outcome.eventSlug ?? getMatchEventSlug(match),
         marketId: outcome.marketId ?? outcome.id,
         marketSlug: outcome.marketSlug,
         conditionId: outcome.conditionId,
+        acceptingOrders: outcome.acceptingOrders,
         negRisk: outcome.negRisk,
         badge: outcome.badge,
         badgeLogo: outcome.badgeLogo,

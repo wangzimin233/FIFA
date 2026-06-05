@@ -76,6 +76,10 @@ function RealtimeOddsRing({
   return <OddsRing value={price} />
 }
 
+function isAcceptingOrders(item: { acceptingOrders?: boolean }) {
+  return item.acceptingOrders === true
+}
+
 export function MarketGrid() {
   const navigate = useNavigate()
   const { i18n } = useTranslation()
@@ -183,6 +187,8 @@ export function MarketGrid() {
 
               <div className="mt-5 grid gap-3">
                 {card.candidates.slice(0, 2).map((candidate) => {
+                  const canPlaceOrder = isAcceptingOrders(candidate)
+
                   return (
                     <button
                       key={candidate.id ?? candidate.name}
@@ -196,7 +202,10 @@ export function MarketGrid() {
                           },
                         })
                       }
-                      className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5 text-left"
+                      className={[
+                        'grid items-center gap-1.5 text-left',
+                        canPlaceOrder ? 'grid-cols-[minmax(0,1fr)_auto_auto]' : 'grid-cols-1',
+                      ].join(' ')}
                     >
                       <div className="min-w-0">
                         <div className="truncate text-[13px] font-semibold text-ink sm:text-[14px]">
@@ -206,12 +215,16 @@ export function MarketGrid() {
                           <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                         </div>
                       </div>
-                      <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
-                        Yes <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
-                      </div>
-                      <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
-                        No <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
-                      </div>
+                      {canPlaceOrder ? (
+                        <>
+                          <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
+                            Yes <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
+                          </div>
+                          <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
+                            No <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
+                          </div>
+                        </>
+                      ) : null}
                     </button>
                   )
                 })}
@@ -259,30 +272,32 @@ export function MarketGrid() {
                 <RealtimeOddsRing assetId={card.yesAssetId} fallbackPrice={card.probability} />
               </button>
 
-              <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(`/markets/${card.id}`, {
-                      state: { marketCard: card, backTo: '/markets' },
-                    })
-                  }
-                  className="rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
-                >
-                  Yes <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    navigate(`/markets/${card.id}`, {
-                      state: { marketCard: card, backTo: '/markets' },
-                    })
-                  }
-                  className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
-                >
-                  No <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
-                </button>
-              </div>
+              {isAcceptingOrders(card) ? (
+                <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/markets/${card.id}`, {
+                        state: { marketCard: card, backTo: '/markets' },
+                      })
+                    }
+                    className="rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
+                  >
+                    Yes <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/markets/${card.id}`, {
+                        state: { marketCard: card, backTo: '/markets' },
+                      })
+                    }
+                    className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
+                  >
+                    No <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
+                  </button>
+                </div>
+              ) : null}
 
               <div className="mt-5 flex items-center justify-between text-ink-soft">
                 <span className="text-[11px] sm:text-[12px]">{card.volumeLabel}</span>

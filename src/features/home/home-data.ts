@@ -1,11 +1,23 @@
 export type HomeTab = 'matches' | 'markets'
 
-export type WinnerOutcome = {
+export type OrderTextMetadata = {
+  eventTitle?: string
+  eventTitleZh?: string
+  marketTitle?: string
+  marketTitleZh?: string
+  yesOutcomeTitle?: string
+  noOutcomeTitle?: string
+  yesOutcomeTitleZh?: string
+  noOutcomeTitleZh?: string
+}
+
+export type WinnerOutcome = OrderTextMetadata & {
   id: string
   eventSlug?: string
   marketId?: string
   marketSlug?: string
   conditionId?: string
+  acceptingOrders?: boolean
   negRisk?: boolean
   shortLabel: string
   subject: string
@@ -20,12 +32,13 @@ export type WinnerOutcome = {
   tone?: 'emerald' | 'rose' | 'blue' | 'slate'
 }
 
-export type SpreadVariant = {
+export type SpreadVariant = OrderTextMetadata & {
   id: string
   eventSlug?: string
   marketId?: string
   marketSlug?: string
   conditionId?: string
+  acceptingOrders?: boolean
   negRisk?: boolean
   displayLine: string
   homeHandicap: string
@@ -39,12 +52,13 @@ export type SpreadVariant = {
   favoredSide?: 'home' | 'away'
 }
 
-export type TotalLine = {
+export type TotalLine = OrderTextMetadata & {
   id: string
   eventSlug?: string
   marketId?: string
   marketSlug?: string
   conditionId?: string
+  acceptingOrders?: boolean
   negRisk?: boolean
   line: string
   overPrice: number
@@ -87,12 +101,13 @@ export type MatchCard = {
   }
 }
 
-export type MarketListCandidate = {
+export type MarketListCandidate = OrderTextMetadata & {
   id?: string
   eventSlug?: string
   marketId?: string
   marketSlug?: string
   conditionId?: string
+  acceptingOrders?: boolean
   negRisk?: boolean
   name: string
   probability: number
@@ -127,10 +142,19 @@ export type MarketCard =
       noPrice: number
       yesOrderPrice?: number
       noOrderPrice?: number
+      eventTitle?: string
+      eventTitleZh?: string
+      marketTitle?: string
+      marketTitleZh?: string
+      yesOutcomeTitle?: string
+      noOutcomeTitle?: string
+      yesOutcomeTitleZh?: string
+      noOutcomeTitleZh?: string
       eventSlug?: string
       marketId?: string
       marketSlug?: string
       conditionId?: string
+      acceptingOrders?: boolean
       negRisk?: boolean
       yesAssetId?: string
       noAssetId?: string

@@ -467,12 +467,49 @@ export function getOrderMarketId(market: WorldCupGameMarket) {
   return String(market.id)
 }
 
+function getTrimmedValue(value?: string) {
+  const trimmed = value?.trim()
+  return trimmed && trimmed.length > 0 ? trimmed : undefined
+}
+
+function getOutcomeTitleZh(outcomeTitle: string | undefined, fallback: '是' | '否') {
+  const normalized = outcomeTitle?.trim().toLowerCase()
+  if (normalized === 'yes') {
+    return '是'
+  }
+
+  if (normalized === 'no') {
+    return '否'
+  }
+
+  return fallback
+}
+
+export function getOrderTextMetadata(event: WorldCupGameEvent | undefined, market: WorldCupGameMarket) {
+  const outcomes = parseJsonStringArray(market.outcomes)
+  const yesOutcomeTitle = getTrimmedValue(outcomes[0]) ?? 'Yes'
+  const noOutcomeTitle = getTrimmedValue(outcomes[1]) ?? 'No'
+
+  return {
+    eventTitle: getTrimmedValue(event?.title),
+    eventTitleZh: getTrimmedValue(event?.titleZh),
+    marketTitle: getTrimmedValue(market.groupItemTitle),
+    marketTitleZh: getTrimmedValue(market.groupItemTitleZh),
+    yesOutcomeTitle,
+    noOutcomeTitle,
+    yesOutcomeTitleZh: getOutcomeTitleZh(yesOutcomeTitle, '是'),
+    noOutcomeTitleZh: getOutcomeTitleZh(noOutcomeTitle, '否'),
+  }
+}
+
 export function getOrderMarketMetadata(event: WorldCupGameEvent | undefined, market: WorldCupGameMarket) {
   return {
+    ...getOrderTextMetadata(event, market),
     eventSlug: getEventSlug(event),
     marketId: getOrderMarketId(market),
     marketSlug: market.slug,
     conditionId: market.conditionId,
+    acceptingOrders: market.acceptingOrders,
   }
 }
 
