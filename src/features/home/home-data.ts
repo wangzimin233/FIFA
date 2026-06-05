@@ -55,6 +55,8 @@ export type MatchCard = {
   matchup: string
   primaryTeam: string
   secondaryTeam: string
+  primaryTeamSourceName?: string
+  secondaryTeamSourceName?: string
   primaryFlag: string
   secondaryFlag: string
   primaryLogo?: string

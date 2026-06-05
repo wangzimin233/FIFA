@@ -5,6 +5,7 @@ import {
   buildTotalLines,
   formatTimeLabel,
   formatVolumeLabel,
+  getLocalizedGroupItemTitle,
   getMarketVolumeNumTotal,
   getYesNoAssetIds,
   getYesNoOrderPrices,
@@ -218,7 +219,10 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       const home = outcomeByKey.home
       const away = outcomeByKey.away
 
-      if (label.toLowerCase() === home?.subject?.toLowerCase()) {
+      const homeSourceName = match.primaryTeamSourceName ?? home?.subject
+      const awaySourceName = match.secondaryTeamSourceName ?? away?.subject
+
+      if (label.toLowerCase() === homeSourceName?.toLowerCase()) {
         return {
           id: String(market.id),
           marketId: getOrderMarketId(market),
@@ -238,7 +242,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
         }
       }
 
-      if (label.toLowerCase() === away?.subject?.toLowerCase()) {
+      if (label.toLowerCase() === awaySourceName?.toLowerCase()) {
         return {
           id: String(market.id),
           marketId: getOrderMarketId(market),
@@ -280,7 +284,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
   }
 }
 
-function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCupGameTeam[]) {
+function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCupGameTeam[], language?: string) {
   if (!event?.markets?.length) {
     return undefined
   }
@@ -294,7 +298,7 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
       return leftOrder - rightOrder
     })
     .map((market) => {
-      const rawTitle = market.groupItemTitle ?? market.question ?? 'Exact Score'
+      const rawTitle = getLocalizedGroupItemTitle(market, language) ?? market.question ?? 'Exact Score'
       const scoreLabel = rawTitle.replace(/^Exact Score:\s*/i, '')
       const { badge, badgeLogo } = toExactScoreBadge(scoreLabel, home, away)
       const { yesPrice, noPrice } = getYesNoPrices(market)
@@ -323,7 +327,7 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
   return exactScores
 }
 
-function buildBothTeamsToScore(event: WorldCupGameEvent | undefined) {
+function buildBothTeamsToScore(event: WorldCupGameEvent | undefined, language?: string) {
   const market = event?.markets?.find((item) => item.sportsMarketType === 'both_teams_to_score')
   if (!market) {
     return undefined
@@ -332,7 +336,7 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined) {
   const { yesPrice, noPrice } = getYesNoPrices(market)
   const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
   const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
-  const rawTitle = market.groupItemTitle?.trim() || market.question?.split(':').pop()?.trim() || 'Both Teams to Score'
+  const rawTitle = getLocalizedGroupItemTitle(market, language) || market.question?.split(':').pop()?.trim() || 'Both Teams to Score'
   const title = rawTitle.endsWith('?') ? rawTitle : `${rawTitle}?`
 
   return {
@@ -353,14 +357,14 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined) {
   }
 }
 
-export async function getWorldCupExactScores(slug: string): Promise<MatchDetailProposition[]> {
+export async function getWorldCupExactScores(slug: string, language?: string): Promise<MatchDetailProposition[]> {
   const event = await fetchWorldCupEventBySlug(toExactScoreSlug(slug))
 
   if (!event) {
     return []
   }
 
-  return buildExactScores(event, event.teams) ?? []
+  return buildExactScores(event, event.teams, language) ?? []
 }
 
 export async function getWorldCupHalftimeResult(
@@ -376,7 +380,7 @@ export async function getWorldCupHalftimeResult(
   return buildHalftimeResult(event, match) ?? null
 }
 
-export async function getWorldCupEventDetail(slug: string): Promise<MatchDetail | null> {
+export async function getWorldCupEventDetail(slug: string, language?: string): Promise<MatchDetail | null> {
   const baseSlug = toBaseEventSlug(slug)
   const moreMarketsSlug = toMoreMarketsSlug(baseSlug)
   const [baseEventResult, moreMarketsEventResult] = await Promise.allSettled([
@@ -401,7 +405,7 @@ export async function getWorldCupEventDetail(slug: string): Promise<MatchDetail 
   }
 
   const matchEvent = baseEvent ?? createFallbackMatchEvent(primaryEvent, baseSlug)
-  const match = normalizeGame(matchEvent)
+  const match = normalizeGame(matchEvent, language)
   const eventTime =
     primaryEvent.startTime ??
     baseEvent?.startTime ??
@@ -442,7 +446,7 @@ export async function getWorldCupEventDetail(slug: string): Promise<MatchDetail 
     totalVolumeLabel: buildTypedVolumeLabel(totalEvent, 'totals'),
     spreadVariants,
     totalLines,
-    bothTeamsToScore: buildBothTeamsToScore(bothTeamsToScoreEvent),
+    bothTeamsToScore: buildBothTeamsToScore(bothTeamsToScoreEvent, language),
     exactScores: [],
     halftimeResult: undefined,
   })

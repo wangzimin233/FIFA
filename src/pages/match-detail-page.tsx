@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   getWorldCupEventDetail,
@@ -82,6 +83,8 @@ export function MatchDetailPage() {
   const { slug = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
   const state = location.state as MatchDetailLocationState | null
   const [tab, setTab] = useState<MatchDetailTab>('markets')
   const {
@@ -94,8 +97,8 @@ export function MatchDetailPage() {
     setTotalLine,
   } = useOrderStore()
   const { data: detail, isLoading, isError, error } = useQuery({
-    queryKey: ['world-cup-event-detail', slug],
-    queryFn: () => getWorldCupEventDetail(slug),
+    queryKey: ['world-cup-event-detail', slug, language],
+    queryFn: () => getWorldCupEventDetail(slug, language),
     enabled: slug.length > 0,
   })
   const {
@@ -104,8 +107,8 @@ export function MatchDetailPage() {
     isError: isExactScoresError,
     error: exactScoresError,
   } = useQuery({
-    queryKey: ['world-cup-event-detail-exact-score', slug],
-    queryFn: () => getWorldCupExactScores(slug),
+    queryKey: ['world-cup-event-detail-exact-score', slug, language],
+    queryFn: () => getWorldCupExactScores(slug, language),
     enabled: slug.length > 0 && tab === 'exact',
   })
   const {
@@ -114,7 +117,7 @@ export function MatchDetailPage() {
     isError: isHalftimeResultError,
     error: halftimeResultError,
   } = useQuery({
-    queryKey: ['world-cup-event-detail-halftime-result', slug, detail?.match.id],
+    queryKey: ['world-cup-event-detail-halftime-result', slug, detail?.match.id, language],
     queryFn: () => getWorldCupHalftimeResult(slug, detail.match),
     enabled: slug.length > 0 && tab === 'halftime' && !!detail,
   })

@@ -14,6 +14,7 @@ export type WorldCupGameMarket = {
   icon?: string
   description?: string
   groupItemTitle?: string
+  groupItemTitleZh?: string
   groupItemThreshold?: string
   name?: string
   outcomes?: string[] | string
@@ -263,6 +264,7 @@ export type WorldCupGamesApiEnvelope = {
 export type WorldCupGamesQuery = {
   page: number
   pageSize: number
+  language?: string
 }
 
 export type WorldCupGamesResult = {
@@ -510,6 +512,32 @@ function getFlagFromCode(code: string) {
   return codeFlagMap[code] ?? '🏳️'
 }
 
+export function isZhLanguage(language?: string) {
+  return language?.toLowerCase().startsWith('zh') ?? false
+}
+
+export function getLocalizedGroupItemTitle(market: WorldCupGameMarket, language?: string) {
+  const zhTitle = market.groupItemTitleZh?.trim()
+  const enTitle = market.groupItemTitle?.trim()
+
+  return isZhLanguage(language) ? zhTitle || enTitle : enTitle || zhTitle
+}
+
+function getWinnerTeamMarket(event: WorldCupGameEvent, teamName: string) {
+  return event.markets?.find((market) => {
+    const label = market.groupItemTitle?.trim()
+    return label?.toLowerCase() === teamName.toLowerCase()
+  })
+}
+
+function getLocalizedTeamName(
+  market: WorldCupGameMarket | undefined,
+  fallbackName: string,
+  language?: string,
+) {
+  return getLocalizedGroupItemTitle(market, language) || fallbackName
+}
+
 function createFallbackOutcome(id: string, label: string, subject: string, badge: string, tone: WinnerOutcome['tone']): WinnerOutcome {
   return {
     id,
@@ -611,14 +639,14 @@ function normalizeWinnerOutcomes(
 
 export function buildSpreadVariants(
   event: WorldCupGameEvent | undefined,
-  match: Pick<MatchCard, 'primaryTeam' | 'secondaryTeam'>,
+  match: Pick<MatchCard, 'primaryTeam' | 'secondaryTeam' | 'primaryTeamSourceName' | 'secondaryTeamSourceName'>,
 ) {
   if (!event?.markets?.length) {
     return undefined
   }
 
-  const homeName = match.primaryTeam.toLowerCase()
-  const awayName = match.secondaryTeam.toLowerCase()
+  const homeName = (match.primaryTeamSourceName ?? match.primaryTeam).toLowerCase()
+  const awayName = (match.secondaryTeamSourceName ?? match.secondaryTeam).toLowerCase()
 
   const variants = event.markets
     .filter((market) => market.sportsMarketType === 'spreads')
@@ -694,12 +722,16 @@ export function buildTotalLines(event: WorldCupGameEvent | undefined) {
   return lines.length ? lines : undefined
 }
 
-export function normalizeGame(event: WorldCupGameEvent): MatchCard {
+export function normalizeGame(event: WorldCupGameEvent, language?: string): MatchCard {
   const { home: titleHome, away: titleAway } = splitMatchTitle(event.title)
   const { home: homeTeamData, away: awayTeamData } = getOrderedTeams(event)
   const { homeCode: fallbackHomeCode, awayCode: fallbackAwayCode } = getTeamCodes(event)
-  const home = homeTeamData?.name ?? titleHome
-  const away = awayTeamData?.name ?? titleAway
+  const homeSourceName = homeTeamData?.name ?? titleHome
+  const awaySourceName = awayTeamData?.name ?? titleAway
+  const homeMarket = getWinnerTeamMarket(event, homeSourceName)
+  const awayMarket = getWinnerTeamMarket(event, awaySourceName)
+  const home = getLocalizedTeamName(homeMarket, homeSourceName, language)
+  const away = getLocalizedTeamName(awayMarket, awaySourceName, language)
   const homeCode = homeTeamData?.abbreviation?.toLowerCase() ?? fallbackHomeCode
   const awayCode = awayTeamData?.abbreviation?.toLowerCase() ?? fallbackAwayCode
   const homeLogo = homeTeamData?.logo
@@ -707,7 +739,17 @@ export function normalizeGame(event: WorldCupGameEvent): MatchCard {
   const matchTime = event.endDate ?? event.startTime ?? event.startDate
   const homeFlag = getFlagFromCode(homeCode)
   const awayFlag = getFlagFromCode(awayCode)
-  const winnerOutcomes = normalizeWinnerOutcomes(event, home, away, homeFlag, awayFlag, homeLogo, awayLogo)
+  const winnerOutcomes = normalizeWinnerOutcomes(event, homeSourceName, awaySourceName, homeFlag, awayFlag, homeLogo, awayLogo).map((outcome, index) => {
+    if (index === 0) {
+      return { ...outcome, subject: home }
+    }
+
+    if (index === 2) {
+      return { ...outcome, subject: away }
+    }
+
+    return outcome
+  })
   const primaryRecord = getRecordLabel(homeTeamData?.record)
   const secondaryRecord = getRecordLabel(awayTeamData?.record)
   const baseMatch = {
@@ -719,6 +761,8 @@ export function normalizeGame(event: WorldCupGameEvent): MatchCard {
     matchup: `${home} vs ${away}`,
     primaryTeam: home,
     secondaryTeam: away,
+    primaryTeamSourceName: homeSourceName,
+    secondaryTeamSourceName: awaySourceName,
     primaryFlag: homeFlag,
     secondaryFlag: awayFlag,
     primaryLogo: homeLogo,
@@ -782,7 +826,7 @@ function normalizeResponse(response: WorldCupGamesApiEnvelope, query: WorldCupGa
   const total = response.data?.total ?? (hasNext ? page * query.pageSize + 1 : events.length)
 
   return {
-    list: events.map(normalizeGame),
+    list: events.map((event) => normalizeGame(event, query.language)),
     total,
     page,
     pageSize: response.data?.pageSize ?? query.pageSize,

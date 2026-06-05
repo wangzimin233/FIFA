@@ -2,6 +2,7 @@ import { apiClient } from '../../../lib/api-client'
 import type { MarketCard, MarketListCandidate } from '../home-data'
 import {
   formatVolumeLabel,
+  getLocalizedGroupItemTitle,
   getMarketVolumeNumTotal,
   getYesNoAssetIds,
   getYesNoOrderPrices,
@@ -16,6 +17,7 @@ export const WORLD_CUP_PROPS_PAGE_SIZE = 20
 export type WorldCupPropsQuery = {
   pageNum: number
   pageSize: number
+  language?: string
 }
 
 type WorldCupPropsApiData = {
@@ -76,12 +78,12 @@ function getFallbackIcon(event: WorldCupGameEvent) {
   return event.markets && event.markets.length === 1 ? '◎' : '⚽'
 }
 
-function getCandidateName(market: WorldCupGameMarket, index: number) {
-  const label = market.groupItemTitle?.trim() || market.name?.trim() || market.question?.trim()
+function getCandidateName(market: WorldCupGameMarket, index: number, language?: string) {
+  const label = getLocalizedGroupItemTitle(market, language) || market.name?.trim() || market.question?.trim()
   return label && label.length > 0 ? label : `Option ${index + 1}`
 }
 
-function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCandidate {
+function buildCandidate(market: WorldCupGameMarket, index: number, language?: string): MarketListCandidate {
   const { yesPrice, noPrice } = getYesNoPrices(market)
   const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
   const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
@@ -90,7 +92,7 @@ function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCa
     id: String(market.id ?? `${index}`),
     marketId: getOrderMarketId(market),
     negRisk: market.negRisk,
-    name: getCandidateName(market, index),
+    name: getCandidateName(market, index, language),
     probability: yesPrice,
     yesPrice,
     noPrice,
@@ -101,7 +103,7 @@ function buildCandidate(market: WorldCupGameMarket, index: number): MarketListCa
   }
 }
 
-function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
+function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCard | null {
   const markets = event.markets ?? []
   if (!markets.length) {
     return null
@@ -113,7 +115,7 @@ function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
   const iconLogo = getEventIconLogo(event)
 
   if (markets.length === 1) {
-    const candidate = buildCandidate(markets[0], 0)
+    const candidate = buildCandidate(markets[0], 0, language)
 
     return {
       id,
@@ -135,7 +137,7 @@ function buildMarketCard(event: WorldCupGameEvent): MarketCard | null {
     }
   }
 
-  const candidates = markets.map(buildCandidate)
+  const candidates = markets.map((market, index) => buildCandidate(market, index, language))
 
   return {
     id,
@@ -166,7 +168,7 @@ export async function getWorldCupPropsPage(query: WorldCupPropsQuery): Promise<W
   const events = data?.events ?? []
 
   return {
-    cards: events.map(buildMarketCard).filter((card): card is MarketCard => card !== null),
+    cards: events.map((event) => buildMarketCard(event, query.language)).filter((card): card is MarketCard => card !== null),
     events,
     pageNum: data?.pageNum ?? query.pageNum,
     pageSize: data?.pageSize ?? query.pageSize,

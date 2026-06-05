@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useDisplayPrice } from '../../market-realtime/price-utils'
 import { usePolymarketAssetSubscription } from '../../market-realtime/use-polymarket-asset-subscription'
@@ -69,6 +70,8 @@ function RealtimeOddsRing({
 
 export function MarketGrid() {
   const navigate = useNavigate()
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
   const {
     data,
     isLoading,
@@ -78,10 +81,10 @@ export function MarketGrid() {
     isFetchingNextPage,
     fetchNextPage,
   } = useInfiniteQuery({
-    queryKey: ['world-cup-props', WORLD_CUP_PROPS_PAGE_SIZE],
+    queryKey: ['world-cup-props', WORLD_CUP_PROPS_PAGE_SIZE, language],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
-      getWorldCupPropsPage({ pageNum: pageParam, pageSize: WORLD_CUP_PROPS_PAGE_SIZE }),
+      getWorldCupPropsPage({ pageNum: pageParam, pageSize: WORLD_CUP_PROPS_PAGE_SIZE, language }),
     getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.pageNum + 1 : undefined),
   })
 

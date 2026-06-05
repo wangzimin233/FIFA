@@ -1,6 +1,7 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useDisplayPrice } from '../../market-realtime/price-utils'
 import { usePolymarketAssetSubscription } from '../../market-realtime/use-polymarket-asset-subscription'
@@ -186,6 +187,8 @@ function TotalSelector({
 
 export function MatchList() {
   const navigate = useNavigate()
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
   const pageSize = 10
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const {
@@ -204,9 +207,9 @@ export function MatchList() {
     hasNextPage,
     fetchNextPage,
   } = useInfiniteQuery({
-    queryKey: ['world-cup-games', pageSize],
+    queryKey: ['world-cup-games', pageSize, language],
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => getWorldCupGames({ page: pageParam, pageSize }),
+    queryFn: ({ pageParam }) => getWorldCupGames({ page: pageParam, pageSize, language }),
     getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
   })
 
