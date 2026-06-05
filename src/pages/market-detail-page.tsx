@@ -65,7 +65,7 @@ export function MarketDetailPage() {
   const { activeSelection, selectProposition } = useOrderStore()
   const isActiveMarketWinnerSelection =
     activeSelection?.contextType === 'market' && activeSelection.template === 'winner'
-  const { data: market, isLoading, isError, error } = useQuery({
+  const { data: market, isLoading, isError } = useQuery({
     queryKey: ['world-cup-prop-card', marketId, language],
     queryFn: () => getWorldCupPropCardById(marketId, WORLD_CUP_PROPS_PAGE_SIZE, language),
     enabled: marketId.length > 0,
@@ -195,7 +195,7 @@ export function MarketDetailPage() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-        玩法详情加载失败：{error instanceof Error ? error.message : '未知错误'}
+        玩法详情加载失败，请稍后重试。
       </div>
     )
   }

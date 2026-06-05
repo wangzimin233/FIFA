@@ -7,9 +7,7 @@ import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
 import {
-  getPolymarketOrderDetail,
   getPolymarketOrdersPage,
-  type PolymarketOrderDetail,
   type PolymarketOrderPageItem,
 } from '../features/home/api/polymarket-orders'
 import { getWalletContractConfig } from '../features/wallet/deposit/api'
@@ -24,6 +22,7 @@ import {
 import {
   getWalletRewardPage,
   getWalletUserDirectPage,
+  getWalletUserUmbrellaPage,
   getWalletUserRelationStats,
   type WalletProfilePage,
   type WalletRewardBizType,
@@ -43,6 +42,7 @@ const DIALOG_SEARCH_LIST_HEIGHT_CLASS = 'h-[min(26rem,calc(92vh-172px))]'
 
 type ActiveAction = 'deposit' | 'withdraw' | null
 type ActiveHistory = 'deposit' | 'withdraw' | null
+type RelationUsersListKind = 'direct' | 'umbrella'
 type DepositHistoryStatus = 1 | 2 | 3 | 4
 type WithdrawHistoryStatus = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
@@ -51,7 +51,6 @@ const DEPOSIT_HISTORY_STATUS_OPTIONS: Array<{
   value?: DepositHistoryStatus
 }> = [
   { label: '全部' },
-  { label: '待支付', value: 1 },
   { label: '已提交', value: 2 },
   { label: '成功', value: 3 },
   { label: '失败', value: 4 },
@@ -412,6 +411,42 @@ function MetricCell({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
+function ArrowRightIcon({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className}>
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </svg>
+  )
+}
+
+function RelationMetricAction({
+  label,
+  onClick,
+  value,
+}: {
+  label: string
+  onClick: () => void
+  value: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-[5.25rem] min-w-0 items-center justify-between gap-3 border-white/6 px-3 py-3 text-left transition hover:bg-white/[0.035] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 sm:border-r sm:last:border-r-0"
+      aria-label={`打开${label}列表`}
+    >
+      <span className="min-w-0">
+        <span className="block text-[11px] text-ink-soft">{label}</span>
+        <span className="mt-1 block truncate text-[18px] font-semibold text-ink">{value}</span>
+      </span>
+      <span className="grid size-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-ink-soft transition group-hover:border-brand/25 group-hover:text-brand">
+        <ArrowRightIcon className="size-4" />
+      </span>
+    </button>
+  )
+}
+
 function DialogFrame({
   children,
   isOpen,
@@ -570,7 +605,6 @@ function HistoryStatusFilter<TStatus extends number>({
 function DepositActionDialog({
   amount,
   authStatus,
-  contractConfigError,
   deposit,
   isConnected,
   isContractConfigError,
@@ -586,7 +620,6 @@ function DepositActionDialog({
 }: {
   amount: string
   authStatus: ReturnType<typeof useWalletAuth>['status']
-  contractConfigError: unknown
   deposit: ReturnType<typeof useDeposit>
   isConnected: boolean
   isContractConfigError: boolean
@@ -628,13 +661,13 @@ function DepositActionDialog({
 
         {isContractConfigError ? (
           <div className="mt-4 rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200">
-            资金配置读取失败: {contractConfigError instanceof Error ? contractConfigError.message : '未知错误'}
+            资金配置加载失败，请稍后重试。
           </div>
         ) : null}
 
         {deposit.lastSuccessHash ? (
           <div className="mt-4 rounded-[16px] border border-emerald-400/20 bg-emerald-400/10 px-3 py-3 text-[12px] text-emerald-100">
-            最近一次充值交易哈希: {shortenHash(deposit.lastSuccessHash)}
+            最近一次充值凭证: {shortenHash(deposit.lastSuccessHash)}
           </div>
         ) : null}
 
@@ -823,7 +856,7 @@ function DepositRecordRow({ item }: { item: DepositOrderPageItem }) {
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span>金额: <b className="font-semibold text-ink">{formatAmount(item.amount, item.coinCode)}</b></span>
         <span>网络: <b className="font-semibold text-ink">{item.chainType}</b></span>
-        <span>哈希: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+        <span>交易凭证: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
       </div>
     </div>
   )
@@ -849,34 +882,19 @@ function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
         <span>手续费: <b className="font-semibold text-ink">{formatAmount(item.feeAmount, item.coinCode)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
-        <span>地址: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
-        <span>哈希: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+        <span>到账地址: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
+        <span>交易凭证: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
       </div>
       {item.rejectReason ? <div className="mt-2 text-[12px] text-rose-200">驳回原因: {item.rejectReason}</div> : null}
     </div>
   )
 }
 
-function OrderRecordRow({
-  isSelected,
-  item,
-  onSelect,
-}: {
-  isSelected: boolean
-  item: PolymarketOrderPageItem
-  onSelect: () => void
-}) {
+function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
   const status = resolvePolymarketOrderStatus(item.status, item.errorMessage)
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={[
-        'block w-full border-b border-white/6 px-4 py-3 text-left transition last:border-b-0',
-        isSelected ? 'bg-brand/8' : 'hover:bg-white/[0.03]',
-      ].join(' ')}
-    >
+    <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-semibold text-ink">{formatOrderDisplayId(item)}</div>
@@ -891,10 +909,21 @@ function OrderRecordRow({
         <span>价格: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
         <span>成交: <b className="font-semibold text-ink">{formatNumberValue(item.filledAmount)}</b></span>
       </div>
-      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft">
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span>方向: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
+        <span>数量: <b className="font-semibold text-ink">{formatNumberValue(item.size)}</b></span>
+        <span>已成交: <b className="font-semibold text-ink">{formatNumberValue(item.filledSize)}</b></span>
       </div>
-    </button>
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft">
+        <span>佣金: <b className="font-semibold text-ink">{formatNumberValue(item.commissionAmount)} / {formatPercentValue(item.commissionRate)}</b></span>
+      </div>
+      {item.updateTime ? (
+        <div className="mt-2 text-[12px] text-ink-soft">
+          更新时间: <b className="font-semibold text-ink">{formatMaybeDate(item.updateTime)}</b>
+        </div>
+      ) : null}
+      {item.errorMessage ? <div className="mt-2 text-[12px] text-rose-200">异常原因: {item.errorMessage}</div> : null}
+    </div>
   )
 }
 
@@ -907,18 +936,15 @@ function DirectUserRow({ item }: { item: WalletUserDirectPageItem }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-semibold text-ink">{shortenAddress(item.walletAddress)}</div>
-          <div className="mt-1 text-[12px] text-ink-soft">
-            {item.nickname || '未设置昵称'} · ID {item.userId}
-          </div>
+          {item.nickname ? <div className="mt-1 text-[12px] text-ink-soft">{item.nickname}</div> : null}
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
           <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${userType.tone}`}>{userType.label}</span>
           <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}>{status.label}</span>
         </div>
       </div>
-      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
         <span>链: <b className="font-semibold text-ink">{item.authType || '--'}</b></span>
-        <span>邀请码: <b className="font-semibold text-ink">{item.inviteCode || '--'}</b></span>
         <span>注册: <b className="font-semibold text-ink">{formatMaybeDate(item.createTime)}</b></span>
       </div>
     </div>
@@ -948,12 +974,14 @@ function RewardRecordRow({ item }: { item: WalletRewardPageItem }) {
 
 function RelationRewardOverview({
   onOpenDirectUsers,
+  onOpenUmbrellaUsers,
   onOpenRewards,
   relationError,
   relationLoading,
   relationStats,
 }: {
   onOpenDirectUsers: () => void
+  onOpenUmbrellaUsers: () => void
   onOpenRewards: () => void
   relationError?: unknown
   relationLoading: boolean
@@ -972,23 +1000,24 @@ function RelationRewardOverview({
             <div className="text-[11px] font-semibold uppercase text-brand">Relation</div>
             <h2 className="mt-1 text-[20px] font-semibold text-ink">邀请关系</h2>
           </div>
-          <button
-            type="button"
-            onClick={onOpenDirectUsers}
-            className="inline-flex h-9 items-center justify-center rounded-[13px] border border-white/10 bg-white/[0.04] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
-          >
-            直推列表
-          </button>
         </div>
 
         <div className="grid sm:grid-cols-2">
-          <MetricCell label="直推人数" value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.directCount)} />
-          <MetricCell label="伞下总人数" value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.umbrellaCount)} />
+          <RelationMetricAction
+            label="直推人数"
+            onClick={onOpenDirectUsers}
+            value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.directCount)}
+          />
+          <RelationMetricAction
+            label="伞下总人数"
+            onClick={onOpenUmbrellaUsers}
+            value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.umbrellaCount)}
+          />
         </div>
 
         {relationHasError ? (
           <div className="border-b border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200">
-            关系统计读取失败: {relationError instanceof Error ? relationError.message : '未知错误'}
+            邀请数据加载失败，请稍后重试。
           </div>
         ) : null}
       </div>
@@ -1010,79 +1039,6 @@ function RelationRewardOverview({
         </div>
       </div>
     </section>
-  )
-}
-
-function OrderDetailPanel({
-  detail,
-  error,
-  isLoading,
-}: {
-  detail?: PolymarketOrderDetail | null
-  error: unknown
-  isLoading: boolean
-}) {
-  if (isLoading) {
-    return (
-      <div className="grid gap-2 px-4 py-4 sm:px-5">
-        {Array.from({ length: 8 }).map((_, index) => (
-          <div key={index} className="h-10 rounded-[14px] bg-white/[0.04]" />
-        ))}
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200 sm:px-5">
-        订单详情读取失败: {error instanceof Error ? error.message : '未知错误'}
-      </div>
-    )
-  }
-
-  if (!detail) {
-    return <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft sm:px-5">点击左侧订单查看详情。</div>
-  }
-
-  const status = resolvePolymarketOrderStatus(detail.status, detail.errorMessage)
-
-  return (
-    <div>
-      <div className="border-b border-white/8 bg-brand/8 px-4 py-4 sm:px-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase text-brand">Selected Order</div>
-            <div className="mt-1 break-all text-[18px] font-semibold text-ink">{formatOrderDisplayId(detail)}</div>
-            <div className="mt-2 text-[12px] text-ink-soft">{formatMaybeDate(detail.createTime)}</div>
-          </div>
-          <span className={`w-fit shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold ${status.tone}`}>
-            {status.label}
-          </span>
-        </div>
-      </div>
-
-      <div className="px-4 py-3 sm:px-5">
-        <FieldLine label="Market" value={<span className="break-all font-mono text-[12px]">{detail.market || '--'}</span>} />
-        <FieldLine label="Token ID" value={<span className="break-all font-mono text-[12px]">{detail.tokenId || '--'}</span>} />
-        <FieldLine label="方向" value={detail.side || '--'} />
-        <FieldLine label="委托价格" value={formatNumberValue(detail.price)} />
-        <FieldLine label="实际买入金额" value={formatNumberValue(detail.actualBuyAmount)} />
-        <FieldLine label="净买入金额" value={formatNumberValue(detail.netBuyAmount)} />
-        <FieldLine label="佣金" value={`${formatNumberValue(detail.commissionAmount)} / ${formatPercentValue(detail.commissionRate)}`} />
-        <FieldLine label="数量" value={`${formatNumberValue(detail.size)} / ${formatNumberValue(detail.filledSize)}`} />
-        <FieldLine label="成交金额" value={formatNumberValue(detail.filledAmount)} />
-        <FieldLine label="创建时间" value={formatMaybeDate(detail.createTime)} />
-        <FieldLine label="更新时间" value={formatMaybeDate(detail.updateTime)} />
-        <FieldLine label="Maker" value={<span className="break-all font-mono text-[12px]">{detail.maker || '--'}</span>} />
-        <FieldLine label="Signer" value={<span className="break-all font-mono text-[12px]">{detail.signer || '--'}</span>} />
-      </div>
-
-      {detail.errorMessage ? (
-        <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
-          {detail.errorMessage}
-        </div>
-      ) : null}
-    </div>
   )
 }
 
@@ -1110,8 +1066,6 @@ function OrderHistoryDialog({
   isSessionReady: boolean
   onClose: () => void
 }) {
-  const [selectedOrderId, setSelectedOrderId] = useState<number | string | null>(null)
-
   const orderQuery = useInfiniteQuery<
     ReturnType<typeof buildOrderPage>,
     Error
@@ -1133,120 +1087,101 @@ function OrderHistoryDialog({
     enabled: isOpen && isSessionReady,
   })
 
-  const detailQuery = useQuery({
-    queryKey: ['polymarket-order-detail', selectedOrderId],
-    queryFn: async () => {
-      if (selectedOrderId === null) {
-        return null
-      }
-
-      const result = await getPolymarketOrderDetail(selectedOrderId)
-      return result.data
-    },
-    enabled: isOpen && isSessionReady && selectedOrderId !== null,
-  })
-
   const items = orderQuery.data?.pages.flatMap((page) => page.list) ?? []
   const total = orderQuery.data?.pages[0]?.total ?? 0
-  const closeList = () => {
-    setSelectedOrderId(null)
-    onClose()
-  }
 
   return (
-    <>
-      <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={closeList}>
-        <DialogHeader
-          eyebrow="Order History"
-          title="订单记录"
-          status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
-          onClose={closeList}
-        />
-        <div
-          className={`${DIALOG_TALL_LIST_HEIGHT_CLASS} overflow-y-auto`}
-          onScroll={(event) => {
-            const target = event.currentTarget
-            const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
-            if (isNearBottom && orderQuery.hasNextPage && !orderQuery.isFetchingNextPage) {
-              void orderQuery.fetchNextPage()
-            }
-          }}
-        >
-          {!isSessionReady ? (
-            <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看订单。</div>
-          ) : orderQuery.isLoading ? (
-            <div className="grid gap-2 px-4 py-4">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="h-24 rounded-[16px] border border-white/8 bg-white/[0.03]" />
-              ))}
-            </div>
-          ) : orderQuery.isError ? (
-            <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-              订单读取失败: {orderQuery.error instanceof Error ? orderQuery.error.message : '未知错误'}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无订单。</div>
-          ) : (
-            <div>
-              {items.map((item) => (
-                <OrderRecordRow
-                  key={`${item.id}-${item.orderNo ?? item.polymarketOrderId ?? 'order'}`}
-                  item={item}
-                  isSelected={String(selectedOrderId) === String(item.id)}
-                  onSelect={() => setSelectedOrderId(item.id)}
-                />
-              ))}
-            </div>
-          )}
+    <DialogFrame isOpen={isOpen} maxWidthClass="max-w-3xl" onClose={onClose}>
+      <DialogHeader
+        eyebrow="Order History"
+        title="订单记录"
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+        onClose={onClose}
+      />
+      <div
+        className={`${DIALOG_TALL_LIST_HEIGHT_CLASS} overflow-y-auto`}
+        onScroll={(event) => {
+          const target = event.currentTarget
+          const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
+          if (isNearBottom && orderQuery.hasNextPage && !orderQuery.isFetchingNextPage) {
+            void orderQuery.fetchNextPage()
+          }
+        }}
+      >
+        {!isSessionReady ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看订单。</div>
+        ) : orderQuery.isLoading ? (
+          <div className="grid gap-2 px-4 py-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-32 rounded-[16px] border border-white/8 bg-white/[0.03]" />
+            ))}
+          </div>
+        ) : orderQuery.isError ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
+            订单加载失败，请稍后重试。
+          </div>
+        ) : items.length === 0 ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无订单。</div>
+        ) : (
+          <div>
+            {items.map((item) => (
+              <OrderRecordRow
+                key={`${item.id}-${item.orderNo ?? item.polymarketOrderId ?? 'order'}`}
+                item={item}
+              />
+            ))}
+          </div>
+        )}
 
-          {orderQuery.isFetchingNextPage ? (
-            <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
-          ) : null}
+        {orderQuery.isFetchingNextPage ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+        ) : null}
 
-          {!orderQuery.hasNextPage && items.length > 0 ? (
-            <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
-          ) : null}
-        </div>
-      </DialogFrame>
-
-      <DialogFrame isOpen={isOpen && selectedOrderId !== null} maxWidthClass="max-w-3xl" onClose={() => setSelectedOrderId(null)}>
-        <DialogHeader
-          eyebrow="Order Detail"
-          title="订单详情"
-          status={<span className="rounded-full border border-brand/20 bg-brand/12 px-3 py-1.5 text-[11px] font-semibold text-brand">详情</span>}
-          onClose={() => setSelectedOrderId(null)}
-        />
-        <div className={`${DIALOG_TALL_LIST_HEIGHT_CLASS} overflow-y-auto`}>
-          <OrderDetailPanel
-            detail={detailQuery.data}
-            error={detailQuery.isError ? detailQuery.error : null}
-            isLoading={detailQuery.isLoading}
-          />
-        </div>
-      </DialogFrame>
-    </>
+        {!orderQuery.hasNextPage && items.length > 0 ? (
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+        ) : null}
+      </div>
+    </DialogFrame>
   )
 }
 
-function DirectUsersDialog({
+function RelationUsersDialog({
   isOpen,
   isSessionReady,
+  listKind,
   onClose,
   userId,
 }: {
   isOpen: boolean
   isSessionReady: boolean
+  listKind: RelationUsersListKind
   onClose: () => void
   userId?: number
 }) {
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search.trim())
   const isSearchSettling = search.trim() !== debouncedSearch
+  const isUmbrellaList = listKind === 'umbrella'
+  const listCopy = isUmbrellaList
+    ? {
+        eyebrow: 'Umbrella Users',
+        title: '伞下总人数列表',
+        empty: '暂无伞下用户。',
+        error: '伞下总人数列表加载失败，请稍后重试。',
+        login: '完成钱包登录后可查看伞下用户。',
+      }
+    : {
+        eyebrow: 'Direct Users',
+        title: '直推列表',
+        empty: '暂无直推用户。',
+        error: '直推列表加载失败，请稍后重试。',
+        login: '完成钱包登录后可查看直推用户。',
+      }
 
-  const directQuery = useInfiniteQuery<WalletProfilePage<WalletUserDirectPageItem>, Error>({
-    queryKey: ['wallet-user-direct-page', userId ?? null, debouncedSearch, DIRECT_USER_PAGE_SIZE],
+  const relationUsersQuery = useInfiniteQuery<WalletProfilePage<WalletUserDirectPageItem>, Error>({
+    queryKey: ['wallet-user-relation-page', listKind, userId ?? null, debouncedSearch, DIRECT_USER_PAGE_SIZE],
     queryFn: ({ pageParam }) =>
-      getWalletUserDirectPage({
+      (isUmbrellaList ? getWalletUserUmbrellaPage : getWalletUserDirectPage)({
         userId: userId!,
         page: Number(pageParam),
         pageSize: DIRECT_USER_PAGE_SIZE,
@@ -1257,14 +1192,14 @@ function DirectUsersDialog({
     enabled: isOpen && isSessionReady && Boolean(userId),
   })
 
-  const items = directQuery.data?.pages.flatMap((page) => page.list) ?? []
-  const total = directQuery.data?.pages[0]?.total ?? 0
+  const items = relationUsersQuery.data?.pages.flatMap((page) => page.list) ?? []
+  const total = relationUsersQuery.data?.pages[0]?.total ?? 0
 
   return (
     <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
       <DialogHeader
-        eyebrow="Direct Users"
-        title="直推列表"
+        eyebrow={listCopy.eyebrow}
+        title={listCopy.title}
         status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 人</span>}
         onClose={onClose}
       />
@@ -1287,27 +1222,27 @@ function DirectUsersDialog({
         onScroll={(event) => {
           const target = event.currentTarget
           const isNearBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - 72
-          if (isNearBottom && directQuery.hasNextPage && !directQuery.isFetchingNextPage) {
-            void directQuery.fetchNextPage()
+          if (isNearBottom && relationUsersQuery.hasNextPage && !relationUsersQuery.isFetchingNextPage) {
+            void relationUsersQuery.fetchNextPage()
           }
         }}
       >
         {!isSessionReady ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看直推用户。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{listCopy.login}</div>
         ) : !userId ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">缺少用户 ID。</div>
-        ) : directQuery.isLoading ? (
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">当前账户信息暂不可用，请稍后重试。</div>
+        ) : relationUsersQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
               <div key={index} className="h-20 rounded-[16px] border border-white/8 bg-white/[0.03]" />
             ))}
           </div>
-        ) : directQuery.isError ? (
+        ) : relationUsersQuery.isError ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-            直推列表读取失败: {directQuery.error instanceof Error ? directQuery.error.message : '未知错误'}
+            {listCopy.error}
           </div>
         ) : items.length === 0 ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无直推用户。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{listCopy.empty}</div>
         ) : (
           <div>
             {items.map((item) => (
@@ -1316,11 +1251,11 @@ function DirectUsersDialog({
           </div>
         )}
 
-        {directQuery.isFetchingNextPage ? (
+        {relationUsersQuery.isFetchingNextPage ? (
           <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
         ) : null}
 
-        {!directQuery.hasNextPage && items.length > 0 ? (
+        {!relationUsersQuery.hasNextPage && items.length > 0 ? (
           <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
         ) : null}
       </div>
@@ -1384,7 +1319,7 @@ function RewardRecordsDialog({
           </div>
         ) : rewardQuery.isError ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-            奖励记录读取失败: {rewardQuery.error instanceof Error ? rewardQuery.error.message : '未知错误'}
+            奖励记录加载失败，请稍后重试。
           </div>
         ) : items.length === 0 ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无奖励记录。</div>
@@ -1501,7 +1436,7 @@ function WalletHistoryDialog({
           </div>
         ) : historyQuery.isError ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-            记录读取失败: {historyQuery.error instanceof Error ? historyQuery.error.message : '未知错误'}
+            记录加载失败，请稍后重试。
           </div>
         ) : items.length === 0 ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无记录。</div>
@@ -1532,13 +1467,13 @@ export function ProfilePage() {
   const [activeAction, setActiveAction] = useState<ActiveAction>(null)
   const [activeHistory, setActiveHistory] = useState<ActiveHistory>(null)
   const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false)
-  const [isDirectUsersOpen, setIsDirectUsersOpen] = useState(false)
+  const [activeRelationUsers, setActiveRelationUsers] = useState<RelationUsersListKind | null>(null)
   const [isRewardRecordsOpen, setIsRewardRecordsOpen] = useState(false)
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['wallet-user-info', session?.token ?? null],
     queryFn: getWalletUserInfo,
     enabled: isSessionForConnectedWallet,
@@ -1548,7 +1483,6 @@ export function ProfilePage() {
     data: contractConfigResult,
     isLoading: isContractConfigLoading,
     isError: isContractConfigError,
-    error: contractConfigError,
   } = useQuery({
     queryKey: ['wallet-contract-config', 'BSC'],
     queryFn: () => getWalletContractConfig('BSC'),
@@ -1588,8 +1522,6 @@ export function ProfilePage() {
     walletUser,
   })
 
-  const depositStatusMeta = resolveDepositStatusMeta(deposit.status)
-  const withdrawStatusMeta = resolveWithdrawStatusMeta(withdraw.status)
   const connectionLabel = !isConnected ? '未连接' : isSessionForConnectedWallet ? '已登录' : '待登录'
   const connectionTone = !isConnected
     ? 'border-white/10 bg-white/[0.04] text-ink-soft'
@@ -1657,12 +1589,6 @@ export function ProfilePage() {
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
                 网络: BSC
               </span>
-              <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${depositStatusMeta.tone}`}>
-                充值: {depositStatusMeta.label}
-              </span>
-              <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${withdrawStatusMeta.tone}`}>
-                提现: {withdrawStatusMeta.label}
-              </span>
             </div>
           </div>
         </section>
@@ -1697,7 +1623,7 @@ export function ProfilePage() {
           </section>
         ) : isError ? (
           <section className="rounded-[22px] border border-rose-500/20 bg-rose-500/10 px-4 py-8 text-center text-[13px] text-rose-200">
-            钱包用户信息读取失败: {error instanceof Error ? error.message : '未知错误'}
+            账户信息加载失败，请稍后重试。
           </section>
         ) : walletUser ? (
           <>
@@ -1765,8 +1691,7 @@ export function ProfilePage() {
                     <div className="text-[11px] font-semibold uppercase text-ink-soft">充值规则</div>
                     <div className="mt-2 grid gap-0">
                       <FieldLine label="最小金额" value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
-                      <FieldLine label="链类型" value={contractConfig?.chainType ?? 'BSC'} />
-                      <FieldLine label="合约数量" value={contractConfig?.contracts.length ?? '--'} />
+                      <FieldLine label="网络" value={contractConfig?.chainType ?? 'BSC'} />
                     </div>
                   </div>
                   <div className="px-4 py-4 sm:px-5">
@@ -1795,9 +1720,8 @@ export function ProfilePage() {
 
                 <div className="px-4 py-3 sm:px-5">
                   <FieldLine label="钱包地址" value={shortenAddress(walletUser.walletAddress)} />
-                  <FieldLine label="用户 ID" value={String(walletUser.userId)} />
                   <FieldLine label="邀请码" value={walletUser.inviteCode || '--'} />
-                  <FieldLine label="认证类型" value={walletUser.authType || '--'} />
+                  <FieldLine label="登录方式" value={walletUser.authType || '--'} />
                 </div>
 
                 <div className="border-t border-white/8 px-4 py-4 sm:px-5">
@@ -1832,7 +1756,7 @@ export function ProfilePage() {
 
                 {isContractConfigError ? (
                   <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
-                    资金配置读取失败: {contractConfigError instanceof Error ? contractConfigError.message : '未知错误'}
+                    资金配置加载失败，请稍后重试。
                   </div>
                 ) : isContractConfigLoading ? (
                   <div className="border-t border-white/8 px-4 py-3 text-[12px] text-ink-soft sm:px-5">正在加载资金配置...</div>
@@ -1841,7 +1765,8 @@ export function ProfilePage() {
             </section>
 
             <RelationRewardOverview
-              onOpenDirectUsers={() => requireWalletReady(() => setIsDirectUsersOpen(true))}
+              onOpenDirectUsers={() => requireWalletReady(() => setActiveRelationUsers('direct'))}
+              onOpenUmbrellaUsers={() => requireWalletReady(() => setActiveRelationUsers('umbrella'))}
               onOpenRewards={() => requireWalletReady(() => setIsRewardRecordsOpen(true))}
               relationError={isRelationStatsError ? relationStatsError : undefined}
               relationLoading={isRelationStatsLoading}
@@ -1854,7 +1779,6 @@ export function ProfilePage() {
       <DepositActionDialog
         amount={depositAmount}
         authStatus={authStatus}
-        contractConfigError={contractConfigError}
         deposit={deposit}
         isConnected={isConnected}
         isContractConfigError={isContractConfigError}
@@ -1901,10 +1825,11 @@ export function ProfilePage() {
         onClose={() => setIsOrderHistoryOpen(false)}
       />
 
-      <DirectUsersDialog
-        isOpen={isDirectUsersOpen}
+      <RelationUsersDialog
+        isOpen={activeRelationUsers !== null}
         isSessionReady={isSessionForConnectedWallet}
-        onClose={() => setIsDirectUsersOpen(false)}
+        listKind={activeRelationUsers ?? 'direct'}
+        onClose={() => setActiveRelationUsers(null)}
         userId={walletUserId}
       />
 

@@ -181,7 +181,7 @@ export function useSubmitPolymarketOrder() {
         return
       }
 
-      toast(message)
+      toast('提交订单失败，请稍后重试。')
     },
   })
 

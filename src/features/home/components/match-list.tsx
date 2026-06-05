@@ -206,7 +206,6 @@ export function MatchList() {
     data,
     isLoading,
     isError,
-    error,
     isFetching,
     isFetchingNextPage,
     hasNextPage,
@@ -303,7 +302,7 @@ export function MatchList() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel px-4 py-6 text-sm text-rose-300">
-        比赛列表加载失败：{error instanceof Error ? error.message : '未知错误'}
+        比赛列表加载失败，请稍后重试。
       </div>
     )
   }

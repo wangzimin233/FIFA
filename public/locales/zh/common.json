@@ -1,11 +1,11 @@
 {
   "app": {
     "name": "FIFA Control Room",
-    "subtitle": "已完成 React 19、Web3 钱包接入、图表、国际化与状态管理的基础接线。"
+    "subtitle": "世界杯赛事与玩法交易中心。"
   },
   "nav": {
     "dashboard": "仪表盘",
-    "playground": "实验区"
+    "playground": "赛事"
   },
   "actions": {
     "connectWallet": "连接钱包",
@@ -14,13 +14,13 @@
     "close": "关闭",
     "showWallet": "显示钱包面板",
     "hideWallet": "隐藏钱包面板",
-    "learnMore": "查看技术栈"
+    "learnMore": "查看更多"
   },
   "dashboard": {
-    "eyebrow": "脚手架已就绪",
-    "title": "面向生产的 React + Web3 起步模板",
-    "description": "这套起步模板把路由、缓存请求、钱包接入与图表工作台先接好，后续可以直接进入业务开发。",
-    "missingProjectId": "请补充 VITE_REOWN_PROJECT_ID 以启用 Reown AppKit 钱包连接。",
+    "eyebrow": "赛事中心",
+    "title": "世界杯交易看板",
+    "description": "查看比赛、玩法与钱包资产，快速完成下单与资金操作。",
+    "missingProjectId": "钱包连接暂不可用，请稍后重试。",
     "rangeLabel": "时间范围",
     "walletConnected": "钱包已连接",
     "walletDisconnected": "当前还没有连接钱包",
@@ -32,7 +32,7 @@
     "walletInfoTitle": "连接信息",
     "walletInfoDescription": "当前 BNB Smart Chain 会话与钱包元数据。",
     "walletReady": "已连接到 BNB Smart Chain",
-    "walletConnectHint": "通过 Reown AppKit 连接 BNB Smart Chain 上的 EVM 钱包。",
+    "walletConnectHint": "连接钱包后可查看资产与订单。",
     "metrics": {
       "users": "活跃用户",
       "volume": "总交易量",
@@ -41,7 +41,7 @@
     },
     "chart": {
       "title": "跨链流量",
-      "description": "通过 Query 缓存 mock 数据，并用 ECharts 渲染。"
+      "description": "查看近期交易变化。"
     },
     "table": {
       "title": "网络分布",
@@ -52,15 +52,15 @@
     }
   },
   "playground": {
-    "title": "集成实验区",
-    "description": "后续功能模块、合约交互流程和系统设置都可以先落在这里。",
+    "title": "赛事玩法",
+    "description": "查看可参与的比赛和玩法。",
     "items": {
-      "router": "React Router 已就绪，适合继续拆分嵌套路由和功能页面。",
-      "query": "TanStack Query 与 Axios 已配置好，可直接接后端接口。",
-      "wallet": "Reown AppKit、Wagmi、Viem 和 Ethers 已安装完毕，可继续接钱包与合约。",
-      "i18n": "i18next 已通过 HTTP backend 加载语言包，并支持浏览器语言识别。",
-      "state": "Zustand 已可用于管理 UI 级本地状态。",
-      "motion": "Motion 已可用于页面转场与界面动画。"
+      "router": "按赛事浏览比赛。",
+      "query": "查看实时玩法数据。",
+      "wallet": "连接钱包后可参与交易。",
+      "i18n": "支持多语言显示。",
+      "state": "保留当前选择。",
+      "motion": "界面操作更流畅。"
     }
   }
 }

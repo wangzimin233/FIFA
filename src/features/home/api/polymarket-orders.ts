@@ -61,27 +61,6 @@ export type PolymarketOrderPageItem = {
   updateTime?: string
 }
 
-export type PolymarketOrderDetail = PolymarketOrderPageItem & {
-  userId?: number | string
-  username?: string
-  polymarketOwner?: string
-  maker?: string
-  signer?: string
-  makerAmount?: string
-  takerAmount?: string
-  expiration?: string
-  signatureTimestamp?: string
-  metadata?: string
-  builder?: string
-  signature?: string
-  salt?: string
-  signatureType?: number
-  deferExec?: number
-  postOnly?: number
-  requestBody?: string
-  responseBody?: string
-}
-
 export type PolymarketOrdersQuery = {
   pageNum: number
   pageSize: number
@@ -91,14 +70,6 @@ export type PolymarketOrdersQuery = {
 
 export async function createPolymarketOrder(payload: PolymarketCreateOrderRequest) {
   const response = await apiClient.post<ApiResult<PolymarketCreateOrderResponse>>('/api/wallet/orders', payload, {
-    timeout: POLYMARKET_ORDER_TIMEOUT,
-  })
-
-  return response.data
-}
-
-export async function getPolymarketOrderDetail(id: string | number) {
-  const response = await apiClient.get<ApiResult<PolymarketOrderDetail>>(`/api/wallet/orders/${id}`, {
     timeout: POLYMARKET_ORDER_TIMEOUT,
   })
 

@@ -107,6 +107,20 @@ export async function getWalletUserDirectPage(query: {
   return buildPage(response.data.data, query)
 }
 
+export async function getWalletUserUmbrellaPage(query: {
+  userId: number
+  page: number
+  pageSize: number
+  username?: string
+}) {
+  const response = await apiClient.get<ApiResult<PageResult<WalletUserDirectPageItem>>>('/api/wallet/user/umbrella-page', {
+    params: query,
+    timeout: WALLET_PROFILE_TIMEOUT,
+  })
+
+  return buildPage(response.data.data, query)
+}
+
 export async function getWalletRewardPage(query: {
   page: number
   pageSize: number

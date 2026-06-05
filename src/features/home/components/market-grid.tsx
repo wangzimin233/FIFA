@@ -36,9 +36,9 @@ function OddsRing({ value }: { value: number }) {
         <div>
           <RollingNumber
             value={value}
-            className="justify-center text-[18px] font-semibold leading-none text-ink sm:text-[20px] lg:text-[22px]"
+            className="justify-center text-[15px] font-semibold leading-none text-ink sm:text-[16px] lg:text-[18px]"
           />
-          <div className="mt-1 text-[11px] font-semibold leading-none text-ink-soft sm:text-[12px] lg:text-[13px]">
+          <div className="mt-0.5 text-[9px] font-semibold leading-none text-ink-soft sm:text-[10px] lg:text-[11px]">
             赔率
           </div>
         </div>
@@ -84,7 +84,6 @@ export function MarketGrid() {
     data,
     isLoading,
     isError,
-    error,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
@@ -120,7 +119,7 @@ export function MarketGrid() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel px-4 py-6 text-sm text-rose-300">
-        玩法列表加载失败：{error instanceof Error ? error.message : '未知错误'}
+        玩法列表加载失败，请稍后重试。
       </div>
     )
   }

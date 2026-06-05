@@ -1,11 +1,11 @@
 {
   "app": {
     "name": "FIFA Control Room",
-    "subtitle": "React 19, Web3 wallet access, charting, i18n, and state management all wired together."
+    "subtitle": "World Cup match and market trading center."
   },
   "nav": {
     "dashboard": "Dashboard",
-    "playground": "Playground"
+    "playground": "Matches"
   },
   "actions": {
     "connectWallet": "Connect wallet",
@@ -14,13 +14,13 @@
     "close": "Close",
     "showWallet": "Show wallet panel",
     "hideWallet": "Hide wallet panel",
-    "learnMore": "Explore stack"
+    "learnMore": "View more"
   },
   "dashboard": {
-    "eyebrow": "Scaffold Ready",
-    "title": "A production-oriented React + Web3 starter",
-    "description": "This starter pairs route-driven UI, cached data fetching, wallet onboarding, and a chart workspace so feature work can start immediately.",
-    "missingProjectId": "Add VITE_REOWN_PROJECT_ID to enable Reown AppKit wallet connections.",
+    "eyebrow": "Match Center",
+    "title": "World Cup Trading Board",
+    "description": "Follow matches, markets, wallet balances, and orders in one place.",
+    "missingProjectId": "Wallet connection is temporarily unavailable. Please try again later.",
     "rangeLabel": "Window",
     "walletConnected": "Wallet connected",
     "walletDisconnected": "No wallet connected yet",
@@ -32,7 +32,7 @@
     "walletInfoTitle": "Connection details",
     "walletInfoDescription": "Current BNB Smart Chain session and wallet metadata.",
     "walletReady": "Connected on BNB Smart Chain",
-    "walletConnectHint": "Use Reown AppKit to connect an EVM wallet on BNB Smart Chain.",
+    "walletConnectHint": "Connect your wallet to view balances and orders.",
     "metrics": {
       "users": "Active users",
       "volume": "Total volume",
@@ -41,7 +41,7 @@
     },
     "chart": {
       "title": "Cross-chain traffic",
-      "description": "Query-backed mock data rendered through ECharts."
+      "description": "Track recent trading activity."
     },
     "table": {
       "title": "Network mix",
@@ -52,15 +52,15 @@
     }
   },
   "playground": {
-    "title": "Integration playground",
-    "description": "Use this page as the landing zone for feature modules, contract flows, and app settings.",
+    "title": "Match Markets",
+    "description": "Browse available matches and markets.",
     "items": {
-      "router": "React Router is ready for nested pages and feature routes.",
-      "query": "TanStack Query + Axios are configured for cached API access.",
-      "wallet": "Reown AppKit, Wagmi, Viem, and Ethers are installed for wallet and contract flows.",
-      "i18n": "i18next loads locale files through HTTP backend with browser language detection.",
-      "state": "Zustand is available for UI-level client state.",
-      "motion": "Motion is available for page transitions and interface animation."
+      "router": "Browse matches by event.",
+      "query": "View live market data.",
+      "wallet": "Connect a wallet to trade.",
+      "i18n": "Language display is supported.",
+      "state": "Keep your current selections.",
+      "motion": "Interactions feel smoother."
     }
   }
 }

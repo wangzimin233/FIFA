@@ -3,7 +3,6 @@ import { RootLayout } from '../layouts/root-layout'
 import { DashboardPage } from '../pages/dashboard-page'
 import { MarketDetailPage } from '../pages/market-detail-page'
 import { MatchDetailPage } from '../pages/match-detail-page'
-import { PlaygroundPage } from '../pages/playground-page'
 import { ProfilePage } from '../pages/profile-page'
 
 export const router = createBrowserRouter([
@@ -25,7 +24,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'playground',
-        element: <PlaygroundPage />,
+        element: <Navigate to="/matches" replace />,
       },
       {
         path: 'profile',

@@ -56,7 +56,7 @@ function EmptyDataSection({ title }: { title: string }) {
     <section className={sectionCardClass()}>
       <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
         <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{title}</h2>
-        <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">当前详情接口暂未返回这部分真实数据。</p>
+        <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">暂无相关数据。</p>
       </div>
     </section>
   )
@@ -101,7 +101,7 @@ export function MatchDetailPage() {
     setSpreadVariant,
     setTotalLine,
   } = useOrderStore()
-  const { data: detail, isLoading, isError, error } = useQuery({
+  const { data: detail, isLoading, isError } = useQuery({
     queryKey: ['world-cup-event-detail', slug, language],
     queryFn: () => getWorldCupEventDetail(slug, language),
     enabled: slug.length > 0,
@@ -110,7 +110,6 @@ export function MatchDetailPage() {
     data: exactScores = [],
     isLoading: isExactScoresLoading,
     isError: isExactScoresError,
-    error: exactScoresError,
   } = useQuery({
     queryKey: ['world-cup-event-detail-exact-score', slug, language],
     queryFn: () => getWorldCupExactScores(slug, language),
@@ -120,7 +119,6 @@ export function MatchDetailPage() {
     data: halftimeResult,
     isLoading: isHalftimeResultLoading,
     isError: isHalftimeResultError,
-    error: halftimeResultError,
   } = useQuery({
     queryKey: ['world-cup-event-detail-halftime-result', slug, detail?.match.id, language],
     queryFn: () => getWorldCupHalftimeResult(slug, detail.match),
@@ -194,7 +192,7 @@ export function MatchDetailPage() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-        比赛详情加载失败：{error instanceof Error ? error.message : '未知错误'}
+        比赛详情加载失败，请稍后重试。
       </div>
     )
   }
@@ -605,7 +603,7 @@ export function MatchDetailPage() {
               </div>
             ) : isExactScoresError ? (
               <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-                准确比分加载失败：{exactScoresError instanceof Error ? exactScoresError.message : '未知错误'}
+                准确比分加载失败，请稍后重试。
               </div>
             ) : exactScores.length ? (
             <div className="grid gap-3 sm:gap-4">
@@ -710,7 +708,7 @@ export function MatchDetailPage() {
             </div>
           ) : isHalftimeResultError ? (
             <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-              半场结果加载失败：{halftimeResultError instanceof Error ? halftimeResultError.message : '未知错误'}
+              半场结果加载失败，请稍后重试。
             </div>
           ) : (
             halftimeResult ? (
