@@ -46,7 +46,21 @@ export type PolymarketCreateOrderResponse = {
 export type PolymarketOrderPageItem = {
   id: number | string
   orderNo?: string
+  userId?: number
+  username?: string
   polymarketOrderId?: string
+  eventSlug?: string
+  marketSlug?: string
+  marketId?: string
+  conditionId?: string
+  eventTitle?: string
+  eventTitleZh?: string
+  marketTitle?: string
+  marketTitleZh?: string
+  outcomeTitle?: string
+  outcomeTitleZh?: string
+  currentOdds?: number
+  estimatedReturnAmount?: number
   market?: string
   tokenId?: string
   side?: string
@@ -62,6 +76,9 @@ export type PolymarketOrderPageItem = {
   commissionAmount?: number
   netBuyAmount?: number
   status?: number
+  marketClosed?: number
+  marketClosedTime?: string | null
+  marketResolutionStatus?: string
   errorMessage?: string
   createTime?: string
   updateTime?: string

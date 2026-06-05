@@ -376,6 +376,20 @@ function formatOrderDisplayId(item: Pick<PolymarketOrderPageItem, 'orderNo' | 'p
   return item.orderNo || item.polymarketOrderId || String(item.id)
 }
 
+function getLocalizedOrderTitle(item: PolymarketOrderPageItem, key: 'event' | 'market' | 'outcome') {
+  const isZh = i18n.resolvedLanguage?.startsWith('zh')
+
+  if (key === 'event') {
+    return (isZh ? item.eventTitleZh : item.eventTitle) || item.eventTitle || item.eventTitleZh || '--'
+  }
+
+  if (key === 'market') {
+    return (isZh ? item.marketTitleZh : item.marketTitle) || item.marketTitle || item.marketTitleZh || '--'
+  }
+
+  return (isZh ? item.outcomeTitleZh : item.outcomeTitle) || item.outcomeTitle || item.outcomeTitleZh || '--'
+}
+
 function IconMark({ children }: { children: ReactNode }) {
   return (
     <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-white/10 bg-white/[0.04] text-[15px] text-brand">
@@ -919,12 +933,18 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span>{t('profile.fields.amount')}: <b className="font-semibold text-ink">{formatNumberValue(item.requestAmount)}</b></span>
         <span>{t('profile.fields.price')}: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
-        <span>{t('profile.fields.filled')}: <b className="font-semibold text-ink">{formatNumberValue(item.filledAmount)}</b></span>
+      </div>
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
+        <span className="min-w-0">{t('profile.fields.event')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'event')}</b></span>
+        <span className="min-w-0">{t('profile.fields.market')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'market')}</b></span>
+        <span className="min-w-0">{t('profile.fields.outcome')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'outcome')}</b></span>
+      </div>
+      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
+        <span>{t('profile.fields.currentOdds')}: <b className="font-semibold text-ink">{formatNumberValue(item.currentOdds)}</b></span>
+        <span>{t('profile.fields.estimatedReturn')}: <b className="font-semibold text-ink">{formatNumberValue(item.estimatedReturnAmount)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span>{t('profile.fields.side')}: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
-        <span>{t('profile.fields.quantity')}: <b className="font-semibold text-ink">{formatNumberValue(item.size)}</b></span>
-        <span>{t('profile.fields.filledQuantity')}: <b className="font-semibold text-ink">{formatNumberValue(item.filledSize)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft">
         <span>{t('profile.fields.commission')}: <b className="font-semibold text-ink">{formatNumberValue(item.commissionAmount)} / {formatPercentValue(item.commissionRate)}</b></span>
@@ -934,7 +954,6 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
           {t('profile.fields.updatedAt')}: <b className="font-semibold text-ink">{formatMaybeDate(item.updateTime)}</b>
         </div>
       ) : null}
-      {item.errorMessage ? <div className="mt-2 text-[12px] text-rose-200">{t('profile.fields.errorReason')}: {item.errorMessage}</div> : null}
     </div>
   )
 }
