@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
 import { RollingNumber } from '../features/market-realtime/rolling-number'
@@ -56,6 +57,8 @@ export function MarketDetailPage() {
   const { marketId = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { i18n } = useTranslation()
+  const language = i18n.resolvedLanguage ?? i18n.language
   const state = location.state as MarketDetailLocationState | null
   const initialMarket = state?.marketCard?.id === marketId ? state.marketCard : undefined
   const initialSelectionKeyRef = useRef<string | null>(null)
@@ -63,8 +66,8 @@ export function MarketDetailPage() {
   const isActiveMarketWinnerSelection =
     activeSelection?.contextType === 'market' && activeSelection.template === 'winner'
   const { data: market, isLoading, isError, error } = useQuery({
-    queryKey: ['world-cup-prop-card', marketId],
-    queryFn: () => getWorldCupPropCardById(marketId, WORLD_CUP_PROPS_PAGE_SIZE),
+    queryKey: ['world-cup-prop-card', marketId, language],
+    queryFn: () => getWorldCupPropCardById(marketId, WORLD_CUP_PROPS_PAGE_SIZE, language),
     enabled: marketId.length > 0,
     initialData: initialMarket,
   })

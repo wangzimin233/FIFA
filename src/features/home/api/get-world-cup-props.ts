@@ -51,8 +51,11 @@ function getEventCardId(event: WorldCupGameEvent) {
   return String(event.slug ?? event.id)
 }
 
-function getEventTitle(event: WorldCupGameEvent) {
-  const title = event.title?.trim()
+function getLocalizedEventTitle(event: WorldCupGameEvent, language?: string) {
+  const zhTitle = event.titleZh?.trim()
+  const enTitle = event.title?.trim()
+  const title = language?.toLowerCase().startsWith('zh') ? zhTitle || enTitle : enTitle || zhTitle
+
   return title && title.length > 0 ? title : 'Untitled market'
 }
 
@@ -66,7 +69,7 @@ function getEventIconLogo(event: WorldCupGameEvent) {
 }
 
 function getFallbackIcon(event: WorldCupGameEvent) {
-  const title = getEventTitle(event).toLowerCase()
+  const title = `${event.title ?? ''} ${event.titleZh ?? ''}`.toLowerCase()
 
   if (title.includes('winner') || title.includes('champion')) {
     return '🏆'
@@ -80,7 +83,10 @@ function getFallbackIcon(event: WorldCupGameEvent) {
 }
 
 function getCandidateName(market: WorldCupGameMarket, index: number, language?: string) {
-  const label = getLocalizedGroupItemTitle(market, language) || market.name?.trim() || market.question?.trim()
+  const zhQuestion = market.questionZh?.trim()
+  const enQuestion = market.question?.trim()
+  const question = language?.toLowerCase().startsWith('zh') ? zhQuestion || enQuestion : enQuestion || zhQuestion
+  const label = getLocalizedGroupItemTitle(market, language) || market.name?.trim() || question
   return label && label.length > 0 ? label : `Option ${index + 1}`
 }
 
@@ -117,7 +123,7 @@ function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCar
 
   const id = getEventCardId(event)
   const eventSlug = getEventSlug(event)
-  const title = getEventTitle(event)
+  const title = getLocalizedEventTitle(event, language)
   const icon = getFallbackIcon(event)
   const iconLogo = getEventIconLogo(event)
 
@@ -190,11 +196,12 @@ export async function getWorldCupPropsPage(query: WorldCupPropsQuery): Promise<W
 export async function getWorldCupPropCardById(
   marketId: string,
   pageSize = WORLD_CUP_PROPS_PAGE_SIZE,
+  language?: string,
 ): Promise<MarketCard | null> {
   let pageNum = 1
 
   while (true) {
-    const page = await getWorldCupPropsPage({ pageNum, pageSize })
+    const page = await getWorldCupPropsPage({ pageNum, pageSize, language })
     const match = page.cards.find((card) => card.id === marketId)
 
     if (match) {

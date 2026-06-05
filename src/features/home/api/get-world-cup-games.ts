@@ -4,6 +4,7 @@ import type { MatchCard, WinnerOutcome } from '../home-data'
 export type WorldCupGameMarket = {
   id: string | number
   question?: string
+  questionZh?: string
   conditionId?: string
   slug?: string
   resolutionSource?: string
@@ -187,6 +188,7 @@ export type WorldCupGameEvent = {
   ticker?: string
   slug?: string
   title?: string
+  titleZh?: string
   description?: string
   resolutionSource?: string
   eventDate?: string
