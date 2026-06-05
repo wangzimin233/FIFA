@@ -1,7 +1,9 @@
 import { motion } from 'motion/react'
-import { homeBanner } from '../home-data'
+import { useTranslation } from 'react-i18next'
 
 export function HomeBanner() {
+  const { t } = useTranslation()
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -12,10 +14,10 @@ export function HomeBanner() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(0,255,65,0.16),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(56,189,248,0.08),transparent_30%)]" />
       <div className="relative max-w-3xl">
         <h1 className="max-w-2xl text-[20px] font-semibold tracking-tight text-ink sm:text-[22px]">
-          {homeBanner.title}
+          {t('home.banner.title')}
         </h1>
         <p className="mt-2 max-w-2xl text-[12px] leading-5 text-ink-soft sm:text-[13px] sm:leading-5.5">
-          {homeBanner.description}
+          {t('home.banner.description')}
         </p>
       </div>
     </motion.section>

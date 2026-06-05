@@ -12,6 +12,7 @@
     "viewWallet": "查看钱包信息",
     "disconnectWallet": "断开钱包",
     "close": "关闭",
+    "back": "返回",
     "showWallet": "显示钱包面板",
     "hideWallet": "隐藏钱包面板",
     "learnMore": "查看更多"
@@ -61,6 +62,419 @@
       "i18n": "支持多语言显示。",
       "state": "保留当前选择。",
       "motion": "界面操作更流畅。"
+    }
+  },
+  "common": {
+    "loadingMore": "正在加载更多...",
+    "refreshing": "刷新中...",
+    "endReached": "已经到底了"
+  },
+  "language": {
+    "label": "切换语言",
+    "options": {
+      "zh": "中文",
+      "en": "English"
+    }
+  },
+  "home": {
+    "banner": {
+      "title": "世界杯 2026",
+      "description": "世界杯实时预测和赔率。"
+    },
+    "tabs": {
+      "matches": "比赛",
+      "markets": "玩法"
+    }
+  },
+  "layout": {
+    "invite": {
+      "eyebrow": "Invite",
+      "title": "补充邀请码",
+      "description": "当前钱包还未注册。邀请码可以填写，也可以直接跳过；跳过后将不传这个参数。",
+      "codeLabel": "邀请码（可选）",
+      "placeholder": "例如 ROOT01",
+      "skip": "跳过",
+      "continue": "继续注册",
+      "submitting": "注册中...",
+      "validationRequired": "请输入邀请码后继续注册，或点击跳过。"
+    }
+  },
+  "markets": {
+    "types": {
+      "moneyline": "胜负线",
+      "spread": "让分",
+      "total": "总分",
+      "totalShort": "大小"
+    },
+    "outcomes": {
+      "home": "主",
+      "draw": "和",
+      "away": "客",
+      "over": "大",
+      "under": "小",
+      "yes": "Yes",
+      "no": "No"
+    }
+  },
+  "matchList": {
+    "loading": "正在加载比赛列表...",
+    "error": "比赛列表加载失败，请稍后重试。",
+    "matchView": "比赛视图",
+    "empty": "暂无比赛数据",
+    "scrollForMore": "继续下滑加载更多",
+    "allLoaded": "已加载全部比赛"
+  },
+  "marketGrid": {
+    "odds": "赔率",
+    "loading": "正在加载玩法列表...",
+    "error": "玩法列表加载失败，请稍后重试。",
+    "empty": "暂无玩法数据。",
+    "showMore": "显示更多盘口"
+  },
+  "matchDetail": {
+    "loading": "正在加载比赛详情...",
+    "error": "比赛详情加载失败，请稍后重试。",
+    "notFound": "未找到对应比赛详情。",
+    "emptyData": "暂无相关数据。",
+    "tabs": {
+      "markets": "比赛盘口",
+      "exact": "准确比分",
+      "halftime": "半场结果"
+    },
+    "sections": {
+      "exactScore": "准确比分",
+      "halftime": "半场结果",
+      "context": "比赛背景"
+    },
+    "exact": {
+      "loading": "正在加载准确比分...",
+      "error": "准确比分加载失败，请稍后重试。"
+    },
+    "halftime": {
+      "loading": "正在加载半场结果...",
+      "error": "半场结果加载失败，请稍后重试。"
+    }
+  },
+  "marketDetail": {
+    "loading": "正在加载玩法详情...",
+    "error": "玩法详情加载失败，请稍后重试。",
+    "notFound": "未找到对应玩法详情。"
+  },
+  "orderPanel": {
+    "amountLabel": "金\n额",
+    "amountInputLabel": "输入金额",
+    "toWin": "赢取",
+    "minAmount": "最低下单金额 {{amount}}",
+    "unsupportedMarket": "当前盘口暂不支持挂单",
+    "unsupportedOrder": "暂不支持挂单",
+    "submitting": "提交中...",
+    "confirmSlippage": "确认滑点并交易",
+    "trade": "交易",
+    "currentOrder": "当前下单",
+    "emptyEyebrow": "待选择",
+    "emptyTitle": "下单面板",
+    "emptyDescription": "从比赛列表中选择胜负线、让分或总分盘口，右侧会按当前市场模板同步更新。",
+    "closeDrawer": "关闭下单抽屉"
+  },
+  "orderErrors": {
+    "selectMarket": "请先选择一个盘口。",
+    "unsupportedMarket": "当前盘口暂不支持挂单。",
+    "invalidAmount": "请输入有效的下单金额。",
+    "minAmount": "最低下单金额为 {{amount}}。",
+    "missingEventSlug": "当前盘口缺少 eventSlug，无法提交订单。",
+    "missingMarketSlug": "当前盘口缺少 marketSlug，无法提交订单。",
+    "missingConditionId": "当前盘口缺少 market conditionId，无法提交订单。",
+    "invalidConditionId": "当前盘口 market 不是有效的 conditionId，无法提交订单。",
+    "missingGammaMarketId": "当前盘口缺少 Gamma marketId，无法提交订单。",
+    "missingTokenId": "当前盘口缺少 tokenId，无法提交订单。",
+    "submitted": "订单已提交",
+    "submitFailed": "提交订单失败。",
+    "slippageExceeded": "价格滑点超过阈值，请再次点击确认交易。",
+    "submitRetry": "提交订单失败，请稍后重试。"
+  },
+  "dataLabels": {
+    "tbd": "待定",
+    "timeTbd": "时间待定",
+    "inProgressOrEnded": "进行中或已结束",
+    "countdown": "{{days}}天 {{hours}}时",
+    "volume": "{{value}} 交易量",
+    "sampleHeaderDate": "六月 12"
+  },
+  "profile": {
+    "title": "个人中心",
+    "walletHint": "连接钱包后管理资产",
+    "auth": {
+      "completeLogin": "完成钱包登录"
+    },
+    "connection": {
+      "disconnected": "未连接",
+      "loggedIn": "已登录",
+      "pendingLogin": "待登录",
+      "walletStatus": "钱包状态",
+      "disconnectedMessage": "还没有连接钱包。连接后这里会展示账户、资产、充值、提现与记录入口。",
+      "pendingLoginMessage": "钱包已连接，完成签名登录后即可查看资产和资金记录。"
+    },
+    "account": {
+      "error": "账户信息加载失败，请稍后重试。",
+      "unavailable": "当前账户信息暂不可用，请稍后重试。"
+    },
+    "fundsConfig": {
+      "loading": "正在加载资金配置...",
+      "error": "资金配置加载失败，请稍后重试。"
+    },
+    "count": {
+      "items": "共 {{count}} 条",
+      "people": "共 {{count}} 人"
+    },
+    "filters": {
+      "all": "全部"
+    },
+    "status": {
+      "success": "成功",
+      "failed": "失败",
+      "submitted": "已提交",
+      "pendingPaymentOrder": "待支付",
+      "pendingReview": "待审核",
+      "pendingPayment": "待打款",
+      "processing": "处理中",
+      "rejected": "驳回",
+      "canceled": "已取消",
+      "abnormal": "异常",
+      "completed": "已完成",
+      "normal": "正常",
+      "disabled": "禁用",
+      "flowError": "流程异常",
+      "withValue": "状态 {{status}}"
+    },
+    "userTypes": {
+      "node": "节点用户",
+      "normal": "普通用户",
+      "withValue": "类型 {{type}}"
+    },
+    "limits": {
+      "unlimited": "不限"
+    },
+    "fields": {
+      "network": "网络",
+      "coin": "币种",
+      "amount": "金额",
+      "minAmount": "最小金额",
+      "availableBalance": "可用余额",
+      "fee": "手续费",
+      "limit": "限额",
+      "walletAddress": "钱包地址",
+      "inviteCode": "邀请码",
+      "authType": "登录方式",
+      "txReceipt": "交易凭证",
+      "apply": "申请",
+      "received": "到账",
+      "receiveAddress": "到账地址",
+      "rejectReason": "驳回原因",
+      "price": "价格",
+      "filled": "成交",
+      "side": "方向",
+      "quantity": "数量",
+      "filledQuantity": "已成交",
+      "commission": "佣金",
+      "updatedAt": "更新时间",
+      "errorReason": "异常原因",
+      "chain": "链",
+      "registeredAt": "注册",
+      "remark": "备注"
+    },
+    "form": {
+      "amountPlaceholder": "请输入 USDT 数量",
+      "minPlaceholder": "最少 {{amount}}",
+      "fillMin": "填入最小金额",
+      "quickFill": "快速填入 {{amount}}",
+      "fillAllAvailable": "填入全部可用"
+    },
+    "balance": {
+      "availableBscUsdt": "BSC-USDT 可用余额",
+      "total": "总余额",
+      "frozen": "冻结余额",
+      "totalDeposit": "累计充值",
+      "totalWithdraw": "累计提现"
+    },
+    "deposit": {
+      "title": "BSC USDT 充值",
+      "action": "充值",
+      "amount": "充值金额",
+      "minDeposit": "最小充值",
+      "historyTitle": "充值记录",
+      "rules": "充值规则",
+      "lastReceipt": "最近一次充值凭证",
+      "retryCallback": "重新通知后端入账",
+      "status": {
+        "idle": "待开始",
+        "switchingNetwork": "切换网络",
+        "creatingOrder": "创建订单",
+        "approving": "代币授权",
+        "submitting": "提交充值",
+        "confirming": "等待确认",
+        "callbackPending": "通知后端",
+        "success": "充值成功"
+      },
+      "buttons": {
+        "switchingNetwork": "切换到 BSC 中...",
+        "creatingOrder": "创建订单中...",
+        "approving": "授权 USDT 中...",
+        "submitting": "提交充值中...",
+        "confirming": "链上确认中...",
+        "callbackPending": "回调处理中...",
+        "continue": "继续充值",
+        "retry": "重新发起充值",
+        "confirm": "确认充值"
+      }
+    },
+    "withdraw": {
+      "title": "BSC USDT 提现",
+      "action": "提现",
+      "amount": "提现金额",
+      "minWithdraw": "最小提现",
+      "maxWithdraw": "最大提现",
+      "historyTitle": "提现记录",
+      "rules": "提现规则",
+      "status": {
+        "applying": "申请提现",
+        "success": "等待审核"
+      },
+      "buttons": {
+        "applying": "申请提现中...",
+        "continue": "继续提现",
+        "retry": "重新发起提现",
+        "confirm": "确认提现"
+      }
+    },
+    "identity": {
+      "title": "账户身份"
+    },
+    "invite": {
+      "noLink": "暂无邀请链接",
+      "copied": "邀请链接已复制",
+      "copyFailed": "复制失败，请手动复制",
+      "copying": "复制中...",
+      "copy": "复制邀请链接"
+    },
+    "orders": {
+      "title": "订单记录",
+      "loginRequired": "完成钱包登录后可查看订单。",
+      "error": "订单加载失败，请稍后重试。",
+      "empty": "暂无订单。"
+    },
+    "history": {
+      "loginRequired": "完成钱包登录后可查看记录。",
+      "error": "记录加载失败，请稍后重试。",
+      "empty": "暂无记录。"
+    },
+    "relation": {
+      "title": "邀请关系",
+      "directCount": "直推人数",
+      "umbrellaCount": "伞下总人数",
+      "error": "邀请数据加载失败，请稍后重试。",
+      "openList": "打开{{label}}列表",
+      "directListTitle": "直推列表",
+      "umbrellaListTitle": "伞下总人数列表",
+      "directEmpty": "暂无直推用户。",
+      "umbrellaEmpty": "暂无伞下用户。",
+      "directError": "直推列表加载失败，请稍后重试。",
+      "umbrellaError": "伞下总人数列表加载失败，请稍后重试。",
+      "directLoginRequired": "完成钱包登录后可查看直推用户。",
+      "umbrellaLoginRequired": "完成钱包登录后可查看伞下用户。",
+      "walletSearch": "钱包地址搜索",
+      "searchSettling": "等待输入完成...",
+      "searchPlaceholder": "输入钱包地址片段"
+    },
+    "rewards": {
+      "title": "奖励记录",
+      "description": "查看直推奖励和节点奖励的到账明细。",
+      "viewRecords": "查看奖励记录",
+      "direct": "直推奖励",
+      "node": "节点奖励",
+      "loginRequired": "完成钱包登录后可查看奖励记录。",
+      "error": "奖励记录加载失败，请稍后重试。",
+      "empty": "暂无奖励记录。"
+    }
+  },
+  "walletAuth": {
+    "success": {
+      "login": "钱包登录成功"
+    },
+    "buttons": {
+      "signing": "请求签名中...",
+      "loggingOut": "退出中...",
+      "loggingIn": "登录中...",
+      "retryLogin": "重试登录",
+      "completeLogin": "完成登录"
+    },
+    "errors": {
+      "timeout": "钱包认证请求超时，请稍后重试。",
+      "serviceUnavailable": "后端认证服务暂时不可用，请稍后重试。",
+      "failed": "钱包认证失败，请重试。",
+      "missingToken": "后端未返回 token，无法建立登录态。",
+      "invalidSignature": "钱包未返回有效签名，请重试。",
+      "unsupportedNetwork": "当前仅支持 BSC 钱包网络，请切换后重试。",
+      "loginNoData": "钱包登录未返回有效数据，请稍后重试。",
+      "unregisteredExpiredSignature": "后端返回未注册，但当前签名已失效，请重新点击连接钱包重试。",
+      "registrationExpiredSignature": "注册签名已失效，请重新点击连接钱包重试。",
+      "registerNoData": "钱包注册未返回有效数据，请稍后重试。",
+      "loginRequired": "请先登录",
+      "connectFirst": "请先连接钱包。"
+    }
+  },
+  "walletProvider": {
+    "previousWallet": "上次登录的钱包",
+    "errors": {
+      "conflict": "检测到多个钱包插件同时注入并可能争用同一笔交易。请通过“连接钱包”重新选择要使用的钱包并完成登录，系统会绑定该钱包后再进行充值或提现。",
+      "duplicateProviderConflict": "检测到浏览器多钱包 Provider 冲突，请临时停用未使用的钱包插件，或只保留 MetaMask / TokenPocket 其中一个后刷新重试。",
+      "notEvmProvider": "当前选择的钱包不是 EVM 钱包 Provider，请重新连接 BSC 钱包后再试。",
+      "boundProviderMissing": "当前登录态绑定的钱包是 {{provider}}，但浏览器当前没有找到同一个 Provider。请断开钱包并重新连接该钱包后再试。",
+      "noMatchingProvider": "未找到与当前连接地址匹配的钱包 Provider，请重新连接钱包后重试。",
+      "noMatchingProviderRefresh": "未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。",
+      "missingProvider": "当前未获取到钱包 Provider，请重新连接钱包后重试。",
+      "invalidTxHash": "钱包未返回有效的交易哈希。"
+    }
+  },
+  "deposit": {
+    "success": {
+      "completed": "充值成功"
+    },
+    "errors": {
+      "invalidSignature": "充值签名校验失败，请让后端确认签名内容与合约签名规则完全一致。",
+      "invalidParam": "充值参数校验失败，请检查订单号、金额和签名是否与合约要求一致。",
+      "orderIdUsed": "当前订单号已经使用，请重新创建充值订单后再试。",
+      "insufficientBalance": "钱包 USDT 余额不足，无法完成充值。",
+      "contractReverted": "充值合约回滚：{{errorName}}",
+      "failed": "充值失败，请稍后重试。",
+      "callbackPending": "链上充值交易已成功，但后端入账确认暂未完成：{{message}}。请稍后点击“重新通知后端入账”，不要重复发起同一笔充值。",
+      "orderIdPrecision": "订单 ID 精度异常，请让后端改为字符串返回后再重试。",
+      "receiptReverted": "充值交易已上链但执行失败，USDT 未完成入金，请检查链上交易详情。",
+      "callbackNoData": "入金回调未返回有效数据。",
+      "backendNotProcessed": "后端尚未完成入账处理。",
+      "loginFirst": "请先完成钱包登录，再进行充值。",
+      "walletClientNotReady": "当前钱包客户端未就绪，请稍后重试。",
+      "configLoading": "充值配置加载中，请稍后再试。",
+      "missingUsdtAddress": "未获取到 BSC USDT 合约地址，请刷新后重试。",
+      "invalidAmount": "请输入正确的充值金额。",
+      "minAmount": "当前最小充值金额为 {{amount}} USDT。",
+      "createOrderFailed": "创建入金订单失败。",
+      "invalidContractAddress": "后端未返回有效的入金合约地址。",
+      "invalidBackendSignature": "后端未返回有效的充值签名。"
+    }
+  },
+  "withdraw": {
+    "success": {
+      "submitted": "提现申请已提交，等待审核"
+    },
+    "errors": {
+      "failed": "提现申请失败，请稍后重试。",
+      "loginFirst": "请先完成钱包登录，再进行提现。",
+      "configLoading": "提现配置加载中，请稍后再试。",
+      "invalidAmount": "请输入正确的提现金额。",
+      "minAmount": "当前最小提现金额为 {{amount}} USDT。",
+      "maxAmount": "当前最大提现金额为 {{amount}} USDT。",
+      "exceedsBalance": "提现金额不能大于当前可用余额。",
+      "applyFailed": "申请提现失败。"
     }
   }
 }

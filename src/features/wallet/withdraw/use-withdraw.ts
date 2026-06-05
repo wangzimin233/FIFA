@@ -2,6 +2,7 @@ import type { AxiosError } from 'axios'
 import { useCallback, useMemo, useState } from 'react'
 import { toast } from '@heroui/react'
 import { useQueryClient } from '@tanstack/react-query'
+import i18n from '../../../config/i18n'
 import type { WalletUserInfoResponse } from '../../wallet-auth/api'
 import type { WalletContractConfigResponse } from '../deposit/api'
 import { isAddressLike } from '../deposit/contracts'
@@ -25,7 +26,7 @@ function resolveErrorMessage(error: unknown) {
     return (error as { message: string }).message
   }
 
-  return '提现申请失败，请稍后重试。'
+  return i18n.t('withdraw.errors.failed')
 }
 
 export function useWithdraw({
@@ -67,19 +68,19 @@ export function useWithdraw({
     async (amountInput: string) => {
       if (!isConnected || !walletAddress || !isAddressLike(walletAddress)) {
         setStatus('error')
-        setError('请先连接钱包。')
+        setError(i18n.t('walletAuth.errors.connectFirst'))
         return
       }
 
       if (!isSessionReady) {
         setStatus('error')
-        setError('请先完成钱包登录，再进行提现。')
+        setError(i18n.t('withdraw.errors.loginFirst'))
         return
       }
 
       if (!contractConfig) {
         setStatus('error')
-        setError('提现配置加载中，请稍后再试。')
+        setError(i18n.t('withdraw.errors.configLoading'))
         return
       }
 
@@ -91,25 +92,25 @@ export function useWithdraw({
 
       if (!normalizedAmount || Number.isNaN(amount) || amount <= 0) {
         setStatus('error')
-        setError('请输入正确的提现金额。')
+        setError(i18n.t('withdraw.errors.invalidAmount'))
         return
       }
 
       if (Number.isFinite(minAmount) && minAmount > 0 && amount < minAmount) {
         setStatus('error')
-        setError(`当前最小提现金额为 ${contractConfig.withdrawMinAmount} USDT。`)
+        setError(i18n.t('withdraw.errors.minAmount', { amount: contractConfig.withdrawMinAmount }))
         return
       }
 
       if (Number.isFinite(maxAmount) && maxAmount > 0 && amount > maxAmount) {
         setStatus('error')
-        setError(`当前最大提现金额为 ${contractConfig.withdrawMaxAmount} USDT。`)
+        setError(i18n.t('withdraw.errors.maxAmount', { amount: contractConfig.withdrawMaxAmount }))
         return
       }
 
       if (Number.isFinite(currentAvailableBalance) && currentAvailableBalance > 0 && amount > currentAvailableBalance) {
         setStatus('error')
-        setError('提现金额不能大于当前可用余额。')
+        setError(i18n.t('withdraw.errors.exceedsBalance'))
         return
       }
 
@@ -122,13 +123,13 @@ export function useWithdraw({
         })
 
         if (!applyResult.data) {
-          throw new Error(applyResult.message || '申请提现失败。')
+          throw new Error(applyResult.message || i18n.t('withdraw.errors.applyFailed'))
         }
 
         setStatus('success')
         await invalidateWalletData()
         await onSuccess?.()
-        toast.success(applyResult.message || '提现申请已提交，等待审核')
+        toast.success(applyResult.message || i18n.t('withdraw.success.submitted'))
       } catch (error) {
         setStatus('error')
         setError(resolveErrorMessage(error))

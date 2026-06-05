@@ -1,6 +1,7 @@
 import { Button } from '@heroui/react'
 import { motion } from 'motion/react'
 import { type ReactNode, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useActiveSelectionPrice, useDisplayPrice } from '../../market-realtime/price-utils'
 import { RollingNumber } from '../../market-realtime/rolling-number'
 import { TeamMark } from './team-mark'
@@ -76,6 +77,7 @@ function PanelShell({
 }
 
 function AmountSection() {
+  const { t } = useTranslation()
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
   const { canSubmit, isAcceptingOrders, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
@@ -100,7 +102,7 @@ function AmountSection() {
       <label className="mt-5 block">
         <div className="grid grid-cols-[24px_minmax(0,1fr)] items-end gap-x-3">
           <span className="whitespace-pre-line text-[12px] font-semibold leading-[0.96] text-ink">
-            {'金\n额'}
+            {t('orderPanel.amountLabel')}
           </span>
           <div className="relative min-w-0 text-right">
             <div
@@ -116,7 +118,7 @@ function AmountSection() {
               onChange={(event) => setAmount(Number(event.target.value))}
               inputMode="decimal"
               placeholder="0"
-              aria-label="输入金额"
+              aria-label={t('orderPanel.amountInputLabel')}
               className="absolute inset-0 w-full border-none bg-transparent text-right text-[42px] font-semibold text-transparent caret-white outline-none placeholder:text-transparent sm:text-[48px]"
             />
           </div>
@@ -139,7 +141,7 @@ function AmountSection() {
       {computedResult ? (
         <div className="mt-3.5 text-center">
           <div className="text-[14px] font-semibold">
-            <span className="text-ink">赢取 </span>
+            <span className="text-ink">{t('orderPanel.toWin')} </span>
             <span className={computedResult.toneClass}>
               <RollingCurrency value={computedResult.potentialReturn} />
             </span>
@@ -151,7 +153,9 @@ function AmountSection() {
       ) : null}
 
       <div className="mt-3 text-center text-[11px] font-medium text-ink-soft">
-        {isAcceptingOrders ? `最低下单金额 $${MIN_POLYMARKET_ORDER_AMOUNT}` : '当前盘口暂不支持挂单'}
+        {isAcceptingOrders
+          ? t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })
+          : t('orderPanel.unsupportedMarket')}
       </div>
 
       <Button
@@ -159,7 +163,13 @@ function AmountSection() {
         onPress={submitOrder}
         className="mt-5 h-11 w-full rounded-[15px] bg-sky-500 text-[13px] font-semibold text-white shadow-[inset_0_-7px_0_rgba(0,0,0,0.14)] disabled:opacity-60 sm:h-12 sm:text-sm"
       >
-        {isSubmitting ? '提交中...' : !isAcceptingOrders ? '暂不支持挂单' : slippageConfirmed ? '确认滑点并交易' : '交易'}
+        {isSubmitting
+          ? t('orderPanel.submitting')
+          : !isAcceptingOrders
+            ? t('orderPanel.unsupportedOrder')
+            : slippageConfirmed
+              ? t('orderPanel.confirmSlippage')
+              : t('orderPanel.trade')}
       </Button>
     </>
   )
@@ -178,6 +188,8 @@ function PanelHeader({
   subject: string
   onClose?: () => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -185,7 +197,7 @@ function PanelHeader({
           <SelectionBadge value={badge} logo={badgeLogo} />
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-brand sm:text-[11px]">
-              当前下单
+              {t('orderPanel.currentOrder')}
             </p>
             <h3 className="mt-1.5 text-[15px] font-medium leading-tight text-ink-soft sm:text-[16px]">
               {title}
@@ -212,6 +224,7 @@ function PanelHeader({
 }
 
 function WinnerContent({ onClose }: { onClose?: () => void }) {
+  const { t } = useTranslation()
   const { activeSelection, setWinnerSide } = useOrderStore()
   const winnerSelection = activeSelection?.template === 'winner' ? activeSelection : null
   const yesPrice = useDisplayPrice(winnerSelection?.yesAssetId, winnerSelection?.yesPrice ?? 50)
@@ -243,7 +256,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            Yes <RollingOdds value={yesPrice} />
+            {t('markets.outcomes.yes')} <RollingOdds value={yesPrice} />
           </div>
         </button>
         <button
@@ -255,7 +268,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            No <RollingOdds value={noPrice} />
+            {t('markets.outcomes.no')} <RollingOdds value={noPrice} />
           </div>
         </button>
       </div>
@@ -266,6 +279,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
 }
 
 function SpreadContent({ onClose }: { onClose?: () => void }) {
+  const { t } = useTranslation()
   const { activeSelection, setSpreadTeamSide } = useOrderStore()
   const spreadSelection = activeSelection?.template === 'spread' ? activeSelection : null
 
@@ -289,8 +303,8 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
         title={spreadSelection.title}
         subject={
           awayActive
-            ? `客 ${activeVariant.awayHandicap}`
-            : `主 ${activeVariant.homeHandicap}`
+            ? `${t('markets.outcomes.away')} ${activeVariant.awayHandicap}`
+            : `${t('markets.outcomes.home')} ${activeVariant.homeHandicap}`
         }
         onClose={onClose}
       />
@@ -305,7 +319,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            客 {activeVariant.awayHandicap} <RollingOdds value={awayPrice} />
+            {t('markets.outcomes.away')} {activeVariant.awayHandicap} <RollingOdds value={awayPrice} />
           </div>
         </button>
         <button
@@ -317,7 +331,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            主 {activeVariant.homeHandicap} <RollingOdds value={homePrice} />
+            {t('markets.outcomes.home')} {activeVariant.homeHandicap} <RollingOdds value={homePrice} />
           </div>
         </button>
       </div>
@@ -328,6 +342,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
 }
 
 function TotalContent({ onClose }: { onClose?: () => void }) {
+  const { t } = useTranslation()
   const { activeSelection, setTotalSide } = useOrderStore()
   const totalSelection = activeSelection?.template === 'total' ? activeSelection : null
 
@@ -348,8 +363,8 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
       <PanelHeader
         badge={totalSelection.badge}
         badgeLogo={totalSelection.badgeLogo}
-        title="大小"
-        subject={overActive ? `大 ${activeLine.line}` : `小 ${activeLine.line}`}
+        title={t('markets.types.totalShort')}
+        subject={overActive ? `${t('markets.outcomes.over')} ${activeLine.line}` : `${t('markets.outcomes.under')} ${activeLine.line}`}
         onClose={onClose}
       />
 
@@ -363,7 +378,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            大 {activeLine.line} <RollingOdds value={overPrice} />
+            {t('markets.outcomes.over')} {activeLine.line} <RollingOdds value={overPrice} />
           </div>
         </button>
         <button
@@ -375,7 +390,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
           ].join(' ')}
         >
           <div className="text-[15px] font-semibold sm:text-[16px]">
-            小 {activeLine.line} <RollingOdds value={underPrice} />
+            {t('markets.outcomes.under')} {activeLine.line} <RollingOdds value={underPrice} />
           </div>
         </button>
       </div>
@@ -392,17 +407,20 @@ export function OrderPanel({
   compact?: boolean
   onClose?: () => void
 }) {
+  const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
 
   if (!activeSelection) {
     return (
       <aside className="rounded-[20px] border border-white/8 bg-panel/95 p-3 text-ink-soft shadow-[0_14px_32px_rgba(0,0,0,0.18)]">
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-brand sm:text-[11px]">
-          待选择
+          {t('orderPanel.emptyEyebrow')}
         </p>
-        <h3 className="mt-2.5 text-[16px] font-semibold text-ink sm:text-[17px]">下单面板</h3>
+        <h3 className="mt-2.5 text-[16px] font-semibold text-ink sm:text-[17px]">
+          {t('orderPanel.emptyTitle')}
+        </h3>
         <p className="mt-1.5 text-[12px] leading-5">
-          从比赛列表中选择胜负线、让分或总分盘口，右侧会按当前市场模板同步更新。
+          {t('orderPanel.emptyDescription')}
         </p>
       </aside>
     )

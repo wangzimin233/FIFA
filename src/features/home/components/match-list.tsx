@@ -1,4 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
+import type { TFunction } from 'i18next'
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -30,8 +31,12 @@ const pairedToneClass = (isActive: boolean, tone: 'positive' | 'negative' | 'neu
   return 'border-transparent bg-emerald-500/82 text-white'
 }
 
-function getWinnerOutcomeDisplayLabel(index: number) {
-  return index === 0 ? '主' : index === 1 ? '和' : '客'
+function getWinnerOutcomeDisplayLabel(index: number, t: TFunction) {
+  return index === 0
+    ? t('markets.outcomes.home')
+    : index === 1
+      ? t('markets.outcomes.draw')
+      : t('markets.outcomes.away')
 }
 
 function RealtimePriceValue({
@@ -192,7 +197,7 @@ function TotalSelector({
 
 export function MatchList() {
   const navigate = useNavigate()
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const pageSize = 10
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
@@ -294,7 +299,7 @@ export function MatchList() {
   if (isLoading) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
-        正在加载比赛列表...
+        {t('matchList.loading')}
       </div>
     )
   }
@@ -302,7 +307,7 @@ export function MatchList() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel px-4 py-6 text-sm text-rose-300">
-        比赛列表加载失败，请稍后重试。
+        {t('matchList.error')}
       </div>
     )
   }
@@ -317,13 +322,13 @@ export function MatchList() {
             </h2>
             <div className="hidden lg:grid lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.08fr)_minmax(0,0.92fr)] lg:gap-2">
               <span className="px-2 text-center text-[10px] uppercase tracking-[0.16em] text-ink-soft">
-                胜负线
+                {t('markets.types.moneyline')}
               </span>
               <span className="px-2 text-center text-[10px] uppercase tracking-[0.16em] text-ink-soft">
-                让分
+                {t('markets.types.spread')}
               </span>
               <span className="px-2 text-center text-[10px] uppercase tracking-[0.16em] text-ink-soft">
-                总分
+                {t('markets.types.total')}
               </span>
             </div>
           </div>
@@ -412,7 +417,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="block text-[13px] font-semibold">
-                              {getWinnerOutcomeDisplayLabel(outcomeIndex)} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
+                              {getWinnerOutcomeDisplayLabel(outcomeIndex, t)} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                             </span>
                           </button>
                         )
@@ -485,7 +490,7 @@ export function MatchList() {
                           <span className="rounded-full bg-white/6 px-1.5 py-0.5 text-[9px] text-ink-soft">
                             {match.badgeCount}
                           </span>
-                          比赛视图
+                          {t('matchList.matchView')}
                           <span aria-hidden="true">›</span>
                         </button>
                       </div>
@@ -493,7 +498,7 @@ export function MatchList() {
                       <div className="grid gap-2 lg:grid-cols-[minmax(0,0.88fr)_minmax(0,1.08fr)_minmax(0,0.92fr)]">
                         <div className="grid min-w-0 gap-2">
                           <p className="px-2 text-[10px] uppercase tracking-[0.14em] text-ink-soft lg:hidden">
-                            胜负线
+                            {t('markets.types.moneyline')}
                           </p>
                           {match.winnerMarket.outcomes.map((outcome, outcomeIndex) => {
                             const isActive =
@@ -512,7 +517,7 @@ export function MatchList() {
                                 ].join(' ')}
                               >
                                 <span className="block whitespace-nowrap text-[11px] font-semibold leading-none sm:text-[12px]">
-                                  {getWinnerOutcomeDisplayLabel(outcomeIndex)} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
+                                  {getWinnerOutcomeDisplayLabel(outcomeIndex, t)} <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                                 </span>
                               </button>
                             )
@@ -521,7 +526,7 @@ export function MatchList() {
 
                         <div className="grid min-w-0 gap-2">
                           <p className="px-2 text-[10px] uppercase tracking-[0.14em] text-ink-soft lg:hidden">
-                            让分
+                            {t('markets.types.spread')}
                           </p>
                           <button
                             type="button"
@@ -536,7 +541,7 @@ export function MatchList() {
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
                               <span className="truncate">
-                                主 {activeSpreadVariant.homeHandicap}
+                                {t('markets.outcomes.home')} {activeSpreadVariant.homeHandicap}
                               </span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeSpreadVariant.homeAssetId} fallbackPrice={activeSpreadVariant.homePrice} />
@@ -556,7 +561,7 @@ export function MatchList() {
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
                               <span className="truncate">
-                                客 {activeSpreadVariant.awayHandicap}
+                                {t('markets.outcomes.away')} {activeSpreadVariant.awayHandicap}
                               </span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeSpreadVariant.awayAssetId} fallbackPrice={activeSpreadVariant.awayPrice} />
@@ -567,7 +572,7 @@ export function MatchList() {
 
                         <div className="grid min-w-0 gap-2">
                           <p className="px-2 text-[10px] uppercase tracking-[0.14em] text-ink-soft lg:hidden">
-                            总分
+                            {t('markets.types.total')}
                           </p>
                           <button
                             type="button"
@@ -581,7 +586,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
-                              <span className="truncate">大 {activeTotalLine.line}</span>
+                              <span className="truncate">{t('markets.outcomes.over')} {activeTotalLine.line}</span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeTotalLine.overAssetId} fallbackPrice={activeTotalLine.overPrice} />
                               </span>
@@ -599,7 +604,7 @@ export function MatchList() {
                             ].join(' ')}
                           >
                             <span className="flex items-center justify-between gap-3 text-[11px] font-semibold leading-none sm:text-[12px]">
-                              <span className="truncate">小 {activeTotalLine.line}</span>
+                              <span className="truncate">{t('markets.outcomes.under')} {activeTotalLine.line}</span>
                               <span className="shrink-0 tabular-nums">
                                 <RealtimePriceValue assetId={activeTotalLine.underAssetId} fallbackPrice={activeTotalLine.underPrice} />
                               </span>
@@ -625,7 +630,7 @@ export function MatchList() {
 
       {!groups.length ? (
         <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
-          暂无比赛数据
+          {t('matchList.empty')}
         </div>
       ) : null}
 
@@ -633,12 +638,12 @@ export function MatchList() {
         <div ref={loadMoreRef} className="flex min-h-12 items-center justify-center">
           <div className="text-xs text-ink-soft">
             {isFetchingNextPage
-              ? '加载更多中...'
+              ? t('common.loadingMore')
               : hasNextPage
-                ? '继续下滑加载更多'
+                ? t('matchList.scrollForMore')
                 : isFetching
-                  ? '刷新中...'
-                  : '已加载全部比赛'}
+                  ? t('common.refreshing')
+                  : t('matchList.allLoaded')}
           </div>
         </div>
       ) : null}

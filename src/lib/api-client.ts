@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { env } from '../config/env'
+import i18n from '../config/i18n'
 import { wagmiConfig } from '../config/web3'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { loadWalletAuthSession, clearWalletAuthSession } from '../features/wallet-auth/storage'
@@ -20,7 +21,7 @@ function shouldAttachAuthHeader(url: string | undefined) {
 
 let unauthorizedCleanupPromise: Promise<void> | null = null
 
-async function handleUnauthorized(message = '请先登录') {
+async function handleUnauthorized(message = i18n.t('walletAuth.errors.loginRequired')) {
   if (!unauthorizedCleanupPromise) {
     unauthorizedCleanupPromise = (async () => {
       clearWalletAuthSession()
@@ -77,13 +78,13 @@ apiClient.interceptors.response.use(async (response) => {
   const payload = response.data as ApiEnvelope | undefined
 
   if (payload?.code === 401) {
-    await handleUnauthorized(payload.message || '请先登录')
+    await handleUnauthorized(payload.message || i18n.t('walletAuth.errors.loginRequired'))
   }
 
   return response
 }, async (error) => {
   if (error?.response?.status === 401) {
-    await handleUnauthorized(error.response?.data?.message || '请先登录')
+    await handleUnauthorized(error.response?.data?.message || i18n.t('walletAuth.errors.loginRequired'))
   }
 
   return Promise.reject(error)

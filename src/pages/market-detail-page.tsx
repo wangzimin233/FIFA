@@ -61,7 +61,7 @@ export function MarketDetailPage() {
   const { marketId = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const state = location.state as MarketDetailLocationState | null
   const initialMarket = state?.marketCard?.id === marketId ? state.marketCard : undefined
@@ -226,7 +226,7 @@ export function MarketDetailPage() {
   if (isLoading && !market) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-        正在加载玩法详情...
+        {t('marketDetail.loading')}
       </div>
     )
   }
@@ -234,7 +234,7 @@ export function MarketDetailPage() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-        玩法详情加载失败，请稍后重试。
+        {t('marketDetail.error')}
       </div>
     )
   }
@@ -242,7 +242,7 @@ export function MarketDetailPage() {
   if (!market) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-        未找到对应玩法详情。
+        {t('marketDetail.notFound')}
       </div>
     )
   }
@@ -259,7 +259,7 @@ export function MarketDetailPage() {
             <span aria-hidden="true" className="text-[13px] leading-none">
               ‹
             </span>
-            返回
+            {t('actions.back')}
           </button>
         </div>
 
@@ -347,7 +347,7 @@ export function MarketDetailPage() {
                             actionButtonClass(isActive && activeSelection.activeSide === 'yes', 'positive'),
                           ].join(' ')}
                         >
-                          YES <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
+                          {t('markets.outcomes.yes')} <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                         </button>
                         <button
                           type="button"
@@ -392,7 +392,7 @@ export function MarketDetailPage() {
                             actionButtonClass(isActive && activeSelection.activeSide === 'no', 'negative'),
                           ].join(' ')}
                         >
-                          NO <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
+                          {t('markets.outcomes.no')} <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
                         </button>
                       </div>
                     ) : null}
@@ -463,7 +463,7 @@ export function MarketDetailPage() {
                     ),
                   ].join(' ')}
                 >
-                  YES <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} />
+                  {t('markets.outcomes.yes')} <RealtimePriceValue assetId={market.yesAssetId} fallbackPrice={market.yesPrice} />
                 </button>
                 <button
                   type="button"
@@ -513,7 +513,7 @@ export function MarketDetailPage() {
                     ),
                   ].join(' ')}
                 >
-                  NO <RealtimePriceValue assetId={market.noAssetId} fallbackPrice={market.noPrice} />
+                  {t('markets.outcomes.no')} <RealtimePriceValue assetId={market.noAssetId} fallbackPrice={market.noPrice} />
                 </button>
               </div>
             ) : null}

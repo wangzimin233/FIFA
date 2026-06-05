@@ -10,7 +10,6 @@ void i18n
   .init({
     supportedLngs: ['en', 'zh'],
     fallbackLng: 'zh',
-    lng: 'zh',
     defaultNS: 'common',
     ns: ['common'],
     interpolation: {

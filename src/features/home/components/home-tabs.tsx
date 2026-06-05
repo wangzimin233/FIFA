@@ -1,7 +1,10 @@
 import { NavLink } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { homeTabs } from '../home-data'
 
 export function HomeTabs() {
+  const { t } = useTranslation()
+
   return (
     <div className="inline-flex rounded-[16px] border border-white/8 bg-white/4 p-0.75">
       {homeTabs.map((tab) => (
@@ -17,7 +20,7 @@ export function HomeTabs() {
             ].join(' ')
           }
         >
-          {tab.label}
+          {t(`home.tabs.${tab.key}`)}
         </NavLink>
       ))}
     </div>

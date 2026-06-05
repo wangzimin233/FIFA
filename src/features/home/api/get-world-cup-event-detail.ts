@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/api-client'
+import i18n from '../../../config/i18n'
 import { buildMatchDetail, type MatchDetail, type MatchDetailProposition, type MatchDetailThreeWay } from '../detail-data'
 import {
   buildSpreadVariants,
@@ -68,6 +69,7 @@ function getEventForMarketType(event: WorldCupGameEvent | null | undefined, type
 function buildTypedVolumeLabel(
   event: WorldCupGameEvent | undefined,
   marketType: string,
+  language?: string,
 ) {
   if (!event) {
     return undefined
@@ -75,7 +77,7 @@ function buildTypedVolumeLabel(
 
   const typedMarkets = event.markets?.filter((market) => market.sportsMarketType === marketType) ?? []
 
-  return formatVolumeLabel(getMarketVolumeNumTotal(typedMarkets))
+  return formatVolumeLabel(getMarketVolumeNumTotal(typedMarkets), language)
 }
 
 function sanitizeMatchTitle(title?: string) {
@@ -97,9 +99,9 @@ function createFallbackMatchEvent(event: WorldCupGameEvent, baseSlug: string): W
   }
 }
 
-function formatHeaderDate(value?: string) {
+function formatHeaderDate(value?: string, language?: string) {
   if (!value) {
-    return '待定'
+    return i18n.t('dataLabels.tbd', { lng: language })
   }
 
   const date = new Date(value)
@@ -107,41 +109,41 @@ function formatHeaderDate(value?: string) {
     return value
   }
 
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
     month: 'long',
     day: 'numeric',
     timeZone: 'UTC',
   }).format(date)
 }
 
-function formatEventDate(value?: string, fallback?: string) {
+function formatEventDate(value?: string, fallback?: string, language?: string) {
   if (value) {
-    return formatHeaderDate(value)
+    return formatHeaderDate(value, language)
   }
 
-  return formatHeaderDate(fallback)
+  return formatHeaderDate(fallback, language)
 }
 
-function formatCountdown(value?: string) {
+function formatCountdown(value?: string, language?: string) {
   if (!value) {
-    return '时间待定'
+    return i18n.t('dataLabels.timeTbd', { lng: language })
   }
 
   const target = new Date(value)
   if (Number.isNaN(target.getTime())) {
-    return '时间待定'
+    return i18n.t('dataLabels.timeTbd', { lng: language })
   }
 
   const diff = target.getTime() - Date.now()
   if (diff <= 0) {
-    return '进行中或已结束'
+    return i18n.t('dataLabels.inProgressOrEnded', { lng: language })
   }
 
   const totalHours = Math.floor(diff / (1000 * 60 * 60))
   const days = Math.floor(totalHours / 24)
   const hours = totalHours % 24
 
-  return `${days}天 ${hours}时`
+  return i18n.t('dataLabels.countdown', { lng: language, days, hours })
 }
 
 function getOrderedTeams(teams?: WorldCupGameTeam[]) {
@@ -179,7 +181,7 @@ function toExactScoreBadge(scoreLabel: string, homeTeam?: WorldCupGameTeam, away
   return { badge: '', badgeLogo: undefined }
 }
 
-function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchDetail['match']): MatchDetailThreeWay | undefined {
+function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchDetail['match'], language?: string): MatchDetailThreeWay | undefined {
   if (!event?.markets?.length) {
     return undefined
   }
@@ -279,7 +281,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
   return {
     id: String(event.id),
     title: event.title ?? 'Halftime Result',
-    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets)),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets), language),
     outcomes,
   }
 }
@@ -310,7 +312,7 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
         ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         title: rawTitle,
-        volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market])),
+        volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market]), language),
         badge,
         badgeLogo,
         shortLabel: scoreLabel,
@@ -344,7 +346,7 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined, language?: 
     ...getOrderMarketMetadata(event, market),
     negRisk: market.negRisk,
     title,
-    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market])),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market]), language),
     badge: '⚽',
     shortLabel: 'BTTS',
     subject: title,
@@ -370,6 +372,7 @@ export async function getWorldCupExactScores(slug: string, language?: string): P
 export async function getWorldCupHalftimeResult(
   slug: string,
   match: MatchDetail['match'],
+  language?: string,
 ): Promise<MatchDetailThreeWay | null> {
   const event = await fetchWorldCupEventBySlug(toHalftimeResultSlug(slug))
 
@@ -377,7 +380,7 @@ export async function getWorldCupHalftimeResult(
     return null
   }
 
-  return buildHalftimeResult(event, match) ?? null
+  return buildHalftimeResult(event, match, language) ?? null
 }
 
 export async function getWorldCupEventDetail(slug: string, language?: string): Promise<MatchDetail | null> {
@@ -437,13 +440,13 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
   }
 
   return buildMatchDetail(detailMatch, {
-    countdownLabel: formatCountdown(eventTime),
-    headerTimeLabel: formatTimeLabel(eventTime),
-    headerDateLabel: formatEventDate(baseEvent?.eventDate ?? primaryEvent.eventDate, eventTime),
+    countdownLabel: formatCountdown(eventTime, language),
+    headerTimeLabel: formatTimeLabel(eventTime, language),
+    headerDateLabel: formatEventDate(baseEvent?.eventDate ?? primaryEvent.eventDate, eventTime, language),
     contextDescription: primaryEvent.eventMetadata?.context_description ?? primaryEvent.description,
-    moneylineVolumeLabel: formatVolumeLabel(getMarketVolumeNumTotal((baseEvent ?? matchEvent).markets)),
-    spreadVolumeLabel: buildTypedVolumeLabel(spreadEvent, 'spreads'),
-    totalVolumeLabel: buildTypedVolumeLabel(totalEvent, 'totals'),
+    moneylineVolumeLabel: formatVolumeLabel(getMarketVolumeNumTotal((baseEvent ?? matchEvent).markets), language),
+    spreadVolumeLabel: buildTypedVolumeLabel(spreadEvent, 'spreads', language),
+    totalVolumeLabel: buildTypedVolumeLabel(totalEvent, 'totals', language),
     spreadVariants,
     totalLines,
     bothTeamsToScore: buildBothTeamsToScore(bothTeamsToScoreEvent, language),

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import type { TFunction } from 'i18next'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -17,10 +18,10 @@ import { usePolymarketAssetSubscription } from '../features/market-realtime/use-
 
 type MatchDetailTab = 'markets' | 'exact' | 'halftime'
 
-const detailTabs: Array<{ key: MatchDetailTab; label: string }> = [
-  { key: 'markets', label: '比赛盘口' },
-  { key: 'exact', label: '准确比分' },
-  { key: 'halftime', label: '半场结果' },
+const detailTabs: Array<{ key: MatchDetailTab; labelKey: string }> = [
+  { key: 'markets', labelKey: 'matchDetail.tabs.markets' },
+  { key: 'exact', labelKey: 'matchDetail.tabs.exact' },
+  { key: 'halftime', labelKey: 'matchDetail.tabs.halftime' },
 ]
 
 function sectionCardClass() {
@@ -39,8 +40,12 @@ function outcomeButtonClass(active: boolean, tone: 'positive' | 'negative' | 'ne
   return 'border-transparent bg-emerald-500/85 text-white'
 }
 
-function getWinnerOutcomeDisplayLabel(index: number) {
-  return index === 0 ? '主' : index === 1 ? '和' : '客'
+function getWinnerOutcomeDisplayLabel(index: number, t: TFunction) {
+  return index === 0
+    ? t('markets.outcomes.home')
+    : index === 1
+      ? t('markets.outcomes.draw')
+      : t('markets.outcomes.away')
 }
 
 function getSpreadFavoredSide(variant: { favoredSide?: 'home' | 'away'; homeHandicap: string }) {
@@ -52,11 +57,15 @@ function getSpreadFavoredSide(variant: { favoredSide?: 'home' | 'away'; homeHand
 }
 
 function EmptyDataSection({ title }: { title: string }) {
+  const { t } = useTranslation()
+
   return (
     <section className={sectionCardClass()}>
       <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
         <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{title}</h2>
-        <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">暂无相关数据。</p>
+        <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">
+          {t('matchDetail.emptyData')}
+        </p>
       </div>
     </section>
   )
@@ -88,7 +97,7 @@ export function MatchDetailPage() {
   const { slug = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const state = location.state as MatchDetailLocationState | null
   const [tab, setTab] = useState<MatchDetailTab>('markets')
@@ -121,7 +130,7 @@ export function MatchDetailPage() {
     isError: isHalftimeResultError,
   } = useQuery({
     queryKey: ['world-cup-event-detail-halftime-result', slug, detail?.match.id, language],
-    queryFn: () => getWorldCupHalftimeResult(slug, detail.match),
+    queryFn: () => getWorldCupHalftimeResult(slug, detail.match, language),
     enabled: slug.length > 0 && tab === 'halftime' && !!detail,
   })
 
@@ -184,7 +193,7 @@ export function MatchDetailPage() {
   if (isLoading) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-        正在加载比赛详情...
+        {t('matchDetail.loading')}
       </div>
     )
   }
@@ -192,7 +201,7 @@ export function MatchDetailPage() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-        比赛详情加载失败，请稍后重试。
+        {t('matchDetail.error')}
       </div>
     )
   }
@@ -200,7 +209,7 @@ export function MatchDetailPage() {
   if (!detail) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-        未找到对应比赛详情。
+        {t('matchDetail.notFound')}
       </div>
     )
   }
@@ -230,7 +239,7 @@ export function MatchDetailPage() {
           <span aria-hidden="true" className="text-[13px] leading-none">
             ‹
           </span>
-          返回
+          {t('actions.back')}
         </button>
       </div>
 
@@ -292,7 +301,7 @@ export function MatchDetailPage() {
                 onClick={() => setTab(detailTab.key)}
                 className={detailTab.key === tab ? 'text-ink' : 'transition hover:text-ink'}
               >
-                {detailTab.label}
+                {t(detailTab.labelKey)}
               </button>
             ))}
           </div>
@@ -302,7 +311,9 @@ export function MatchDetailPage() {
               <section className={sectionCardClass()}>
                 <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
                   <div>
-                    <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">Moneyline</h2>
+                    <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
+                      {t('markets.types.moneyline')}
+                    </h2>
                     <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.moneylineVolumeLabel}</p>
                   </div>
                   <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 sm:gap-2">
@@ -322,7 +333,7 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
                           ].join(' ')}
                         >
-                          {getWinnerOutcomeDisplayLabel(outcomeIndex)}{' '}
+                          {getWinnerOutcomeDisplayLabel(outcomeIndex, t)}{' '}
                           <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                         </button>
                       )
@@ -335,7 +346,9 @@ export function MatchDetailPage() {
                 <section className={sectionCardClass()}>
                   <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
                     <div>
-                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">让分</h2>
+                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
+                        {t('markets.types.spread')}
+                      </h2>
                       <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.spreadVolumeLabel}</p>
                     </div>
                     <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
@@ -352,7 +365,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        主 {currentSpreadVariant.homeHandicap}{' '}
+                        {t('markets.outcomes.home')} {currentSpreadVariant.homeHandicap}{' '}
                         <RealtimePriceValue
                           assetId={currentSpreadVariant.homeAssetId}
                           fallbackPrice={currentSpreadVariant.homePrice}
@@ -371,7 +384,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        客 {currentSpreadVariant.awayHandicap}{' '}
+                        {t('markets.outcomes.away')} {currentSpreadVariant.awayHandicap}{' '}
                         <RealtimePriceValue
                           assetId={currentSpreadVariant.awayAssetId}
                           fallbackPrice={currentSpreadVariant.awayPrice}
@@ -413,7 +426,9 @@ export function MatchDetailPage() {
                 <section className={sectionCardClass()}>
                   <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
                     <div>
-                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">总分</h2>
+                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
+                        {t('markets.types.total')}
+                      </h2>
                       <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.totalVolumeLabel}</p>
                     </div>
                     <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
@@ -430,7 +445,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        大 {currentTotalLine.line}{' '}
+                        {t('markets.outcomes.over')} {currentTotalLine.line}{' '}
                         <RealtimePriceValue
                           assetId={currentTotalLine.overAssetId}
                           fallbackPrice={currentTotalLine.overPrice}
@@ -449,7 +464,7 @@ export function MatchDetailPage() {
                           ),
                         ].join(' ')}
                       >
-                        小 {currentTotalLine.line}{' '}
+                        {t('markets.outcomes.under')} {currentTotalLine.line}{' '}
                         <RealtimePriceValue
                           assetId={currentTotalLine.underAssetId}
                           fallbackPrice={currentTotalLine.underPrice}
@@ -548,7 +563,7 @@ export function MatchDetailPage() {
                         ),
                       ].join(' ')}
                     >
-                      YES{' '}
+                      {t('markets.outcomes.yes')}{' '}
                       <RealtimePriceValue
                         assetId={detail.bothTeamsToScore.yesAssetId}
                         fallbackPrice={detail.bothTeamsToScore.yesPrice}
@@ -603,7 +618,7 @@ export function MatchDetailPage() {
                         ),
                       ].join(' ')}
                     >
-                      NO{' '}
+                      {t('markets.outcomes.no')}{' '}
                       <RealtimePriceValue
                         assetId={detail.bothTeamsToScore.noAssetId}
                         fallbackPrice={detail.bothTeamsToScore.noPrice}
@@ -617,11 +632,11 @@ export function MatchDetailPage() {
           ) : tab === 'exact' ? (
             isExactScoresLoading ? (
               <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-                正在加载准确比分...
+                {t('matchDetail.exact.loading')}
               </div>
             ) : isExactScoresError ? (
               <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-                准确比分加载失败，请稍后重试。
+                {t('matchDetail.exact.error')}
               </div>
             ) : exactScores.length ? (
             <div className="grid gap-3 sm:gap-4">
@@ -682,7 +697,7 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive && activeSelection?.activeSide === 'yes', 'positive'),
                           ].join(' ')}
                         >
-                          YES <RealtimePriceValue assetId={item.yesAssetId} fallbackPrice={item.yesPrice} />
+                          {t('markets.outcomes.yes')} <RealtimePriceValue assetId={item.yesAssetId} fallbackPrice={item.yesPrice} />
                         </button>
                         <button
                           type="button"
@@ -727,7 +742,7 @@ export function MatchDetailPage() {
                             outcomeButtonClass(isActive && activeSelection?.activeSide === 'no', 'negative'),
                           ].join(' ')}
                         >
-                          NO <RealtimePriceValue assetId={item.noAssetId} fallbackPrice={item.noPrice} />
+                          {t('markets.outcomes.no')} <RealtimePriceValue assetId={item.noAssetId} fallbackPrice={item.noPrice} />
                         </button>
                       </div>
                     </div>
@@ -736,15 +751,15 @@ export function MatchDetailPage() {
               })}
             </div>
             ) : (
-              <EmptyDataSection title="准确比分" />
+              <EmptyDataSection title={t('matchDetail.sections.exactScore')} />
             )
           ) : isHalftimeResultLoading ? (
             <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-              正在加载半场结果...
+              {t('matchDetail.halftime.loading')}
             </div>
           ) : isHalftimeResultError ? (
             <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-              半场结果加载失败，请稍后重试。
+              {t('matchDetail.halftime.error')}
             </div>
           ) : (
             halftimeResult ? (
@@ -819,7 +834,7 @@ export function MatchDetailPage() {
               </div>
             </section>
             ) : (
-              <EmptyDataSection title="半场结果" />
+              <EmptyDataSection title={t('matchDetail.sections.halftime')} />
             )
           )}
         </div>
@@ -832,7 +847,9 @@ export function MatchDetailPage() {
       {detail.contextDescription ? (
         <section className={sectionCardClass()}>
           <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
-            <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">比赛背景</h2>
+            <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
+              {t('matchDetail.sections.context')}
+            </h2>
             <p className="mt-2 text-[12px] leading-6 text-ink-soft sm:mt-3 sm:text-[14px] sm:leading-7">
               {detail.contextDescription}
             </p>

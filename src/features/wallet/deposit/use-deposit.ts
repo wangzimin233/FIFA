@@ -13,6 +13,7 @@ import {
 } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { rechargeDepositAbi } from '../../../config/contracts'
+import i18n from '../../../config/i18n'
 import type { WalletUserInfoResponse } from '../../wallet-auth/api'
 import { useWalletAuthStore } from '../../wallet-auth/auth-store'
 import {
@@ -90,23 +91,23 @@ function resolveErrorMessage(error: unknown) {
       const errorName = revertError.data?.errorName
 
       if (errorName === 'InvalidSignature') {
-        return '充值签名校验失败，请让后端确认签名内容与合约签名规则完全一致。'
+        return i18n.t('deposit.errors.invalidSignature')
       }
 
       if (errorName === 'InvalidParam') {
-        return '充值参数校验失败，请检查订单号、金额和签名是否与合约要求一致。'
+        return i18n.t('deposit.errors.invalidParam')
       }
 
       if (errorName === 'OrderIdUsed') {
-        return '当前订单号已经使用，请重新创建充值订单后再试。'
+        return i18n.t('deposit.errors.orderIdUsed')
       }
 
       if (errorName === 'InsufficientBalance') {
-        return '钱包 USDT 余额不足，无法完成充值。'
+        return i18n.t('deposit.errors.insufficientBalance')
       }
 
       if (errorName) {
-        return `充值合约回滚：${errorName}`
+        return i18n.t('deposit.errors.contractReverted', { errorName })
       }
     }
   }
@@ -119,11 +120,11 @@ function resolveErrorMessage(error: unknown) {
     return (error as { message: string }).message
   }
 
-  return '充值失败，请稍后重试。'
+  return i18n.t('deposit.errors.failed')
 }
 
 function resolveCallbackErrorMessage(error: unknown) {
-  return `链上充值交易已成功，但后端入账确认暂未完成：${resolveErrorMessage(error)}。请稍后点击“重新通知后端入账”，不要重复发起同一笔充值。`
+  return i18n.t('deposit.errors.callbackPending', { message: resolveErrorMessage(error) })
 }
 
 function loadInitialDepositCallbackState(): DepositCallbackState | null {
@@ -142,7 +143,7 @@ function loadInitialDepositCallbackState(): DepositCallbackState | null {
 function parseOrderId(value: string | number) {
   if (typeof value === 'number') {
     if (!Number.isSafeInteger(value)) {
-      throw new Error('订单 ID 精度异常，请让后端改为字符串返回后再重试。')
+      throw new Error(i18n.t('deposit.errors.orderIdPrecision'))
     }
 
     return BigInt(value)
@@ -210,7 +211,7 @@ async function recoverDepositHashFromLogs({
 
 function ensureSuccessfulReceiptStatus(status: 'success' | 'reverted' | undefined) {
   if (status === 'reverted') {
-    throw new Error('充值交易已上链但执行失败，USDT 未完成入金，请检查链上交易详情。')
+    throw new Error(i18n.t('deposit.errors.receiptReverted'))
   }
 }
 
@@ -309,7 +310,7 @@ export function useDeposit({
         }
 
         if (!selectedProvider) {
-          setProviderWarning('未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。')
+          setProviderWarning(i18n.t('walletProvider.errors.noMatchingProviderRefresh'))
           return
         }
 
@@ -357,11 +358,11 @@ export function useDeposit({
           })
 
           if (!callbackResult.data) {
-            throw new Error(callbackResult.message || '入金回调未返回有效数据。')
+            throw new Error(callbackResult.message || i18n.t('deposit.errors.callbackNoData'))
           }
 
           if (!callbackResult.data.processed) {
-            throw new Error(callbackResult.data.message || '后端尚未完成入账处理。')
+            throw new Error(callbackResult.data.message || i18n.t('deposit.errors.backendNotProcessed'))
           }
 
           setStatus('success')
@@ -370,7 +371,7 @@ export function useDeposit({
           clearDepositCallbackState()
           await invalidateWalletData()
           await onSuccess?.()
-          toast.success(callbackResult.data.message || '充值成功')
+          toast.success(callbackResult.data.message || i18n.t('deposit.success.completed'))
           return callbackResult.data
         } catch (error) {
           lastError = error
@@ -381,7 +382,7 @@ export function useDeposit({
         }
       }
 
-      throw lastError ?? new Error('入金回调未返回有效数据。')
+      throw lastError ?? new Error(i18n.t('deposit.errors.callbackNoData'))
     },
     [invalidateWalletData, onSuccess],
   )
@@ -389,7 +390,7 @@ export function useDeposit({
   const ensureBscNetwork = useCallback(
     async () => {
       if (!walletAddress || !isAddressLike(walletAddress)) {
-        throw new Error('请先连接钱包。')
+        throw new Error(i18n.t('walletAuth.errors.connectFirst'))
       }
 
       await ensureWalletProviderBscNetwork({
@@ -410,31 +411,31 @@ export function useDeposit({
 
       if (!isConnected || !walletAddress || !isAddressLike(walletAddress)) {
         setStatus('error')
-        setError('请先连接钱包。')
+        setError(i18n.t('walletAuth.errors.connectFirst'))
         return
       }
 
       if (!isSessionReady) {
         setStatus('error')
-        setError('请先完成钱包登录，再进行充值。')
+        setError(i18n.t('deposit.errors.loginFirst'))
         return
       }
 
       if (!publicClient) {
         setStatus('error')
-        setError('当前钱包客户端未就绪，请稍后重试。')
+        setError(i18n.t('deposit.errors.walletClientNotReady'))
         return
       }
 
       if (!contractConfig) {
         setStatus('error')
-        setError('充值配置加载中，请稍后再试。')
+        setError(i18n.t('deposit.errors.configLoading'))
         return
       }
 
       if (!usdtAddress || !isAddressLike(usdtAddress)) {
         setStatus('error')
-        setError('未获取到 BSC USDT 合约地址，请刷新后重试。')
+        setError(i18n.t('deposit.errors.missingUsdtAddress'))
         return
       }
 
@@ -444,13 +445,13 @@ export function useDeposit({
 
       if (!normalizedAmount || Number.isNaN(amount) || amount <= 0) {
         setStatus('error')
-        setError('请输入正确的充值金额。')
+        setError(i18n.t('deposit.errors.invalidAmount'))
         return
       }
 
       if (Number.isFinite(minDepositAmount) && amount < minDepositAmount) {
         setStatus('error')
-        setError(`当前最小充值金额为 ${contractConfig.rechargeMinAmount} USDT。`)
+        setError(i18n.t('deposit.errors.minAmount', { amount: contractConfig.rechargeMinAmount }))
         return
       }
 
@@ -468,7 +469,7 @@ export function useDeposit({
         })
 
         if (!orderResult.data) {
-          throw new Error(orderResult.message || '创建入金订单失败。')
+          throw new Error(orderResult.message || i18n.t('deposit.errors.createOrderFailed'))
         }
 
         const {
@@ -481,11 +482,11 @@ export function useDeposit({
         } = orderResult.data
 
         if (!isAddressLike(contractAddress)) {
-          throw new Error('后端未返回有效的入金合约地址。')
+          throw new Error(i18n.t('deposit.errors.invalidContractAddress'))
         }
 
         if (typeof signature !== 'string' || !signature.startsWith('0x')) {
-          throw new Error('后端未返回有效的充值签名。')
+          throw new Error(i18n.t('deposit.errors.invalidBackendSignature'))
         }
 
         const requiredAmount = BigInt(amountWei)
@@ -622,7 +623,7 @@ export function useDeposit({
         setStatus('error')
         setError(
           isDuplicateProviderError(error)
-            ? '检测到浏览器多钱包 Provider 冲突，请临时停用未使用的钱包插件，或只保留 MetaMask / TokenPocket 其中一个后刷新重试。'
+            ? i18n.t('walletProvider.errors.duplicateProviderConflict')
             : resolveErrorMessage(error),
         )
       } finally {

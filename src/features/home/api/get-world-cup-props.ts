@@ -158,7 +158,7 @@ function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCar
       negRisk: candidate.negRisk,
       yesAssetId: candidate.yesAssetId,
       noAssetId: candidate.noAssetId,
-      volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([markets[0]])),
+      volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([markets[0]]), language),
     }
   }
 
@@ -170,7 +170,7 @@ function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCar
     title,
     icon,
     iconLogo,
-    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(markets)),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(markets), language),
     candidates,
     detailCount: candidates.length > 2 ? candidates.length - 2 : undefined,
   }

@@ -1,4 +1,5 @@
 import { apiClient } from '../../../lib/api-client'
+import i18n from '../../../config/i18n'
 import type { MatchCard, WinnerOutcome } from '../home-data'
 
 export type WorldCupGameMarket = {
@@ -302,7 +303,7 @@ const codeFlagMap: Record<string, string> = {
   usa: '🇺🇸',
 }
 
-export function formatTimeLabel(value?: string) {
+export function formatTimeLabel(value?: string, language?: string) {
   if (!value) {
     return '--:--'
   }
@@ -312,16 +313,16 @@ export function formatTimeLabel(value?: string) {
     return value
   }
 
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: false,
+    hour12: language !== 'zh',
   }).format(date)
 }
 
-export function formatDateLabel(value?: string) {
+export function formatDateLabel(value?: string, language?: string) {
   if (!value) {
-    return '待定'
+    return i18n.t('dataLabels.tbd', { lng: language })
   }
 
   const normalizedDateValue = /^\d{4}-\d{2}-\d{2}/.test(value)
@@ -332,7 +333,7 @@ export function formatDateLabel(value?: string) {
     return value
   }
 
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
     weekday: 'short',
     month: 'long',
     day: 'numeric',
@@ -340,25 +341,27 @@ export function formatDateLabel(value?: string) {
   }).format(date)
 }
 
-export function formatVolumeLabel(value?: number | string) {
+export function formatVolumeLabel(value?: number | string, language?: string) {
   const amount = typeof value === 'string' ? Number(value) : value
+  const format = (displayValue: string) => i18n.t('dataLabels.volume', { lng: language, value: displayValue })
+
   if (!amount || Number.isNaN(amount)) {
-    return '$0 交易量'
+    return format('$0')
   }
 
   if (amount >= 1_000_000_000) {
-    return `$${(amount / 1_000_000_000).toFixed(2)}B 交易量`
+    return format(`$${(amount / 1_000_000_000).toFixed(2)}B`)
   }
 
   if (amount >= 1_000_000) {
-    return `$${(amount / 1_000_000).toFixed(2)}M 交易量`
+    return format(`$${(amount / 1_000_000).toFixed(2)}M`)
   }
 
   if (amount >= 1000) {
-    return `$${(amount / 1000).toFixed(2)}K 交易量`
+    return format(`$${(amount / 1000).toFixed(2)}K`)
   }
 
-  return `$${amount.toFixed(2)} 交易量`
+  return format(`$${amount.toFixed(2)}`)
 }
 
 function parseNumericValue(value?: number | string) {
@@ -807,9 +810,9 @@ export function normalizeGame(event: WorldCupGameEvent, language?: string): Matc
   const baseMatch = {
     id: String(event.id),
     slug: event.slug ?? event.ticker,
-    date: formatDateLabel(event.eventDate ?? matchTime),
-    timeLabel: formatTimeLabel(matchTime),
-    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets)),
+    date: formatDateLabel(event.eventDate ?? matchTime, language),
+    timeLabel: formatTimeLabel(matchTime, language),
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets), language),
     matchup: `${home} vs ${away}`,
     primaryTeam: home,
     secondaryTeam: away,

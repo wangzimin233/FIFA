@@ -1,4 +1,5 @@
 import { encodeFunctionData, type Abi, type Hash } from 'viem'
+import i18n from '../../config/i18n'
 
 export type Eip1193Provider = {
   request: (args: { method: string; params?: unknown[] | object }) => Promise<unknown>
@@ -55,7 +56,7 @@ const BSC_CHAIN_ID_HEX = '0x38'
 const EIP6963_COLLECT_DELAY_MS = 200
 
 export const WALLET_PROVIDER_CONFLICT_MESSAGE =
-  '检测到多个钱包插件同时注入并可能争用同一笔交易。请通过“连接钱包”重新选择要使用的钱包并完成登录，系统会绑定该钱包后再进行充值或提现。'
+  i18n.t('walletProvider.errors.conflict')
 
 function sleep(ms: number) {
   return new Promise((resolve) => {
@@ -389,7 +390,7 @@ function assertProviderUsable(provider: ResolvedWalletProvider) {
   }
 
   if (provider.provider.isTronLink) {
-    throw new Error('当前选择的钱包不是 EVM 钱包 Provider，请重新连接 BSC 钱包后再试。')
+    throw new Error(i18n.t('walletProvider.errors.notEvmProvider'))
   }
 }
 
@@ -423,7 +424,9 @@ export async function resolveWalletProvider({
 
     if (!selectedPreferredProvider) {
       throw new Error(
-        `当前登录态绑定的钱包是 ${preferredIdentity?.walletProviderName || preferredIdentity?.walletProviderId || '上次登录的钱包'}，但浏览器当前没有找到同一个 Provider。请断开钱包并重新连接该钱包后再试。`,
+        i18n.t('walletProvider.errors.boundProviderMissing', {
+          provider: preferredIdentity?.walletProviderName || preferredIdentity?.walletProviderId || i18n.t('walletProvider.previousWallet'),
+        }),
       )
     }
 
@@ -470,7 +473,7 @@ export async function ensureWalletProviderBscNetwork({
   })
 
   if (!selectedProvider) {
-    throw new Error('未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。')
+    throw new Error(i18n.t('walletProvider.errors.noMatchingProviderRefresh'))
   }
 
   const currentChainId = selectedProvider.chainId ?? (await getProviderChainId(selectedProvider.provider))
@@ -511,7 +514,7 @@ export async function sendContractTransaction({
   })
 
   if (!selectedProvider) {
-    throw new Error('未找到与当前登录地址匹配的钱包 Provider，请刷新页面并用当前钱包重新连接。')
+    throw new Error(i18n.t('walletProvider.errors.noMatchingProviderRefresh'))
   }
 
   assertProviderUsable(selectedProvider)
@@ -533,7 +536,7 @@ export async function sendContractTransaction({
   })
 
   if (typeof hashResult !== 'string' || !hashResult.startsWith('0x')) {
-    throw new Error('钱包未返回有效的交易哈希。')
+    throw new Error(i18n.t('walletProvider.errors.invalidTxHash'))
   }
 
   return hashResult as Hash

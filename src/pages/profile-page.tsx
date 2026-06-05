@@ -2,7 +2,9 @@ import { useAppKit } from '@reown/appkit/react'
 import { toast } from '@heroui/react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n from '../config/i18n'
 import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
@@ -47,49 +49,49 @@ type DepositHistoryStatus = 1 | 2 | 3 | 4
 type WithdrawHistoryStatus = 1 | 2 | 3 | 4 | 5 | 6 | 7
 
 const DEPOSIT_HISTORY_STATUS_OPTIONS: Array<{
-  label: string
+  labelKey: string
   value?: DepositHistoryStatus
 }> = [
-  { label: '全部' },
-  { label: '已提交', value: 2 },
-  { label: '成功', value: 3 },
-  { label: '失败', value: 4 },
+  { labelKey: 'profile.filters.all' },
+  { labelKey: 'profile.status.submitted', value: 2 },
+  { labelKey: 'profile.status.success', value: 3 },
+  { labelKey: 'profile.status.failed', value: 4 },
 ]
 
 const WITHDRAW_HISTORY_STATUS_OPTIONS: Array<{
-  label: string
+  labelKey: string
   value?: WithdrawHistoryStatus
 }> = [
-  { label: '全部' },
-  { label: '待审核', value: 1 },
-  { label: '待打款', value: 2 },
-  { label: '处理中', value: 3 },
-  { label: '成功', value: 4 },
-  { label: '驳回', value: 5 },
-  { label: '失败', value: 6 },
-  { label: '已取消', value: 7 },
+  { labelKey: 'profile.filters.all' },
+  { labelKey: 'profile.status.pendingReview', value: 1 },
+  { labelKey: 'profile.status.pendingPayment', value: 2 },
+  { labelKey: 'profile.status.processing', value: 3 },
+  { labelKey: 'profile.status.success', value: 4 },
+  { labelKey: 'profile.status.rejected', value: 5 },
+  { labelKey: 'profile.status.failed', value: 6 },
+  { labelKey: 'profile.status.canceled', value: 7 },
 ]
 
 const REWARD_BIZ_TYPE_OPTIONS: Array<{
-  label: string
+  labelKey: string
   value?: WalletRewardBizType
 }> = [
-  { label: '全部' },
-  { label: '直推奖励', value: 11 },
-  { label: '节点奖励', value: 12 },
+  { labelKey: 'profile.filters.all' },
+  { labelKey: 'profile.rewards.direct', value: 11 },
+  { labelKey: 'profile.rewards.node', value: 12 },
 ]
 
 function resolveDepositStatusMeta(status: ReturnType<typeof useDeposit>['status']) {
   const labelMap: Record<ReturnType<typeof useDeposit>['status'], string> = {
-    idle: '待开始',
-    switching_network: '切换网络',
-    creating_order: '创建订单',
-    approving: '代币授权',
-    submitting: '提交充值',
-    confirming: '等待确认',
-    callback_pending: '通知后端',
-    success: '充值成功',
-    error: '流程异常',
+    idle: i18n.t('profile.deposit.status.idle'),
+    switching_network: i18n.t('profile.deposit.status.switchingNetwork'),
+    creating_order: i18n.t('profile.deposit.status.creatingOrder'),
+    approving: i18n.t('profile.deposit.status.approving'),
+    submitting: i18n.t('profile.deposit.status.submitting'),
+    confirming: i18n.t('profile.deposit.status.confirming'),
+    callback_pending: i18n.t('profile.deposit.status.callbackPending'),
+    success: i18n.t('profile.deposit.status.success'),
+    error: i18n.t('profile.status.flowError'),
   }
 
   const toneMap: Record<ReturnType<typeof useDeposit>['status'], string> = {
@@ -120,41 +122,41 @@ function resolveDepositButtonLabel({
   status: ReturnType<typeof useDeposit>['status']
 }) {
   if (!isConnected) {
-    return '连接钱包'
+    return i18n.t('actions.connectWallet')
   }
 
   if (!isSessionReady) {
-    return '完成钱包登录'
+    return i18n.t('profile.auth.completeLogin')
   }
 
   switch (status) {
     case 'switching_network':
-      return '切换到 BSC 中...'
+      return i18n.t('profile.deposit.buttons.switchingNetwork')
     case 'creating_order':
-      return '创建订单中...'
+      return i18n.t('profile.deposit.buttons.creatingOrder')
     case 'approving':
-      return '授权 USDT 中...'
+      return i18n.t('profile.deposit.buttons.approving')
     case 'submitting':
-      return '提交充值中...'
+      return i18n.t('profile.deposit.buttons.submitting')
     case 'confirming':
-      return '链上确认中...'
+      return i18n.t('profile.deposit.buttons.confirming')
     case 'callback_pending':
-      return '回调处理中...'
+      return i18n.t('profile.deposit.buttons.callbackPending')
     case 'success':
-      return '继续充值'
+      return i18n.t('profile.deposit.buttons.continue')
     case 'error':
-      return '重新发起充值'
+      return i18n.t('profile.deposit.buttons.retry')
     default:
-      return '确认充值'
+      return i18n.t('profile.deposit.buttons.confirm')
   }
 }
 
 function resolveWithdrawStatusMeta(status: ReturnType<typeof useWithdraw>['status']) {
   const labelMap: Record<ReturnType<typeof useWithdraw>['status'], string> = {
-    idle: '待开始',
-    applying: '申请提现',
-    success: '等待审核',
-    error: '流程异常',
+    idle: i18n.t('profile.deposit.status.idle'),
+    applying: i18n.t('profile.withdraw.status.applying'),
+    success: i18n.t('profile.withdraw.status.success'),
+    error: i18n.t('profile.status.flowError'),
   }
 
   const toneMap: Record<ReturnType<typeof useWithdraw>['status'], string> = {
@@ -180,80 +182,80 @@ function resolveWithdrawButtonLabel({
   status: ReturnType<typeof useWithdraw>['status']
 }) {
   if (!isConnected) {
-    return '连接钱包'
+    return i18n.t('actions.connectWallet')
   }
 
   if (!isSessionReady) {
-    return '完成钱包登录'
+    return i18n.t('profile.auth.completeLogin')
   }
 
   switch (status) {
     case 'applying':
-      return '申请提现中...'
+      return i18n.t('profile.withdraw.buttons.applying')
     case 'success':
-      return '继续提现'
+      return i18n.t('profile.withdraw.buttons.continue')
     case 'error':
-      return '重新发起提现'
+      return i18n.t('profile.withdraw.buttons.retry')
     default:
-      return '确认提现'
+      return i18n.t('profile.withdraw.buttons.confirm')
   }
 }
 
 function resolveDepositRecordStatus(status: number) {
   if (status === 3) {
-    return { label: '成功', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+    return { label: i18n.t('profile.status.success'), tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
   if (status === 4) {
-    return { label: '失败', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+    return { label: i18n.t('profile.status.failed'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
   if (status === 2) {
-    return { label: '已提交', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+    return { label: i18n.t('profile.status.submitted'), tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
   }
 
   if (status === 1) {
-    return { label: '待支付', tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
+    return { label: i18n.t('profile.status.pendingPaymentOrder'), tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
   }
 
-  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  return { label: i18n.t('profile.status.withValue', { status }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
 function resolveWithdrawRecordStatus(status: number) {
   if (status === 4) {
-    return { label: '成功', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+    return { label: i18n.t('profile.status.success'), tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
   if (status === 7) {
-    return { label: '已取消', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+    return { label: i18n.t('profile.status.canceled'), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
   }
 
   if (status === 6) {
-    return { label: '失败', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+    return { label: i18n.t('profile.status.failed'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
   if (status === 5) {
-    return { label: '驳回', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+    return { label: i18n.t('profile.status.rejected'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
   if (status === 3) {
-    return { label: '处理中', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+    return { label: i18n.t('profile.status.processing'), tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
   }
 
   if (status === 2) {
-    return { label: '待打款', tone: 'border-brand/20 bg-brand/12 text-brand' }
+    return { label: i18n.t('profile.status.pendingPayment'), tone: 'border-brand/20 bg-brand/12 text-brand' }
   }
 
   if (status === 1) {
-    return { label: '待审核', tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
+    return { label: i18n.t('profile.status.pendingReview'), tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
   }
 
-  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  return { label: i18n.t('profile.status.withValue', { status }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
 function resolvePolymarketOrderStatus(status?: number, errorMessage?: string) {
   if (errorMessage) {
-    return { label: '异常', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+    return { label: i18n.t('profile.status.abnormal'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
   if (status === undefined || status === null) {
@@ -261,42 +263,42 @@ function resolvePolymarketOrderStatus(status?: number, errorMessage?: string) {
   }
 
   if (status === 1) {
-    return { label: '处理中', tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+    return { label: i18n.t('profile.status.processing'), tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
   }
 
   if (status === 2) {
-    return { label: '已完成', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+    return { label: i18n.t('profile.status.completed'), tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
   if (status === 3) {
-    return { label: '失败', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+    return { label: i18n.t('profile.status.failed'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
-  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  return { label: i18n.t('profile.status.withValue', { status }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
 function resolveDirectUserType(userType: number) {
   if (userType === 2) {
-    return { label: '节点用户', tone: 'border-brand/20 bg-brand/12 text-brand' }
+    return { label: i18n.t('profile.userTypes.node'), tone: 'border-brand/20 bg-brand/12 text-brand' }
   }
 
   if (userType === 1) {
-    return { label: '普通用户', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+    return { label: i18n.t('profile.userTypes.normal'), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
   }
 
-  return { label: `类型 ${userType}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  return { label: i18n.t('profile.userTypes.withValue', { type: userType }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
 function resolveDirectUserStatus(status: number) {
   if (status === 1) {
-    return { label: '正常', tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+    return { label: i18n.t('profile.status.normal'), tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
   if (status === 2) {
-    return { label: '禁用', tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+    return { label: i18n.t('profile.status.disabled'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
   }
 
-  return { label: `状态 ${status}`, tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  return { label: i18n.t('profile.status.withValue', { status }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
 function resolveRewardBizType(bizType: number, bizTypeName?: string) {
@@ -305,14 +307,14 @@ function resolveRewardBizType(bizType: number, bizTypeName?: string) {
   }
 
   if (bizType === 11) {
-    return '直推奖励'
+    return i18n.t('profile.rewards.direct')
   }
 
   if (bizType === 12) {
-    return '节点奖励'
+    return i18n.t('profile.rewards.node')
   }
 
-  return `类型 ${bizType}`
+  return i18n.t('profile.userTypes.withValue', { type: bizType })
 }
 
 function formatMaybeDate(value?: string) {
@@ -325,7 +327,7 @@ function formatMaybeDate(value?: string) {
     return value
   }
 
-  return new Intl.DateTimeFormat('zh-CN', {
+  return new Intl.DateTimeFormat(i18n.resolvedLanguage === 'zh' ? 'zh-CN' : 'en-US', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -429,12 +431,14 @@ function RelationMetricAction({
   onClick: () => void
   value: ReactNode
 }) {
+  const { t } = useTranslation()
+
   return (
     <button
       type="button"
       onClick={onClick}
       className="group flex min-h-[5.25rem] min-w-0 items-center justify-between gap-3 border-white/6 px-3 py-3 text-left transition hover:bg-white/[0.035] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 sm:border-r sm:last:border-r-0"
-      aria-label={`打开${label}列表`}
+      aria-label={t('profile.relation.openList', { label })}
     >
       <span className="min-w-0">
         <span className="block text-[11px] text-ink-soft">{label}</span>
@@ -498,6 +502,8 @@ function DialogHeader({
   status?: ReactNode
   onClose: () => void
 }) {
+  const { t } = useTranslation()
+
   return (
     <div className="flex items-start justify-between gap-4 border-b border-white/8 px-4 py-4 sm:px-5">
       <div className="min-w-0">
@@ -509,7 +515,7 @@ function DialogHeader({
         <button
           type="button"
           onClick={onClose}
-          aria-label="关闭"
+          aria-label={t('actions.close')}
           className="inline-flex h-9 w-9 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] text-[18px] leading-none text-ink-soft transition hover:border-white/16 hover:text-ink"
         >
           ×
@@ -567,12 +573,13 @@ function HistoryStatusFilter<TStatus extends number>({
   onChange,
 }: {
   options: Array<{
-    label: string
+    labelKey: string
     value?: TStatus
   }>
   value?: TStatus
   onChange: (value?: TStatus) => void
 }) {
+  const { t } = useTranslation()
   const gridClass = options.length > 5 ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-3 sm:grid-cols-5'
 
   return (
@@ -583,7 +590,7 @@ function HistoryStatusFilter<TStatus extends number>({
 
           return (
             <button
-              key={option.label}
+              key={option.labelKey}
               type="button"
               onClick={() => onChange(option.value)}
               className={[
@@ -593,7 +600,7 @@ function HistoryStatusFilter<TStatus extends number>({
                   : 'border-white/10 bg-white/[0.03] text-ink-soft hover:border-white/16 hover:text-ink',
               ].join(' ')}
             >
-              {option.label}
+              {t(option.labelKey)}
             </button>
           )
         })}
@@ -633,6 +640,7 @@ function DepositActionDialog({
   onLogin: () => void
   onSubmit: () => void
 }) {
+  const { t } = useTranslation()
   const statusMeta = resolveDepositStatusMeta(deposit.status)
   const buttonLabel = resolveDepositButtonLabel({
     isConnected,
@@ -644,41 +652,41 @@ function DepositActionDialog({
     <DialogFrame isOpen={isOpen} onClose={onClose}>
       <DialogHeader
         eyebrow="Recharge"
-        title="BSC USDT 充值"
+        title={t('profile.deposit.title')}
         status={<span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${statusMeta.tone}`}>{statusMeta.label}</span>}
         onClose={onClose}
       />
       <div className="max-h-[calc(92vh-73px)] overflow-y-auto px-4 py-4 sm:px-5">
         <div className="grid gap-2.5 sm:grid-cols-3">
-          <FieldLine label="网络" value="BSC" />
-          <FieldLine label="币种" value="USDT" />
-          <FieldLine label="最小充值" value={minAmount ? `${minAmount} USDT` : '--'} />
+          <FieldLine label={t('profile.fields.network')} value="BSC" />
+          <FieldLine label={t('profile.fields.coin')} value="USDT" />
+          <FieldLine label={t('profile.deposit.minDeposit')} value={minAmount ? `${minAmount} USDT` : '--'} />
         </div>
 
         {isContractConfigLoading ? (
-          <p className="mt-4 text-[12px] text-ink-soft">正在加载资金配置...</p>
+          <p className="mt-4 text-[12px] text-ink-soft">{t('profile.fundsConfig.loading')}</p>
         ) : null}
 
         {isContractConfigError ? (
           <div className="mt-4 rounded-[16px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200">
-            资金配置加载失败，请稍后重试。
+            {t('profile.fundsConfig.error')}
           </div>
         ) : null}
 
         {deposit.lastSuccessHash ? (
           <div className="mt-4 rounded-[16px] border border-emerald-400/20 bg-emerald-400/10 px-3 py-3 text-[12px] text-emerald-100">
-            最近一次充值凭证: {shortenHash(deposit.lastSuccessHash)}
+            {t('profile.deposit.lastReceipt')}: {shortenHash(deposit.lastSuccessHash)}
           </div>
         ) : null}
 
         <label className="mt-5 block">
-          <span className="block text-[12px] font-medium text-ink-soft">充值金额</span>
+          <span className="block text-[12px] font-medium text-ink-soft">{t('profile.deposit.amount')}</span>
           <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
             <input
               value={amount}
               onChange={(event) => onAmountChange(event.target.value)}
               inputMode="decimal"
-              placeholder={minAmount ? `最少 ${minAmount}` : '请输入 USDT 数量'}
+              placeholder={minAmount ? t('profile.form.minPlaceholder', { amount: minAmount }) : t('profile.form.amountPlaceholder')}
               className="h-14 w-full bg-transparent text-[19px] font-medium text-ink outline-none placeholder:text-ink-soft/45"
             />
             <span className="text-[12px] font-semibold uppercase text-ink-soft">USDT</span>
@@ -686,8 +694,8 @@ function DepositActionDialog({
         </label>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>填入最小金额</SecondaryButton>
-          <SecondaryButton onClick={() => onAmountChange('100')}>快速填入 100</SecondaryButton>
+          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>{t('profile.form.fillMin')}</SecondaryButton>
+          <SecondaryButton onClick={() => onAmountChange('100')}>{t('profile.form.quickFill', { amount: 100 })}</SecondaryButton>
         </div>
 
         <div className="mt-4 grid gap-2.5">
@@ -711,7 +719,7 @@ function DepositActionDialog({
           </PrimaryButton>
 
           {deposit.hasPendingCallback ? (
-            <SecondaryButton onClick={() => void deposit.retryCallback()}>重新通知后端入账</SecondaryButton>
+            <SecondaryButton onClick={() => void deposit.retryCallback()}>{t('profile.deposit.retryCallback')}</SecondaryButton>
           ) : null}
 
           {deposit.providerWarning ? (
@@ -766,6 +774,7 @@ function WithdrawActionDialog({
   onSubmit: () => void
   withdraw: ReturnType<typeof useWithdraw>
 }) {
+  const { t } = useTranslation()
   const statusMeta = resolveWithdrawStatusMeta(withdraw.status)
   const buttonLabel = resolveWithdrawButtonLabel({
     isConnected,
@@ -777,26 +786,26 @@ function WithdrawActionDialog({
     <DialogFrame isOpen={isOpen} onClose={onClose}>
       <DialogHeader
         eyebrow="Withdraw"
-        title="BSC USDT 提现"
+        title={t('profile.withdraw.title')}
         status={<span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${statusMeta.tone}`}>{statusMeta.label}</span>}
         onClose={onClose}
       />
       <div className="max-h-[calc(92vh-73px)] overflow-y-auto px-4 py-4 sm:px-5">
         <div className="grid gap-2.5 sm:grid-cols-2">
-          <FieldLine label="可用余额" value={availableBalance ? `${availableBalance} USDT` : '--'} />
-          <FieldLine label="手续费" value={feeLabel} />
-          <FieldLine label="最小提现" value={minAmountLabel} />
-          <FieldLine label="最大提现" value={maxAmountLabel} />
+          <FieldLine label={t('profile.fields.availableBalance')} value={availableBalance ? `${availableBalance} USDT` : '--'} />
+          <FieldLine label={t('profile.fields.fee')} value={feeLabel} />
+          <FieldLine label={t('profile.withdraw.minWithdraw')} value={minAmountLabel} />
+          <FieldLine label={t('profile.withdraw.maxWithdraw')} value={maxAmountLabel} />
         </div>
 
         <label className="mt-5 block">
-          <span className="block text-[12px] font-medium text-ink-soft">提现金额</span>
+          <span className="block text-[12px] font-medium text-ink-soft">{t('profile.withdraw.amount')}</span>
           <div className="mt-2 flex items-center gap-3 rounded-[18px] border border-white/10 bg-[#101211] px-4">
             <input
               value={amount}
               onChange={(event) => onAmountChange(event.target.value)}
               inputMode="decimal"
-              placeholder={minAmount ? `最少 ${minAmount}` : '请输入 USDT 数量'}
+              placeholder={minAmount ? t('profile.form.minPlaceholder', { amount: minAmount }) : t('profile.form.amountPlaceholder')}
               className="h-14 w-full bg-transparent text-[19px] font-medium text-ink outline-none placeholder:text-ink-soft/45"
             />
             <span className="text-[12px] font-semibold uppercase text-ink-soft">USDT</span>
@@ -804,8 +813,8 @@ function WithdrawActionDialog({
         </label>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>填入最小金额</SecondaryButton>
-          <SecondaryButton onClick={() => onAmountChange(availableBalance || '')}>填入全部可用</SecondaryButton>
+          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>{t('profile.form.fillMin')}</SecondaryButton>
+          <SecondaryButton onClick={() => onAmountChange(availableBalance || '')}>{t('profile.form.fillAllAvailable')}</SecondaryButton>
         </div>
 
         <div className="mt-4 grid gap-2.5">
@@ -840,6 +849,7 @@ function WithdrawActionDialog({
 }
 
 function DepositRecordRow({ item }: { item: DepositOrderPageItem }) {
+  const { t } = useTranslation()
   const status = resolveDepositRecordStatus(item.status)
 
   return (
@@ -854,15 +864,16 @@ function DepositRecordRow({ item }: { item: DepositOrderPageItem }) {
         </span>
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
-        <span>金额: <b className="font-semibold text-ink">{formatAmount(item.amount, item.coinCode)}</b></span>
-        <span>网络: <b className="font-semibold text-ink">{item.chainType}</b></span>
-        <span>交易凭证: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+        <span>{t('profile.fields.amount')}: <b className="font-semibold text-ink">{formatAmount(item.amount, item.coinCode)}</b></span>
+        <span>{t('profile.fields.network')}: <b className="font-semibold text-ink">{item.chainType}</b></span>
+        <span>{t('profile.fields.txReceipt')}: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
       </div>
     </div>
   )
 }
 
 function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
+  const { t } = useTranslation()
   const status = resolveWithdrawRecordStatus(item.status)
 
   return (
@@ -877,20 +888,21 @@ function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
         </span>
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
-        <span>申请: <b className="font-semibold text-ink">{formatAmount(item.applyAmount, item.coinCode)}</b></span>
-        <span>到账: <b className="font-semibold text-ink">{formatAmount(item.actualAmount, item.coinCode)}</b></span>
-        <span>手续费: <b className="font-semibold text-ink">{formatAmount(item.feeAmount, item.coinCode)}</b></span>
+        <span>{t('profile.fields.apply')}: <b className="font-semibold text-ink">{formatAmount(item.applyAmount, item.coinCode)}</b></span>
+        <span>{t('profile.fields.received')}: <b className="font-semibold text-ink">{formatAmount(item.actualAmount, item.coinCode)}</b></span>
+        <span>{t('profile.fields.fee')}: <b className="font-semibold text-ink">{formatAmount(item.feeAmount, item.coinCode)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
-        <span>到账地址: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
-        <span>交易凭证: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+        <span>{t('profile.fields.receiveAddress')}: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
+        <span>{t('profile.fields.txReceipt')}: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
       </div>
-      {item.rejectReason ? <div className="mt-2 text-[12px] text-rose-200">驳回原因: {item.rejectReason}</div> : null}
+      {item.rejectReason ? <div className="mt-2 text-[12px] text-rose-200">{t('profile.fields.rejectReason')}: {item.rejectReason}</div> : null}
     </div>
   )
 }
 
 function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
+  const { t } = useTranslation()
   const status = resolvePolymarketOrderStatus(item.status, item.errorMessage)
 
   return (
@@ -905,29 +917,30 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
         </span>
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
-        <span>金额: <b className="font-semibold text-ink">{formatNumberValue(item.requestAmount)}</b></span>
-        <span>价格: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
-        <span>成交: <b className="font-semibold text-ink">{formatNumberValue(item.filledAmount)}</b></span>
+        <span>{t('profile.fields.amount')}: <b className="font-semibold text-ink">{formatNumberValue(item.requestAmount)}</b></span>
+        <span>{t('profile.fields.price')}: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
+        <span>{t('profile.fields.filled')}: <b className="font-semibold text-ink">{formatNumberValue(item.filledAmount)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
-        <span>方向: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
-        <span>数量: <b className="font-semibold text-ink">{formatNumberValue(item.size)}</b></span>
-        <span>已成交: <b className="font-semibold text-ink">{formatNumberValue(item.filledSize)}</b></span>
+        <span>{t('profile.fields.side')}: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
+        <span>{t('profile.fields.quantity')}: <b className="font-semibold text-ink">{formatNumberValue(item.size)}</b></span>
+        <span>{t('profile.fields.filledQuantity')}: <b className="font-semibold text-ink">{formatNumberValue(item.filledSize)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft">
-        <span>佣金: <b className="font-semibold text-ink">{formatNumberValue(item.commissionAmount)} / {formatPercentValue(item.commissionRate)}</b></span>
+        <span>{t('profile.fields.commission')}: <b className="font-semibold text-ink">{formatNumberValue(item.commissionAmount)} / {formatPercentValue(item.commissionRate)}</b></span>
       </div>
       {item.updateTime ? (
         <div className="mt-2 text-[12px] text-ink-soft">
-          更新时间: <b className="font-semibold text-ink">{formatMaybeDate(item.updateTime)}</b>
+          {t('profile.fields.updatedAt')}: <b className="font-semibold text-ink">{formatMaybeDate(item.updateTime)}</b>
         </div>
       ) : null}
-      {item.errorMessage ? <div className="mt-2 text-[12px] text-rose-200">异常原因: {item.errorMessage}</div> : null}
+      {item.errorMessage ? <div className="mt-2 text-[12px] text-rose-200">{t('profile.fields.errorReason')}: {item.errorMessage}</div> : null}
     </div>
   )
 }
 
 function DirectUserRow({ item }: { item: WalletUserDirectPageItem }) {
+  const { t } = useTranslation()
   const userType = resolveDirectUserType(item.userType)
   const status = resolveDirectUserStatus(item.status)
 
@@ -944,14 +957,16 @@ function DirectUserRow({ item }: { item: WalletUserDirectPageItem }) {
         </div>
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
-        <span>链: <b className="font-semibold text-ink">{item.authType || '--'}</b></span>
-        <span>注册: <b className="font-semibold text-ink">{formatMaybeDate(item.createTime)}</b></span>
+        <span>{t('profile.fields.chain')}: <b className="font-semibold text-ink">{item.authType || '--'}</b></span>
+        <span>{t('profile.fields.registeredAt')}: <b className="font-semibold text-ink">{formatMaybeDate(item.createTime)}</b></span>
       </div>
     </div>
   )
 }
 
 function RewardRecordRow({ item }: { item: WalletRewardPageItem }) {
+  const { t } = useTranslation()
+
   return (
     <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
       <div className="flex items-start justify-between gap-3">
@@ -965,8 +980,8 @@ function RewardRecordRow({ item }: { item: WalletRewardPageItem }) {
         </div>
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
-        <span>币种: <b className="font-semibold text-ink">{item.coinCode || '--'}</b></span>
-        <span>备注: <b className="font-semibold text-ink">{item.remark || '--'}</b></span>
+        <span>{t('profile.fields.coin')}: <b className="font-semibold text-ink">{item.coinCode || '--'}</b></span>
+        <span>{t('profile.fields.remark')}: <b className="font-semibold text-ink">{item.remark || '--'}</b></span>
       </div>
     </div>
   )
@@ -990,6 +1005,7 @@ function RelationRewardOverview({
     umbrellaCount?: number
   }
 }) {
+  const { t } = useTranslation()
   const relationHasError = Boolean(relationError)
 
   return (
@@ -998,18 +1014,18 @@ function RelationRewardOverview({
         <div className="flex items-start justify-between gap-3 border-b border-white/8 px-4 py-4 sm:px-5">
           <div>
             <div className="text-[11px] font-semibold uppercase text-brand">Relation</div>
-            <h2 className="mt-1 text-[20px] font-semibold text-ink">邀请关系</h2>
+            <h2 className="mt-1 text-[20px] font-semibold text-ink">{t('profile.relation.title')}</h2>
           </div>
         </div>
 
         <div className="grid sm:grid-cols-2">
           <RelationMetricAction
-            label="直推人数"
+            label={t('profile.relation.directCount')}
             onClick={onOpenDirectUsers}
             value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.directCount)}
           />
           <RelationMetricAction
-            label="伞下总人数"
+            label={t('profile.relation.umbrellaCount')}
             onClick={onOpenUmbrellaUsers}
             value={relationLoading ? '...' : relationHasError ? '--' : formatIntegerValue(relationStats?.umbrellaCount)}
           />
@@ -1017,7 +1033,7 @@ function RelationRewardOverview({
 
         {relationHasError ? (
           <div className="border-b border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200">
-            邀请数据加载失败，请稍后重试。
+            {t('profile.relation.error')}
           </div>
         ) : null}
       </div>
@@ -1026,15 +1042,15 @@ function RelationRewardOverview({
         <div className="flex h-full flex-col justify-between gap-6 px-4 py-4 sm:px-5">
           <div>
             <div className="text-[11px] font-semibold uppercase text-brand">Rewards</div>
-            <h2 className="mt-1 text-[20px] font-semibold text-ink">奖励记录</h2>
-            <p className="mt-3 text-[13px] leading-5 text-ink-soft">查看直推奖励和节点奖励的到账明细。</p>
+            <h2 className="mt-1 text-[20px] font-semibold text-ink">{t('profile.rewards.title')}</h2>
+            <p className="mt-3 text-[13px] leading-5 text-ink-soft">{t('profile.rewards.description')}</p>
           </div>
           <button
             type="button"
             onClick={onOpenRewards}
             className="inline-flex h-11 w-full items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-4 text-[13px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
           >
-            查看奖励记录
+            {t('profile.rewards.viewRecords')}
           </button>
         </div>
       </div>
@@ -1066,6 +1082,7 @@ function OrderHistoryDialog({
   isSessionReady: boolean
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const orderQuery = useInfiniteQuery<
     ReturnType<typeof buildOrderPage>,
     Error
@@ -1094,8 +1111,8 @@ function OrderHistoryDialog({
     <DialogFrame isOpen={isOpen} maxWidthClass="max-w-3xl" onClose={onClose}>
       <DialogHeader
         eyebrow="Order History"
-        title="订单记录"
-        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+        title={t('profile.orders.title')}
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">{t('profile.count.items', { count: total })}</span>}
         onClose={onClose}
       />
       <div
@@ -1109,7 +1126,7 @@ function OrderHistoryDialog({
         }}
       >
         {!isSessionReady ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看订单。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.orders.loginRequired')}</div>
         ) : orderQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -1118,10 +1135,10 @@ function OrderHistoryDialog({
           </div>
         ) : orderQuery.isError ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-            订单加载失败，请稍后重试。
+            {t('profile.orders.error')}
           </div>
         ) : items.length === 0 ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无订单。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.orders.empty')}</div>
         ) : (
           <div>
             {items.map((item) => (
@@ -1134,11 +1151,11 @@ function OrderHistoryDialog({
         )}
 
         {orderQuery.isFetchingNextPage ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.loadingMore')}</div>
         ) : null}
 
         {!orderQuery.hasNextPage && items.length > 0 ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.endReached')}</div>
         ) : null}
       </div>
     </DialogFrame>
@@ -1158,24 +1175,25 @@ function RelationUsersDialog({
   onClose: () => void
   userId?: number
 }) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search.trim())
   const isSearchSettling = search.trim() !== debouncedSearch
   const isUmbrellaList = listKind === 'umbrella'
   const listCopy = isUmbrellaList
-    ? {
+      ? {
         eyebrow: 'Umbrella Users',
-        title: '伞下总人数列表',
-        empty: '暂无伞下用户。',
-        error: '伞下总人数列表加载失败，请稍后重试。',
-        login: '完成钱包登录后可查看伞下用户。',
+        title: t('profile.relation.umbrellaListTitle'),
+        empty: t('profile.relation.umbrellaEmpty'),
+        error: t('profile.relation.umbrellaError'),
+        login: t('profile.relation.umbrellaLoginRequired'),
       }
     : {
         eyebrow: 'Direct Users',
-        title: '直推列表',
-        empty: '暂无直推用户。',
-        error: '直推列表加载失败，请稍后重试。',
-        login: '完成钱包登录后可查看直推用户。',
+        title: t('profile.relation.directListTitle'),
+        empty: t('profile.relation.directEmpty'),
+        error: t('profile.relation.directError'),
+        login: t('profile.relation.directLoginRequired'),
       }
 
   const relationUsersQuery = useInfiniteQuery<WalletProfilePage<WalletUserDirectPageItem>, Error>({
@@ -1200,19 +1218,19 @@ function RelationUsersDialog({
       <DialogHeader
         eyebrow={listCopy.eyebrow}
         title={listCopy.title}
-        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 人</span>}
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">{t('profile.count.people', { count: total })}</span>}
         onClose={onClose}
       />
       <div className="border-b border-white/8 px-4 py-3 sm:px-5">
         <label className="block">
           <span className="flex items-center justify-between gap-3 text-[12px] font-medium text-ink-soft">
-            <span>钱包地址搜索</span>
-            {isSearchSettling ? <span className="text-brand">等待输入完成...</span> : null}
+            <span>{t('profile.relation.walletSearch')}</span>
+            {isSearchSettling ? <span className="text-brand">{t('profile.relation.searchSettling')}</span> : null}
           </span>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="输入钱包地址片段"
+            placeholder={t('profile.relation.searchPlaceholder')}
             className="mt-2 h-11 w-full rounded-[15px] border border-white/10 bg-[#101211] px-3 text-[13px] text-ink outline-none placeholder:text-ink-soft/45 focus:border-brand/30"
           />
         </label>
@@ -1230,7 +1248,7 @@ function RelationUsersDialog({
         {!isSessionReady ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{listCopy.login}</div>
         ) : !userId ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">当前账户信息暂不可用，请稍后重试。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.account.unavailable')}</div>
         ) : relationUsersQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -1252,11 +1270,11 @@ function RelationUsersDialog({
         )}
 
         {relationUsersQuery.isFetchingNextPage ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.loadingMore')}</div>
         ) : null}
 
         {!relationUsersQuery.hasNextPage && items.length > 0 ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.endReached')}</div>
         ) : null}
       </div>
     </DialogFrame>
@@ -1272,6 +1290,7 @@ function RewardRecordsDialog({
   isSessionReady: boolean
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const [rewardType, setRewardType] = useState<WalletRewardBizType | undefined>()
 
   const rewardQuery = useInfiniteQuery<WalletProfilePage<WalletRewardPageItem>, Error>({
@@ -1294,8 +1313,8 @@ function RewardRecordsDialog({
     <DialogFrame isOpen={isOpen} maxWidthClass="max-w-2xl" onClose={onClose}>
       <DialogHeader
         eyebrow="Reward History"
-        title="奖励记录"
-        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+        title={t('profile.rewards.title')}
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">{t('profile.count.items', { count: total })}</span>}
         onClose={onClose}
       />
       <HistoryStatusFilter<WalletRewardBizType> options={REWARD_BIZ_TYPE_OPTIONS} value={rewardType} onChange={setRewardType} />
@@ -1310,7 +1329,7 @@ function RewardRecordsDialog({
         }}
       >
         {!isSessionReady ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看奖励记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.rewards.loginRequired')}</div>
         ) : rewardQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -1319,10 +1338,10 @@ function RewardRecordsDialog({
           </div>
         ) : rewardQuery.isError ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-            奖励记录加载失败，请稍后重试。
+            {t('profile.rewards.error')}
           </div>
         ) : items.length === 0 ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无奖励记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.rewards.empty')}</div>
         ) : (
           <div>
             {items.map((item) => (
@@ -1332,11 +1351,11 @@ function RewardRecordsDialog({
         )}
 
         {rewardQuery.isFetchingNextPage ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.loadingMore')}</div>
         ) : null}
 
         {!rewardQuery.hasNextPage && items.length > 0 ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.endReached')}</div>
         ) : null}
       </div>
     </DialogFrame>
@@ -1354,6 +1373,7 @@ function WalletHistoryDialog({
   kind: ActiveHistory
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   type WalletRecordItem = DepositOrderPageItem | WithdrawOrderPageItem
   const [depositStatusFilter, setDepositStatusFilter] = useState<DepositHistoryStatus | undefined>()
   const [withdrawStatusFilter, setWithdrawStatusFilter] = useState<WithdrawHistoryStatus | undefined>()
@@ -1392,7 +1412,7 @@ function WalletHistoryDialog({
 
   const items = historyQuery.data?.pages.flatMap((page) => page.list) ?? []
   const total = historyQuery.data?.pages[0]?.total ?? 0
-  const title = kind === 'deposit' ? '充值记录' : '提现记录'
+  const title = kind === 'deposit' ? t('profile.deposit.historyTitle') : t('profile.withdraw.historyTitle')
   const eyebrow = kind === 'deposit' ? 'Deposit History' : 'Withdraw History'
 
   return (
@@ -1400,7 +1420,7 @@ function WalletHistoryDialog({
       <DialogHeader
         eyebrow={eyebrow}
         title={title}
-        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">共 {total} 条</span>}
+        status={<span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">{t('profile.count.items', { count: total })}</span>}
         onClose={onClose}
       />
       {kind === 'deposit' ? (
@@ -1427,7 +1447,7 @@ function WalletHistoryDialog({
         }}
       >
         {!isSessionReady ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">完成钱包登录后可查看记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.history.loginRequired')}</div>
         ) : historyQuery.isLoading ? (
           <div className="grid gap-2 px-4 py-4">
             {Array.from({ length: 5 }).map((_, index) => (
@@ -1436,10 +1456,10 @@ function WalletHistoryDialog({
           </div>
         ) : historyQuery.isError ? (
           <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-rose-200">
-            记录加载失败，请稍后重试。
+            {t('profile.history.error')}
           </div>
         ) : items.length === 0 ? (
-          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">暂无记录。</div>
+          <div className="grid h-full place-items-center px-4 py-8 text-center text-[13px] text-ink-soft">{t('profile.history.empty')}</div>
         ) : (
           <div>
             {kind === 'deposit'
@@ -1449,11 +1469,11 @@ function WalletHistoryDialog({
         )}
 
         {historyQuery.isFetchingNextPage ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">正在加载更多...</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.loadingMore')}</div>
         ) : null}
 
         {!historyQuery.hasNextPage && items.length > 0 ? (
-          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">已经到底了</div>
+          <div className="border-t border-white/6 px-4 py-4 text-center text-[12px] text-ink-soft">{t('common.endReached')}</div>
         ) : null}
       </div>
     </DialogFrame>
@@ -1461,6 +1481,7 @@ function WalletHistoryDialog({
 }
 
 export function ProfilePage() {
+  const { t } = useTranslation()
   const { open } = useAppKit()
   const { address, isConnected, isSessionForConnectedWallet, startWalletAuth, status: authStatus } = useWalletAuth()
   const session = useWalletAuthStore((state) => state.session)
@@ -1472,6 +1493,16 @@ export function ProfilePage() {
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
+
+  const handleDepositSuccess = useCallback(() => {
+    setDepositAmount('')
+    setActiveAction(null)
+  }, [])
+
+  const handleWithdrawSuccess = useCallback(() => {
+    setWithdrawAmount('')
+    setActiveAction(null)
+  }, [])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['wallet-user-info', session?.token ?? null],
@@ -1511,6 +1542,7 @@ export function ProfilePage() {
     contractConfig,
     isConnected,
     isSessionReady: isSessionForConnectedWallet,
+    onSuccess: handleDepositSuccess,
     walletAddress: address,
     walletUser,
   })
@@ -1518,17 +1550,22 @@ export function ProfilePage() {
     contractConfig,
     isConnected,
     isSessionReady: isSessionForConnectedWallet,
+    onSuccess: handleWithdrawSuccess,
     walletAddress: address,
     walletUser,
   })
 
-  const connectionLabel = !isConnected ? '未连接' : isSessionForConnectedWallet ? '已登录' : '待登录'
+  const connectionLabel = !isConnected
+    ? t('profile.connection.disconnected')
+    : isSessionForConnectedWallet
+      ? t('profile.connection.loggedIn')
+      : t('profile.connection.pendingLogin')
   const connectionTone = !isConnected
     ? 'border-white/10 bg-white/[0.04] text-ink-soft'
     : isSessionForConnectedWallet
       ? 'border-brand/20 bg-brand/12 text-brand'
       : 'border-amber-400/20 bg-amber-400/10 text-amber-200'
-  const userTypeLabel = walletUser?.userType === 2 ? '节点用户' : walletUser?.userType === 1 ? '普通用户' : '--'
+  const userTypeLabel = walletUser?.userType === 2 ? t('profile.userTypes.node') : walletUser?.userType === 1 ? t('profile.userTypes.normal') : '--'
   const inviteLink = useMemo(() => {
     if (typeof window === 'undefined' || !walletUser?.inviteCode) {
       return ''
@@ -1539,9 +1576,9 @@ export function ProfilePage() {
   const withdrawMinAmount = Number(contractConfig?.withdrawMinAmount ?? '')
   const withdrawMaxAmount = Number(contractConfig?.withdrawMaxAmount ?? '')
   const withdrawMinAmountLabel =
-    Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? `${contractConfig?.withdrawMinAmount} USDT` : '不限'
+    Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? `${contractConfig?.withdrawMinAmount} USDT` : t('profile.limits.unlimited')
   const withdrawMaxAmountLabel =
-    Number.isFinite(withdrawMaxAmount) && withdrawMaxAmount > 0 ? `${contractConfig?.withdrawMaxAmount} USDT` : '不限'
+    Number.isFinite(withdrawMaxAmount) && withdrawMaxAmount > 0 ? `${contractConfig?.withdrawMaxAmount} USDT` : t('profile.limits.unlimited')
   const withdrawFeeLabel = contractConfig?.withdrawFeeValue
     ? contractConfig.withdrawFeeType === 2
       ? `${contractConfig.withdrawFeeValue}%`
@@ -1575,19 +1612,19 @@ export function ProfilePage() {
             <div className="flex min-w-0 items-center gap-3">
               <IconMark>◎</IconMark>
               <div className="min-w-0">
-                <h1 className="text-[22px] font-semibold text-ink sm:text-[26px]">个人中心</h1>
+                <h1 className="text-[22px] font-semibold text-ink sm:text-[26px]">{t('profile.title')}</h1>
                 <div className="mt-0.5 truncate text-[12px] text-ink-soft">
-                  {walletUser?.walletAddress ? shortenAddress(walletUser.walletAddress) : address ? shortenAddress(address) : '连接钱包后管理资产'}
+                  {walletUser?.walletAddress ? shortenAddress(walletUser.walletAddress) : address ? shortenAddress(address) : t('profile.walletHint')}
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
               <span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${connectionTone}`}>
-                钱包状态: {connectionLabel}
+                {t('profile.connection.walletStatus')}: {connectionLabel}
               </span>
               <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
-                网络: BSC
+                {t('profile.fields.network')}: BSC
               </span>
             </div>
           </div>
@@ -1595,11 +1632,11 @@ export function ProfilePage() {
 
         {!isConnected ? (
           <section className="rounded-[22px] border border-dashed border-white/10 bg-panel/95 px-4 py-8 text-center text-[13px] text-ink-soft">
-            还没有连接钱包。连接后这里会展示账户、资产、充值、提现与记录入口。
+            {t('profile.connection.disconnectedMessage')}
           </section>
         ) : !isSessionForConnectedWallet ? (
           <section className="rounded-[22px] border border-amber-400/20 bg-amber-400/10 px-4 py-8 text-center text-[13px] text-amber-100">
-            钱包已连接，完成签名登录后即可查看资产和资金记录。
+            {t('profile.connection.pendingLoginMessage')}
           </section>
         ) : isLoading ? (
           <section className="grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
@@ -1623,7 +1660,7 @@ export function ProfilePage() {
           </section>
         ) : isError ? (
           <section className="rounded-[22px] border border-rose-500/20 bg-rose-500/10 px-4 py-8 text-center text-[13px] text-rose-200">
-            账户信息加载失败，请稍后重试。
+            {t('profile.account.error')}
           </section>
         ) : walletUser ? (
           <>
@@ -1636,7 +1673,7 @@ export function ProfilePage() {
                       <div className="mt-1 text-[32px] font-semibold text-ink sm:text-[40px]">
                         {primaryAsset ? formatAmount(primaryAsset.availableBalance, primaryAsset.coinCode) : '--'}
                       </div>
-                      <div className="mt-1 text-[12px] text-ink-soft">BSC-USDT 可用余额</div>
+                      <div className="mt-1 text-[12px] text-ink-soft">{t('profile.balance.availableBscUsdt')}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:w-[16rem]">
                       <button
@@ -1644,62 +1681,62 @@ export function ProfilePage() {
                         onClick={() => requireWalletReady(() => setActiveAction('deposit'))}
                         className="inline-flex h-11 items-center justify-center rounded-[15px] border border-brand/20 bg-brand px-3 text-[13px] font-semibold text-black transition hover:bg-[#19ff53]"
                       >
-                        充值
+                        {t('profile.deposit.action')}
                       </button>
                       <button
                         type="button"
                         onClick={() => requireWalletReady(() => setActiveAction('withdraw'))}
                         className="inline-flex h-11 items-center justify-center rounded-[15px] border border-white/10 bg-white/[0.04] px-3 text-[13px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06]"
                       >
-                        提现
+                        {t('profile.withdraw.action')}
                       </button>
                       <button
                         type="button"
                         onClick={() => requireWalletReady(() => setActiveHistory('deposit'))}
                         className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
                       >
-                        充值记录
+                        {t('profile.deposit.historyTitle')}
                       </button>
                       <button
                         type="button"
                         onClick={() => requireWalletReady(() => setActiveHistory('withdraw'))}
                         className="inline-flex h-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.03] px-3 text-[12px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink"
                       >
-                        提现记录
+                        {t('profile.withdraw.historyTitle')}
                       </button>
                       <button
                         type="button"
                         onClick={() => requireWalletReady(() => setIsOrderHistoryOpen(true))}
                         className="col-span-2 inline-flex h-10 items-center justify-center rounded-[14px] border border-sky-400/20 bg-sky-400/10 px-3 text-[12px] font-semibold text-sky-100 transition hover:border-sky-300/30 hover:bg-sky-400/14"
                       >
-                        订单记录
+                        {t('profile.orders.title')}
                       </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="grid border-b border-white/8 sm:grid-cols-5">
-                  <MetricCell label="总余额" value={primaryAsset?.totalBalance ?? '--'} />
-                  <MetricCell label="冻结余额" value={primaryAsset?.frozenBalance ?? '--'} />
-                  <MetricCell label="累计充值" value={primaryAsset?.rechargeTotal ?? '--'} />
-                  <MetricCell label="累计提现" value={primaryAsset?.withdrawTotal ?? '--'} />
-                  <MetricCell label="币种" value={primaryAsset ? `${primaryAsset.chainCode}-${primaryAsset.coinCode}` : '--'} />
+                  <MetricCell label={t('profile.balance.total')} value={primaryAsset?.totalBalance ?? '--'} />
+                  <MetricCell label={t('profile.balance.frozen')} value={primaryAsset?.frozenBalance ?? '--'} />
+                  <MetricCell label={t('profile.balance.totalDeposit')} value={primaryAsset?.rechargeTotal ?? '--'} />
+                  <MetricCell label={t('profile.balance.totalWithdraw')} value={primaryAsset?.withdrawTotal ?? '--'} />
+                  <MetricCell label={t('profile.fields.coin')} value={primaryAsset ? `${primaryAsset.chainCode}-${primaryAsset.coinCode}` : '--'} />
                 </div>
 
                 <div className="grid gap-0 sm:grid-cols-2">
                   <div className="border-b border-white/8 px-4 py-4 sm:border-b-0 sm:border-r sm:px-5">
-                    <div className="text-[11px] font-semibold uppercase text-ink-soft">充值规则</div>
+                    <div className="text-[11px] font-semibold uppercase text-ink-soft">{t('profile.deposit.rules')}</div>
                     <div className="mt-2 grid gap-0">
-                      <FieldLine label="最小金额" value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
-                      <FieldLine label="网络" value={contractConfig?.chainType ?? 'BSC'} />
+                      <FieldLine label={t('profile.fields.minAmount')} value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
+                      <FieldLine label={t('profile.fields.network')} value={contractConfig?.chainType ?? 'BSC'} />
                     </div>
                   </div>
                   <div className="px-4 py-4 sm:px-5">
-                    <div className="text-[11px] font-semibold uppercase text-ink-soft">提现规则</div>
+                    <div className="text-[11px] font-semibold uppercase text-ink-soft">{t('profile.withdraw.rules')}</div>
                     <div className="mt-2 grid gap-0">
-                      <FieldLine label="限额" value={`${withdrawMinAmountLabel} / ${withdrawMaxAmountLabel}`} />
-                      <FieldLine label="手续费" value={withdrawFeeLabel} />
-                      <FieldLine label="可用余额" value={withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'} />
+                      <FieldLine label={t('profile.fields.limit')} value={`${withdrawMinAmountLabel} / ${withdrawMaxAmountLabel}`} />
+                      <FieldLine label={t('profile.fields.fee')} value={withdrawFeeLabel} />
+                      <FieldLine label={t('profile.fields.availableBalance')} value={withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'} />
                     </div>
                   </div>
                 </div>
@@ -1710,7 +1747,7 @@ export function ProfilePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-[11px] font-semibold uppercase text-brand">Identity</div>
-                      <h2 className="mt-1 text-[20px] font-semibold text-ink">账户身份</h2>
+                      <h2 className="mt-1 text-[20px] font-semibold text-ink">{t('profile.identity.title')}</h2>
                     </div>
                     <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold text-ink-soft">
                       {userTypeLabel}
@@ -1719,9 +1756,9 @@ export function ProfilePage() {
                 </div>
 
                 <div className="px-4 py-3 sm:px-5">
-                  <FieldLine label="钱包地址" value={shortenAddress(walletUser.walletAddress)} />
-                  <FieldLine label="邀请码" value={walletUser.inviteCode || '--'} />
-                  <FieldLine label="登录方式" value={walletUser.authType || '--'} />
+                  <FieldLine label={t('profile.fields.walletAddress')} value={shortenAddress(walletUser.walletAddress)} />
+                  <FieldLine label={t('profile.fields.inviteCode')} value={walletUser.inviteCode || '--'} />
+                  <FieldLine label={t('profile.fields.authType')} value={walletUser.authType || '--'} />
                 </div>
 
                 <div className="border-t border-white/8 px-4 py-4 sm:px-5">
@@ -1733,16 +1770,16 @@ export function ProfilePage() {
                     type="button"
                     onClick={async () => {
                       if (!inviteLink) {
-                        toast('暂无邀请链接')
+                        toast(t('profile.invite.noLink'))
                         return
                       }
 
                       try {
                         setIsCopyingInviteLink(true)
                         await navigator.clipboard.writeText(inviteLink)
-                        toast.success('邀请链接已复制')
+                        toast.success(t('profile.invite.copied'))
                       } catch {
-                        toast('复制失败，请手动复制')
+                        toast(t('profile.invite.copyFailed'))
                       } finally {
                         setIsCopyingInviteLink(false)
                       }
@@ -1750,16 +1787,16 @@ export function ProfilePage() {
                     disabled={isCopyingInviteLink}
                     className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] px-4 text-[12px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {isCopyingInviteLink ? '复制中...' : '复制邀请链接'}
+                    {isCopyingInviteLink ? t('profile.invite.copying') : t('profile.invite.copy')}
                   </button>
                 </div>
 
                 {isContractConfigError ? (
                   <div className="border-t border-rose-500/20 bg-rose-500/10 px-4 py-3 text-[12px] text-rose-200 sm:px-5">
-                    资金配置加载失败，请稍后重试。
+                    {t('profile.fundsConfig.error')}
                   </div>
                 ) : isContractConfigLoading ? (
-                  <div className="border-t border-white/8 px-4 py-3 text-[12px] text-ink-soft sm:px-5">正在加载资金配置...</div>
+                  <div className="border-t border-white/8 px-4 py-3 text-[12px] text-ink-soft sm:px-5">{t('profile.fundsConfig.loading')}</div>
                 ) : null}
               </div>
             </section>

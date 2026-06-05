@@ -7,6 +7,7 @@ import {
   type TotalLine,
   type WinnerOutcome,
 } from './home-data'
+import i18n from '../../config/i18n'
 
 export type MatchDetailProposition = OrderTextMetadata & {
   id: string
@@ -82,14 +83,15 @@ export function buildMatchDetail(
       | 'halftimeResult'
     >
   >,
+  language?: string,
 ): MatchDetail {
   return {
     match,
-    countdownLabel: overrides?.countdownLabel ?? '12天 3时',
+    countdownLabel: overrides?.countdownLabel ?? i18n.t('dataLabels.countdown', { lng: language, days: 12, hours: 3 }),
     headerTimeLabel: overrides?.headerTimeLabel ?? match.timeLabel,
     headerDateLabel: overrides?.headerDateLabel ?? match.date,
     contextDescription: overrides?.contextDescription,
-    moneylineVolumeLabel: overrides?.moneylineVolumeLabel ?? '$48.7K 交易量',
+    moneylineVolumeLabel: overrides?.moneylineVolumeLabel ?? i18n.t('dataLabels.volume', { lng: language, value: '$48.7K' }),
     spreadVolumeLabel: overrides?.spreadVolumeLabel,
     totalVolumeLabel: overrides?.totalVolumeLabel,
     spreadVariants: overrides?.spreadVariants ?? [],
@@ -108,6 +110,6 @@ export function getMatchDetail(matchId: string): MatchDetail | null {
   }
 
   return buildMatchDetail(match, {
-    headerDateLabel: '六月 12',
+    headerDateLabel: i18n.t('dataLabels.sampleHeaderDate'),
   })
 }

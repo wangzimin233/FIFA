@@ -13,6 +13,7 @@ import {
 import { TeamMark } from './team-mark'
 
 function OddsRing({ value }: { value: number }) {
+  const { t } = useTranslation()
   const circumference = 2 * Math.PI * 42
 
   return (
@@ -39,7 +40,7 @@ function OddsRing({ value }: { value: number }) {
             className="justify-center text-[15px] font-semibold leading-none text-ink sm:text-[16px] lg:text-[18px]"
           />
           <div className="mt-0.5 text-[9px] font-semibold leading-none text-ink-soft sm:text-[10px] lg:text-[11px]">
-            赔率
+            {t('marketGrid.odds')}
           </div>
         </div>
       </div>
@@ -82,7 +83,7 @@ function isAcceptingOrders(item: { acceptingOrders?: boolean }) {
 
 export function MarketGrid() {
   const navigate = useNavigate()
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const {
     data,
@@ -115,7 +116,7 @@ export function MarketGrid() {
   if (isLoading) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
-        正在加载玩法列表...
+        {t('marketGrid.loading')}
       </div>
     )
   }
@@ -123,7 +124,7 @@ export function MarketGrid() {
   if (isError) {
     return (
       <div className="rounded-[20px] border border-rose-500/20 bg-panel px-4 py-6 text-sm text-rose-300">
-        玩法列表加载失败，请稍后重试。
+        {t('marketGrid.error')}
       </div>
     )
   }
@@ -131,7 +132,7 @@ export function MarketGrid() {
   if (!cards.length) {
     return (
       <div className="rounded-[20px] border border-white/8 bg-panel px-4 py-6 text-sm text-ink-soft">
-        暂无玩法数据。
+        {t('marketGrid.empty')}
       </div>
     )
   }
@@ -218,10 +219,10 @@ export function MarketGrid() {
                       {canPlaceOrder ? (
                         <>
                           <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-emerald-500/18 px-2 text-center text-[11px] font-semibold text-emerald-300 sm:h-[34px] sm:text-[12px]">
-                            Yes <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
+                            {t('markets.outcomes.yes')} <RealtimePriceValue assetId={candidate.yesAssetId} fallbackPrice={candidate.yesPrice} />
                           </div>
                           <div className="flex h-8 min-w-[58px] items-center justify-center rounded-[11px] bg-rose-500/14 px-2 text-center text-[11px] font-semibold text-rose-300 sm:h-[34px] sm:text-[12px]">
-                            No <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
+                            {t('markets.outcomes.no')} <RealtimePriceValue assetId={candidate.noAssetId} fallbackPrice={candidate.noPrice} />
                           </div>
                         </>
                       ) : null}
@@ -283,7 +284,7 @@ export function MarketGrid() {
                     }
                     className="rounded-[13px] bg-emerald-500/20 px-3 py-2.5 text-center text-[14px] font-semibold text-emerald-300 transition hover:bg-emerald-500/30 sm:text-[15px]"
                   >
-                    Yes <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
+                    {t('markets.outcomes.yes')} <RealtimePriceValue assetId={card.yesAssetId} fallbackPrice={card.yesPrice} />
                   </button>
                   <button
                     type="button"
@@ -294,7 +295,7 @@ export function MarketGrid() {
                     }
                     className="rounded-[13px] bg-rose-500/14 px-3 py-2.5 text-center text-[14px] font-semibold text-rose-300 transition hover:bg-rose-500/20 sm:text-[15px]"
                   >
-                    No <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
+                    {t('markets.outcomes.no')} <RealtimePriceValue assetId={card.noAssetId} fallbackPrice={card.noPrice} />
                   </button>
                 </div>
               ) : null}
@@ -318,7 +319,7 @@ export function MarketGrid() {
             disabled={isFetchingNextPage}
             className="rounded-full border border-white/8 bg-white/3 px-4.5 py-2 text-[12px] font-medium text-ink-soft transition hover:border-brand/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60 sm:px-5 sm:text-[13px]"
           >
-            {isFetchingNextPage ? '正在加载更多...' : '显示更多盘口'}
+            {isFetchingNextPage ? t('common.loadingMore') : t('marketGrid.showMore')}
           </button>
         </div>
       ) : null}

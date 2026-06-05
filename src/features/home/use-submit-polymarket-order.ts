@@ -2,6 +2,7 @@ import { toast } from '@heroui/react'
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { queryClient } from '../../config/query-client'
+import i18n from '../../config/i18n'
 import { createPolymarketOrder, type PolymarketCreateOrderRequest } from './api/polymarket-orders'
 import { type MarketSelection, useOrderStore } from './order-store'
 
@@ -197,44 +198,44 @@ export function buildPolymarketOrderPayload(
   amount: number,
 ): PolymarketCreateOrderRequest {
   if (!selection) {
-    throw new Error('请先选择一个盘口。')
+    throw new Error(i18n.t('orderErrors.selectMarket'))
   }
 
   const target = resolveOrderTarget(selection)
   if (target.acceptingOrders !== true) {
-    throw new Error('当前盘口暂不支持挂单。')
+    throw new Error(i18n.t('orderErrors.unsupportedMarket'))
   }
 
   if (!Number.isFinite(amount) || amount <= 0) {
-    throw new Error('请输入有效的下单金额。')
+    throw new Error(i18n.t('orderErrors.invalidAmount'))
   }
 
   if (amount < MIN_POLYMARKET_ORDER_AMOUNT) {
-    throw new Error(`最低下单金额为 ${MIN_POLYMARKET_ORDER_AMOUNT}。`)
+    throw new Error(i18n.t('orderErrors.minAmount', { amount: MIN_POLYMARKET_ORDER_AMOUNT }))
   }
 
   if (!target.eventSlug) {
-    throw new Error('当前盘口缺少 eventSlug，无法提交订单。')
+    throw new Error(i18n.t('orderErrors.missingEventSlug'))
   }
 
   if (!target.marketSlug) {
-    throw new Error('当前盘口缺少 marketSlug，无法提交订单。')
+    throw new Error(i18n.t('orderErrors.missingMarketSlug'))
   }
 
   if (!target.conditionId) {
-    throw new Error('当前盘口缺少 market conditionId，无法提交订单。')
+    throw new Error(i18n.t('orderErrors.missingConditionId'))
   }
 
   if (!isConditionId(target.conditionId)) {
-    throw new Error('当前盘口 market 不是有效的 conditionId，无法提交订单。')
+    throw new Error(i18n.t('orderErrors.invalidConditionId'))
   }
 
   if (!target.marketId) {
-    throw new Error('当前盘口缺少 Gamma marketId，无法提交订单。')
+    throw new Error(i18n.t('orderErrors.missingGammaMarketId'))
   }
 
   if (!target.tokenId) {
-    throw new Error('当前盘口缺少 tokenId，无法提交订单。')
+    throw new Error(i18n.t('orderErrors.missingTokenId'))
   }
 
   return {
@@ -272,7 +273,7 @@ export function useSubmitPolymarketOrder() {
     mutationFn: (payload: PolymarketCreateOrderRequest) => createPolymarketOrder(payload),
     onSuccess: (result) => {
       const response = result.data
-      const message = response?.errorMsg || result.message || '订单已提交'
+      const message = response?.errorMsg || result.message || i18n.t('orderErrors.submitted')
 
       queryClient.invalidateQueries({ queryKey: ['wallet-user-info'] })
       queryClient.invalidateQueries({ queryKey: ['polymarket-orders'] })
@@ -286,14 +287,14 @@ export function useSubmitPolymarketOrder() {
       setSlippageConfirmation({ key: '', confirmed: false })
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : '提交订单失败。'
+      const message = error instanceof Error ? error.message : i18n.t('orderErrors.submitFailed')
       if (isSlippageMessage(message)) {
         setSlippageConfirmation({ key: orderKey, confirmed: true })
-        toast('价格滑点超过阈值，请再次点击确认交易。')
+        toast(i18n.t('orderErrors.slippageExceeded'))
         return
       }
 
-      toast('提交订单失败，请稍后重试。')
+      toast(i18n.t('orderErrors.submitRetry'))
     },
   })
 

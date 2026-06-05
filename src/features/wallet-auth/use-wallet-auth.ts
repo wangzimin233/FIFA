@@ -1,10 +1,11 @@
 import type { AxiosError } from 'axios'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect } from 'react'
 import { toast } from '@heroui/react'
 import {
   useAppKitAccount,
   useAppKitProvider,
 } from '@reown/appkit/react'
+import i18n from '../../config/i18n'
 import {
   loginWithWallet,
   registerWithWallet,
@@ -52,11 +53,11 @@ function resolveErrorMessage(error: unknown) {
   }
 
   if (axiosError.code === 'ECONNABORTED' || /timeout/i.test(axiosError.message ?? '')) {
-    return '钱包认证请求超时，请稍后重试。'
+    return i18n.t('walletAuth.errors.timeout')
   }
 
   if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
-    return '后端认证服务暂时不可用，请稍后重试。'
+    return i18n.t('walletAuth.errors.serviceUnavailable')
   }
 
   if ((error as { shortMessage?: string })?.shortMessage) {
@@ -67,7 +68,7 @@ function resolveErrorMessage(error: unknown) {
     return error.message
   }
 
-  return '钱包认证失败，请重试。'
+  return i18n.t('walletAuth.errors.failed')
 }
 
 function isUnregisteredLoginResult(data: WalletAuthResponse | undefined) {
@@ -133,9 +134,9 @@ export function useWalletAuth() {
     normalizedConnectedAddress === normalizedSessionAddress
 
   const finalizeSession = useCallback(
-    (data: WalletAuthResponse, walletProviderIdentity?: WalletProviderIdentity, successMessage = '钱包登录成功') => {
+    (data: WalletAuthResponse, walletProviderIdentity?: WalletProviderIdentity, successMessage = i18n.t('walletAuth.success.login')) => {
       if (!data.token) {
-        throw new Error('后端未返回 token，无法建立登录态。')
+        throw new Error(i18n.t('walletAuth.errors.missingToken'))
       }
 
       setSession(toSession(data, walletProviderIdentity))
@@ -151,7 +152,7 @@ export function useWalletAuth() {
   const signWalletMessage = useCallback(
     async (message: string, walletAddress: string, signingProvider: Eip1193Provider) => {
       if (!signingProvider.request) {
-        throw new Error('当前未获取到钱包 Provider，请重新连接钱包后重试。')
+        throw new Error(i18n.t('walletProvider.errors.missingProvider'))
       }
 
       const signature = await signingProvider.request({
@@ -160,7 +161,7 @@ export function useWalletAuth() {
       })
 
       if (typeof signature !== 'string' || !signature) {
-        throw new Error('钱包未返回有效签名，请重试。')
+        throw new Error(i18n.t('walletAuth.errors.invalidSignature'))
       }
 
       return signature
@@ -187,7 +188,7 @@ export function useWalletAuth() {
     })
 
     if (!authProvider) {
-      setError(providerErrorMessage || '未找到与当前连接地址匹配的钱包 Provider，请重新连接钱包后重试。')
+      setError(providerErrorMessage || i18n.t('walletProvider.errors.noMatchingProvider'))
       setStatus('error')
       return
     }
@@ -195,7 +196,7 @@ export function useWalletAuth() {
     const providerChainId = authProvider.chainId ?? (await getProviderChainId(authProvider.provider))
     const currentChainId = normalizeChainId(providerChainId)
     if (currentChainId !== null && currentChainId !== BSC_CHAIN_ID) {
-      setError('当前仅支持 BSC 钱包网络，请切换后重试。')
+      setError(i18n.t('walletAuth.errors.unsupportedNetwork'))
       setStatus('error')
       return
     }
@@ -235,7 +236,7 @@ export function useWalletAuth() {
           return
         }
 
-        throw new Error(result.message || '钱包登录未返回有效数据，请稍后重试。')
+        throw new Error(result.message || i18n.t('walletAuth.errors.loginNoData'))
       }
 
       if (hasAuthenticatedToken(result.data)) {
@@ -269,7 +270,7 @@ export function useWalletAuth() {
         setError(
           signature
             ? null
-            : '后端返回未注册，但当前签名已失效，请重新点击连接钱包重试。',
+            : i18n.t('walletAuth.errors.unregisteredExpiredSignature'),
         )
         return
       }
@@ -299,7 +300,7 @@ export function useWalletAuth() {
 
       if (!pendingRegistration.signature) {
         setStatus('error')
-        setError('注册签名已失效，请重新点击连接钱包重试。')
+        setError(i18n.t('walletAuth.errors.registrationExpiredSignature'))
         return
       }
 
@@ -316,7 +317,7 @@ export function useWalletAuth() {
         })
 
         if (!result.data) {
-          throw new Error(result.message || '钱包注册未返回有效数据，请稍后重试。')
+          throw new Error(result.message || i18n.t('walletAuth.errors.registerNoData'))
         }
 
         finalizeSession(result.data, pendingRegistration.walletProviderIdentity)
@@ -391,33 +392,33 @@ export function useWalletAuth() {
     status,
   ])
 
-  const walletButtonLabel = useMemo(() => {
+  const walletButtonLabel = (() => {
     if (!isConnected || !address) {
-      return '连接钱包'
+      return i18n.t('actions.connectWallet')
     }
 
     if (status === 'signing') {
-      return '请求签名中...'
+      return i18n.t('walletAuth.buttons.signing')
     }
 
     if (status === 'logging_out') {
-      return '退出中...'
+      return i18n.t('walletAuth.buttons.loggingOut')
     }
 
     if (status === 'logging_in' || status === 'registering') {
-      return '登录中...'
+      return i18n.t('walletAuth.buttons.loggingIn')
     }
 
     if (!isSessionForConnectedWallet) {
       if (status === 'error') {
-        return '重试登录'
+        return i18n.t('walletAuth.buttons.retryLogin')
       }
 
-      return '完成登录'
+      return i18n.t('walletAuth.buttons.completeLogin')
     }
 
     return `${address.slice(0, 6)}...${address.slice(-4)}`
-  }, [address, isConnected, isSessionForConnectedWallet, status])
+  })()
 
   return {
     address,

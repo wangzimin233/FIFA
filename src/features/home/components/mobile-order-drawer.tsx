@@ -1,6 +1,7 @@
 import { Button } from '@heroui/react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useActiveSelectionPrice } from '../../market-realtime/price-utils'
 import { RollingNumber } from '../../market-realtime/rolling-number'
 import { TeamMark } from './team-mark'
@@ -37,11 +38,14 @@ function getMobilePriceTone(selection: MarketSelection) {
   return 'text-brand'
 }
 
-function getMobileTitle(selection: MarketSelection) {
-  return selection.template === 'total' ? '大小' : selection.title
+function getMobileTitle(selection: MarketSelection, totalLabel: string) {
+  return selection.template === 'total' ? totalLabel : selection.title
 }
 
-function getMobileSubject(selection: MarketSelection) {
+function getMobileSubject(
+  selection: MarketSelection,
+  labels: { away: string; home: string; over: string; under: string },
+) {
   if (selection.template === 'winner') {
     return (
       <>
@@ -60,8 +64,8 @@ function getMobileSubject(selection: MarketSelection) {
       selection.variants[0]
     const label =
       selection.activeTeamSide === 'away'
-        ? `客 ${activeVariant.awayHandicap}`
-        : `主 ${activeVariant.homeHandicap}`
+        ? `${labels.away} ${activeVariant.awayHandicap}`
+        : `${labels.home} ${activeVariant.homeHandicap}`
 
     return <span className="text-brand">{label}</span>
   }
@@ -70,7 +74,7 @@ function getMobileSubject(selection: MarketSelection) {
 
   return (
     <>
-      <span className="text-ink">{selection.activeSide === 'over' ? '大' : '小'}</span>
+      <span className="text-ink">{selection.activeSide === 'over' ? labels.over : labels.under}</span>
       <span className="mx-2 text-ink-soft">•</span>
       <span className={getMobilePriceTone(selection)}>{activeLine.line}</span>
     </>
@@ -96,6 +100,7 @@ function MobileSelectionBadge({ value, logo }: { value: string; logo?: string })
 }
 
 function MobileHeader() {
+  const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
 
   if (!activeSelection) {
@@ -112,10 +117,15 @@ function MobileHeader() {
         />
         <div className="min-w-0">
           <h3 className="text-[18px] font-medium leading-tight text-ink-soft">
-            {getMobileTitle(activeSelection)}
+            {getMobileTitle(activeSelection, t('markets.types.totalShort'))}
           </h3>
           <div className="mt-1.5 text-[20px] font-semibold leading-tight">
-            {getMobileSubject(activeSelection)}
+            {getMobileSubject(activeSelection, {
+              away: t('markets.outcomes.away'),
+              home: t('markets.outcomes.home'),
+              over: t('markets.outcomes.over'),
+              under: t('markets.outcomes.under'),
+            })}
           </div>
         </div>
       </div>
@@ -124,6 +134,7 @@ function MobileHeader() {
 }
 
 function MobileAmountDisplay() {
+  const { t } = useTranslation()
   const { amount, setAmount } = useOrderStore()
   const amountDisplay = useMemo(() => `$${amount}`, [amount])
 
@@ -137,7 +148,7 @@ function MobileAmountDisplay() {
         onChange={(event) => setAmount(Number(event.target.value))}
         inputMode="decimal"
         placeholder="0"
-        aria-label="输入金额"
+        aria-label={t('orderPanel.amountInputLabel')}
         className="absolute inset-0 h-full w-full border-none bg-transparent text-center text-[84px] font-semibold text-transparent caret-white outline-none placeholder:text-transparent"
       />
     </label>
@@ -145,6 +156,7 @@ function MobileAmountDisplay() {
 }
 
 function MobileWinnerSegment() {
+  const { t } = useTranslation()
   const { activeSelection, setWinnerSide } = useOrderStore()
 
   if (!activeSelection || activeSelection.template !== 'winner') {
@@ -164,7 +176,7 @@ function MobileWinnerSegment() {
             yesActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          Yes
+          {t('markets.outcomes.yes')}
         </button>
         <button
           type="button"
@@ -174,7 +186,7 @@ function MobileWinnerSegment() {
             !yesActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          No
+          {t('markets.outcomes.no')}
         </button>
       </div>
     </div>
@@ -182,6 +194,7 @@ function MobileWinnerSegment() {
 }
 
 function MobileSpreadSegment() {
+  const { t } = useTranslation()
   const { activeSelection, setSpreadTeamSide } = useOrderStore()
 
   if (!activeSelection || activeSelection.template !== 'spread') {
@@ -204,7 +217,7 @@ function MobileSpreadSegment() {
             awayActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          客 {activeVariant.awayHandicap}
+          {t('markets.outcomes.away')} {activeVariant.awayHandicap}
         </button>
         <button
           type="button"
@@ -214,7 +227,7 @@ function MobileSpreadSegment() {
             !awayActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          主 {activeVariant.homeHandicap}
+          {t('markets.outcomes.home')} {activeVariant.homeHandicap}
         </button>
       </div>
     </div>
@@ -222,6 +235,7 @@ function MobileSpreadSegment() {
 }
 
 function MobileTotalSegment() {
+  const { t } = useTranslation()
   const { activeSelection, setTotalSide } = useOrderStore()
 
   if (!activeSelection || activeSelection.template !== 'total') {
@@ -242,7 +256,7 @@ function MobileTotalSegment() {
             overActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          大 {activeLine.line}
+          {t('markets.outcomes.over')} {activeLine.line}
         </button>
         <button
           type="button"
@@ -252,7 +266,7 @@ function MobileTotalSegment() {
             !overActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
           ].join(' ')}
         >
-          小 {activeLine.line}
+          {t('markets.outcomes.under')} {activeLine.line}
         </button>
       </div>
     </div>
@@ -260,6 +274,7 @@ function MobileTotalSegment() {
 }
 
 function MobileComputedResult() {
+  const { t } = useTranslation()
   const { activeSelection, amount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
 
@@ -272,7 +287,7 @@ function MobileComputedResult() {
   return (
     <div className="mt-9 text-center">
       <div className="text-[18px] font-semibold">
-        <span className="text-ink">赢取 </span>
+        <span className="text-ink">{t('orderPanel.toWin')} </span>
         <span className={getMobilePriceTone(activeSelection)}>
           <RollingCurrency value={potentialReturn} />
         </span>
@@ -304,6 +319,7 @@ function MobileQuickAmounts() {
 }
 
 function MobileDrawerContent() {
+  const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
   const { canSubmit, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
 
@@ -324,7 +340,7 @@ function MobileDrawerContent() {
       )}
       <MobileComputedResult />
       <div className="mt-4 text-center text-[13px] font-medium text-ink-soft">
-        最低下单金额 ${MIN_POLYMARKET_ORDER_AMOUNT}
+        {t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })}
       </div>
       <MobileQuickAmounts />
       <Button
@@ -332,13 +348,14 @@ function MobileDrawerContent() {
         onPress={submitOrder}
         className="mt-8 h-16 w-full rounded-[18px] bg-sky-500 text-[18px] font-semibold text-white shadow-[inset_0_-8px_0_rgba(0,0,0,0.14)] disabled:opacity-60"
       >
-        {isSubmitting ? '提交中...' : slippageConfirmed ? '确认滑点并交易' : '交易'}
+        {isSubmitting ? t('orderPanel.submitting') : slippageConfirmed ? t('orderPanel.confirmSlippage') : t('orderPanel.trade')}
       </Button>
     </div>
   )
 }
 
 export function MobileOrderDrawer() {
+  const { t } = useTranslation()
   const { activeSelection, isPanelOpen, closePanel } = useOrderStore()
 
   return (
@@ -347,7 +364,7 @@ export function MobileOrderDrawer() {
         <>
           <motion.button
             type="button"
-            aria-label="关闭下单抽屉"
+            aria-label={t('orderPanel.closeDrawer')}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

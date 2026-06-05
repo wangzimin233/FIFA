@@ -1,13 +1,20 @@
 import { useAppKit } from '@reown/appkit/react'
 import { AnimatePresence } from 'motion/react'
 import { motion } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { GlobeIcon } from '../components/icons'
 import {
   loadInviteCodeFromSession,
   saveInviteCodeToSession,
 } from '../features/wallet-auth/storage'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
+
+const languageOptions = [
+  { code: 'zh', labelKey: 'language.options.zh' },
+  { code: 'en', labelKey: 'language.options.en' },
+] as const
 
 function UserGlyph() {
   return (
@@ -35,6 +42,7 @@ function InviteCodeDialog({
   onConfirm: (inviteCode: string) => void
   onSkip: () => void
 }) {
+  const { t } = useTranslation()
   const [inviteCode, setInviteCode] = useState(() => initialInviteCode ?? '')
   const [validationMessage, setValidationMessage] = useState('')
 
@@ -55,15 +63,19 @@ function InviteCodeDialog({
             className="w-full max-w-md rounded-[24px] border border-white/10 bg-[#171918] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.45)]"
           >
             <div className="font-mono text-[10px] uppercase tracking-[0.26em] text-brand">
-              Invite
+              {t('layout.invite.eyebrow')}
             </div>
-            <h2 className="mt-2 text-[22px] font-semibold tracking-tight text-ink">补充邀请码</h2>
+            <h2 className="mt-2 text-[22px] font-semibold tracking-tight text-ink">
+              {t('layout.invite.title')}
+            </h2>
             <p className="mt-2 text-[13px] leading-6 text-ink-soft">
-              当前钱包还未注册。邀请码可以填写，也可以直接跳过；跳过后将不传这个参数。
+              {t('layout.invite.description')}
             </p>
 
             <label className="mt-4 block">
-              <span className="mb-2 block text-[12px] font-medium text-ink-soft">邀请码（可选）</span>
+              <span className="mb-2 block text-[12px] font-medium text-ink-soft">
+                {t('layout.invite.codeLabel')}
+              </span>
               <input
                 value={inviteCode}
                 onChange={(event) => {
@@ -72,7 +84,7 @@ function InviteCodeDialog({
                     setValidationMessage('')
                   }
                 }}
-                placeholder="例如 ROOT01"
+                placeholder={t('layout.invite.placeholder')}
                 className="h-11 w-full rounded-[16px] border border-white/10 bg-white/[0.04] px-3 text-[14px] text-ink outline-none transition placeholder:text-ink-soft/60 focus:border-brand/30"
               />
             </label>
@@ -87,14 +99,14 @@ function InviteCodeDialog({
                 disabled={isSubmitting}
                 className="inline-flex h-11 items-center justify-center rounded-[16px] border border-white/10 bg-white/[0.04] text-[13px] font-semibold text-ink-soft transition hover:border-white/16 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
               >
-                跳过
+                {t('layout.invite.skip')}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   const normalizedInviteCode = inviteCode.trim().toUpperCase()
                   if (!normalizedInviteCode) {
-                    setValidationMessage('请输入邀请码后继续注册，或点击跳过。')
+                    setValidationMessage(t('layout.invite.validationRequired'))
                     return
                   }
 
@@ -103,7 +115,7 @@ function InviteCodeDialog({
                 disabled={isSubmitting}
                 className="inline-flex h-11 items-center justify-center rounded-[16px] border border-brand/20 bg-brand text-[13px] font-semibold text-black transition hover:bg-[#19ff53] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? '注册中...' : '继续注册'}
+                {isSubmitting ? t('layout.invite.submitting') : t('layout.invite.continue')}
               </button>
             </div>
           </motion.div>
@@ -113,8 +125,109 @@ function InviteCodeDialog({
   )
 }
 
+function LanguageSwitcher() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
+  const [isOpen, setIsOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const currentLanguage = i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'zh'
+  const currentLanguageLabel = t(`language.options.${currentLanguage}`)
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [isOpen])
+
+  const selectLanguage = (language: (typeof languageOptions)[number]['code']) => {
+    const search = new URLSearchParams(location.search)
+    search.set('lng', language)
+    void i18n.changeLanguage(language)
+    navigate(
+      {
+        pathname: location.pathname,
+        search: `?${search.toString()}`,
+      },
+      { replace: true },
+    )
+    setIsOpen(false)
+  }
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((value) => !value)}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        aria-label={t('language.label')}
+        className={[
+          'inline-flex h-9 items-center justify-center gap-1.5 rounded-[15px] border px-2.5 text-[11px] font-semibold transition sm:h-10 sm:px-3',
+          isOpen
+            ? 'border-brand/30 bg-brand/12 text-brand shadow-[0_10px_24px_rgba(0,255,65,0.12)]'
+            : 'border-white/10 bg-white/[0.04] text-ink-soft hover:border-white/16 hover:text-ink',
+        ].join(' ')}
+      >
+        <GlobeIcon className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+        <span className="hidden sm:inline">{currentLanguageLabel}</span>
+        <span aria-hidden="true" className="hidden text-[10px] leading-none text-current/75 sm:inline">
+          ▾
+        </span>
+      </button>
+
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.14, ease: 'easeOut' }}
+            className="absolute right-0 top-[calc(100%+8px)] z-[70] w-40 overflow-hidden rounded-[18px] border border-white/10 bg-[#171918] p-1.5 shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
+            role="listbox"
+            aria-label={t('language.label')}
+          >
+            {languageOptions.map((option) => {
+              const isSelected = option.code === currentLanguage
+
+              return (
+                <button
+                  key={option.code}
+                  type="button"
+                  onClick={() => selectLanguage(option.code)}
+                  role="option"
+                  aria-selected={isSelected}
+                  className={[
+                    'flex h-10 w-full items-center justify-between rounded-[13px] px-3 text-left text-[12px] font-semibold transition',
+                    isSelected
+                      ? 'bg-brand/12 text-brand'
+                      : 'text-ink-soft hover:bg-white/[0.05] hover:text-ink',
+                  ].join(' ')}
+                >
+                  <span>{t(option.labelKey)}</span>
+                  {isSelected ? <span className="text-[13px] leading-none">✓</span> : null}
+                </button>
+              )
+            })}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  )
+}
+
 export function RootLayout() {
   const location = useLocation()
+  const { t } = useTranslation()
   const { open } = useAppKit()
   const {
     error,
@@ -178,6 +291,8 @@ export function RootLayout() {
           </NavLink>
 
           <div className="flex items-center gap-2 sm:gap-2.5">
+            <LanguageSwitcher />
+
             <button
               type="button"
               onClick={() => {
@@ -210,7 +325,7 @@ export function RootLayout() {
                     : 'border-white/10 bg-white/[0.04] hover:border-white/16 hover:text-ink',
                 ].join(' ')
               }
-              aria-label="个人中心"
+              aria-label={t('profile.title')}
             >
               <UserGlyph />
             </NavLink>

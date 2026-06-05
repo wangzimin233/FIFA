@@ -12,6 +12,7 @@
     "viewWallet": "View wallet info",
     "disconnectWallet": "Disconnect wallet",
     "close": "Close",
+    "back": "Back",
     "showWallet": "Show wallet panel",
     "hideWallet": "Hide wallet panel",
     "learnMore": "View more"
@@ -61,6 +62,419 @@
       "i18n": "Language display is supported.",
       "state": "Keep your current selections.",
       "motion": "Interactions feel smoother."
+    }
+  },
+  "common": {
+    "loadingMore": "Loading more...",
+    "refreshing": "Refreshing...",
+    "endReached": "You've reached the end"
+  },
+  "language": {
+    "label": "Switch language",
+    "options": {
+      "zh": "中文",
+      "en": "English"
+    }
+  },
+  "home": {
+    "banner": {
+      "title": "World Cup 2026",
+      "description": "Live World Cup predictions and odds."
+    },
+    "tabs": {
+      "matches": "Matches",
+      "markets": "Markets"
+    }
+  },
+  "layout": {
+    "invite": {
+      "eyebrow": "Invite",
+      "title": "Add invite code",
+      "description": "This wallet is not registered yet. You can enter an invite code or skip it; skipping will omit this parameter.",
+      "codeLabel": "Invite code (optional)",
+      "placeholder": "e.g. ROOT01",
+      "skip": "Skip",
+      "continue": "Continue registration",
+      "submitting": "Registering...",
+      "validationRequired": "Enter an invite code to continue registration, or click Skip."
+    }
+  },
+  "markets": {
+    "types": {
+      "moneyline": "Moneyline",
+      "spread": "Spread",
+      "total": "Total",
+      "totalShort": "Total"
+    },
+    "outcomes": {
+      "home": "Home",
+      "draw": "Draw",
+      "away": "Away",
+      "over": "Over",
+      "under": "Under",
+      "yes": "Yes",
+      "no": "No"
+    }
+  },
+  "matchList": {
+    "loading": "Loading match list...",
+    "error": "Failed to load match list. Please try again later.",
+    "matchView": "Match view",
+    "empty": "No match data yet",
+    "scrollForMore": "Scroll down to load more",
+    "allLoaded": "All matches loaded"
+  },
+  "marketGrid": {
+    "odds": "Odds",
+    "loading": "Loading market list...",
+    "error": "Failed to load market list. Please try again later.",
+    "empty": "No market data yet.",
+    "showMore": "Show more markets"
+  },
+  "matchDetail": {
+    "loading": "Loading match details...",
+    "error": "Failed to load match details. Please try again later.",
+    "notFound": "No matching match details found.",
+    "emptyData": "No related data yet.",
+    "tabs": {
+      "markets": "Match markets",
+      "exact": "Exact score",
+      "halftime": "Halftime result"
+    },
+    "sections": {
+      "exactScore": "Exact score",
+      "halftime": "Halftime result",
+      "context": "Match background"
+    },
+    "exact": {
+      "loading": "Loading exact scores...",
+      "error": "Failed to load exact scores. Please try again later."
+    },
+    "halftime": {
+      "loading": "Loading halftime result...",
+      "error": "Failed to load halftime result. Please try again later."
+    }
+  },
+  "marketDetail": {
+    "loading": "Loading market details...",
+    "error": "Failed to load market details. Please try again later.",
+    "notFound": "No matching market details found."
+  },
+  "orderPanel": {
+    "amountLabel": "Amount",
+    "amountInputLabel": "Enter amount",
+    "toWin": "To win",
+    "minAmount": "Minimum order amount {{amount}}",
+    "unsupportedMarket": "This market does not support orders yet",
+    "unsupportedOrder": "Orders unsupported",
+    "submitting": "Submitting...",
+    "confirmSlippage": "Confirm slippage and trade",
+    "trade": "Trade",
+    "currentOrder": "Current order",
+    "emptyEyebrow": "No selection",
+    "emptyTitle": "Order panel",
+    "emptyDescription": "Choose a moneyline, spread, or total market from the match list. The panel will sync to the selected market template.",
+    "closeDrawer": "Close order drawer"
+  },
+  "orderErrors": {
+    "selectMarket": "Please select a market first.",
+    "unsupportedMarket": "This market does not support orders yet.",
+    "invalidAmount": "Enter a valid order amount.",
+    "minAmount": "Minimum order amount is {{amount}}.",
+    "missingEventSlug": "This market is missing eventSlug and cannot submit an order.",
+    "missingMarketSlug": "This market is missing marketSlug and cannot submit an order.",
+    "missingConditionId": "This market is missing market conditionId and cannot submit an order.",
+    "invalidConditionId": "This market conditionId is invalid and cannot submit an order.",
+    "missingGammaMarketId": "This market is missing Gamma marketId and cannot submit an order.",
+    "missingTokenId": "This market is missing tokenId and cannot submit an order.",
+    "submitted": "Order submitted",
+    "submitFailed": "Failed to submit order.",
+    "slippageExceeded": "Price slippage exceeded the threshold. Click again to confirm the trade.",
+    "submitRetry": "Failed to submit order. Please try again later."
+  },
+  "dataLabels": {
+    "tbd": "TBD",
+    "timeTbd": "Time TBD",
+    "inProgressOrEnded": "In progress or ended",
+    "countdown": "{{days}}d {{hours}}h",
+    "volume": "{{value}} volume",
+    "sampleHeaderDate": "June 12"
+  },
+  "profile": {
+    "title": "Profile",
+    "walletHint": "Connect a wallet to manage assets",
+    "auth": {
+      "completeLogin": "Complete wallet login"
+    },
+    "connection": {
+      "disconnected": "Disconnected",
+      "loggedIn": "Logged in",
+      "pendingLogin": "Login pending",
+      "walletStatus": "Wallet status",
+      "disconnectedMessage": "No wallet connected yet. Connect one to view account, assets, deposits, withdrawals, and records.",
+      "pendingLoginMessage": "Wallet connected. Complete signature login to view assets and fund records."
+    },
+    "account": {
+      "error": "Failed to load account info. Please try again later.",
+      "unavailable": "Current account info is unavailable. Please try again later."
+    },
+    "fundsConfig": {
+      "loading": "Loading fund config...",
+      "error": "Failed to load fund config. Please try again later."
+    },
+    "count": {
+      "items": "{{count}} items",
+      "people": "{{count}} people"
+    },
+    "filters": {
+      "all": "All"
+    },
+    "status": {
+      "success": "Success",
+      "failed": "Failed",
+      "submitted": "Submitted",
+      "pendingPaymentOrder": "Pending payment",
+      "pendingReview": "Pending review",
+      "pendingPayment": "Pending payout",
+      "processing": "Processing",
+      "rejected": "Rejected",
+      "canceled": "Canceled",
+      "abnormal": "Abnormal",
+      "completed": "Completed",
+      "normal": "Normal",
+      "disabled": "Disabled",
+      "flowError": "Flow error",
+      "withValue": "Status {{status}}"
+    },
+    "userTypes": {
+      "node": "Node user",
+      "normal": "Standard user",
+      "withValue": "Type {{type}}"
+    },
+    "limits": {
+      "unlimited": "Unlimited"
+    },
+    "fields": {
+      "network": "Network",
+      "coin": "Coin",
+      "amount": "Amount",
+      "minAmount": "Minimum amount",
+      "availableBalance": "Available balance",
+      "fee": "Fee",
+      "limit": "Limit",
+      "walletAddress": "Wallet address",
+      "inviteCode": "Invite code",
+      "authType": "Login method",
+      "txReceipt": "Transaction receipt",
+      "apply": "Applied",
+      "received": "Received",
+      "receiveAddress": "Receive address",
+      "rejectReason": "Reject reason",
+      "price": "Price",
+      "filled": "Filled",
+      "side": "Side",
+      "quantity": "Quantity",
+      "filledQuantity": "Filled quantity",
+      "commission": "Commission",
+      "updatedAt": "Updated at",
+      "errorReason": "Error reason",
+      "chain": "Chain",
+      "registeredAt": "Registered",
+      "remark": "Remark"
+    },
+    "form": {
+      "amountPlaceholder": "Enter USDT amount",
+      "minPlaceholder": "Minimum {{amount}}",
+      "fillMin": "Fill minimum amount",
+      "quickFill": "Quick fill {{amount}}",
+      "fillAllAvailable": "Fill all available"
+    },
+    "balance": {
+      "availableBscUsdt": "BSC-USDT available balance",
+      "total": "Total balance",
+      "frozen": "Frozen balance",
+      "totalDeposit": "Total deposits",
+      "totalWithdraw": "Total withdrawals"
+    },
+    "deposit": {
+      "title": "BSC USDT Deposit",
+      "action": "Deposit",
+      "amount": "Deposit amount",
+      "minDeposit": "Minimum deposit",
+      "historyTitle": "Deposit history",
+      "rules": "Deposit rules",
+      "lastReceipt": "Latest deposit receipt",
+      "retryCallback": "Notify backend again",
+      "status": {
+        "idle": "Not started",
+        "switchingNetwork": "Switching network",
+        "creatingOrder": "Creating order",
+        "approving": "Approving token",
+        "submitting": "Submitting deposit",
+        "confirming": "Waiting for confirmation",
+        "callbackPending": "Notifying backend",
+        "success": "Deposit successful"
+      },
+      "buttons": {
+        "switchingNetwork": "Switching to BSC...",
+        "creatingOrder": "Creating order...",
+        "approving": "Approving USDT...",
+        "submitting": "Submitting deposit...",
+        "confirming": "Confirming on chain...",
+        "callbackPending": "Processing callback...",
+        "continue": "Deposit again",
+        "retry": "Retry deposit",
+        "confirm": "Confirm deposit"
+      }
+    },
+    "withdraw": {
+      "title": "BSC USDT Withdrawal",
+      "action": "Withdraw",
+      "amount": "Withdrawal amount",
+      "minWithdraw": "Minimum withdrawal",
+      "maxWithdraw": "Maximum withdrawal",
+      "historyTitle": "Withdrawal history",
+      "rules": "Withdrawal rules",
+      "status": {
+        "applying": "Applying withdrawal",
+        "success": "Pending review"
+      },
+      "buttons": {
+        "applying": "Applying withdrawal...",
+        "continue": "Withdraw again",
+        "retry": "Retry withdrawal",
+        "confirm": "Confirm withdrawal"
+      }
+    },
+    "identity": {
+      "title": "Account identity"
+    },
+    "invite": {
+      "noLink": "No invite link yet",
+      "copied": "Invite link copied",
+      "copyFailed": "Copy failed. Please copy manually.",
+      "copying": "Copying...",
+      "copy": "Copy invite link"
+    },
+    "orders": {
+      "title": "Order history",
+      "loginRequired": "Complete wallet login to view orders.",
+      "error": "Failed to load orders. Please try again later.",
+      "empty": "No orders yet."
+    },
+    "history": {
+      "loginRequired": "Complete wallet login to view records.",
+      "error": "Failed to load records. Please try again later.",
+      "empty": "No records yet."
+    },
+    "relation": {
+      "title": "Invite relation",
+      "directCount": "Direct invites",
+      "umbrellaCount": "Total umbrella users",
+      "error": "Failed to load invite data. Please try again later.",
+      "openList": "Open {{label}} list",
+      "directListTitle": "Direct invite list",
+      "umbrellaListTitle": "Umbrella user list",
+      "directEmpty": "No direct invite users yet.",
+      "umbrellaEmpty": "No umbrella users yet.",
+      "directError": "Failed to load direct invite list. Please try again later.",
+      "umbrellaError": "Failed to load umbrella user list. Please try again later.",
+      "directLoginRequired": "Complete wallet login to view direct invite users.",
+      "umbrellaLoginRequired": "Complete wallet login to view umbrella users.",
+      "walletSearch": "Wallet address search",
+      "searchSettling": "Waiting for input...",
+      "searchPlaceholder": "Enter wallet address fragment"
+    },
+    "rewards": {
+      "title": "Reward records",
+      "description": "View credited direct invite and node reward details.",
+      "viewRecords": "View reward records",
+      "direct": "Direct invite reward",
+      "node": "Node reward",
+      "loginRequired": "Complete wallet login to view reward records.",
+      "error": "Failed to load reward records. Please try again later.",
+      "empty": "No reward records yet."
+    }
+  },
+  "walletAuth": {
+    "success": {
+      "login": "Wallet login successful"
+    },
+    "buttons": {
+      "signing": "Requesting signature...",
+      "loggingOut": "Logging out...",
+      "loggingIn": "Logging in...",
+      "retryLogin": "Retry login",
+      "completeLogin": "Complete login"
+    },
+    "errors": {
+      "timeout": "Wallet authentication timed out. Please try again later.",
+      "serviceUnavailable": "Backend authentication service is temporarily unavailable. Please try again later.",
+      "failed": "Wallet authentication failed. Please try again.",
+      "missingToken": "Backend did not return a token, so a session cannot be created.",
+      "invalidSignature": "Wallet did not return a valid signature. Please try again.",
+      "unsupportedNetwork": "Only BSC wallet network is supported. Please switch networks and try again.",
+      "loginNoData": "Wallet login returned no valid data. Please try again later.",
+      "unregisteredExpiredSignature": "Backend returned unregistered, but the current signature has expired. Click Connect wallet again and retry.",
+      "registrationExpiredSignature": "Registration signature expired. Click Connect wallet again and retry.",
+      "registerNoData": "Wallet registration returned no valid data. Please try again later.",
+      "loginRequired": "Please log in first",
+      "connectFirst": "Please connect a wallet first."
+    }
+  },
+  "walletProvider": {
+    "previousWallet": "previous wallet",
+    "errors": {
+      "conflict": "Multiple wallet extensions were detected and may compete for the same transaction. Use Connect wallet to choose the wallet you want and complete login; the system will bind that wallet before deposits or withdrawals.",
+      "duplicateProviderConflict": "Browser wallet Provider conflict detected. Temporarily disable unused wallet extensions, or keep only MetaMask / TokenPocket enabled, then refresh and try again.",
+      "notEvmProvider": "The selected wallet is not an EVM wallet Provider. Reconnect a BSC wallet and try again.",
+      "boundProviderMissing": "The current session is bound to {{provider}}, but the browser cannot find the same Provider. Disconnect and reconnect that wallet, then try again.",
+      "noMatchingProvider": "No wallet Provider matching the connected address was found. Reconnect your wallet and try again.",
+      "noMatchingProviderRefresh": "No wallet Provider matching the logged-in address was found. Refresh the page and reconnect the current wallet.",
+      "missingProvider": "No wallet Provider is currently available. Reconnect your wallet and try again.",
+      "invalidTxHash": "Wallet did not return a valid transaction hash."
+    }
+  },
+  "deposit": {
+    "success": {
+      "completed": "Deposit successful"
+    },
+    "errors": {
+      "invalidSignature": "Deposit signature validation failed. Ask the backend to confirm the signature content and contract signing rules match exactly.",
+      "invalidParam": "Deposit parameter validation failed. Check whether order number, amount, and signature match contract requirements.",
+      "orderIdUsed": "This order ID has already been used. Create a new deposit order and try again.",
+      "insufficientBalance": "Wallet USDT balance is insufficient for this deposit.",
+      "contractReverted": "Deposit contract reverted: {{errorName}}",
+      "failed": "Deposit failed. Please try again later.",
+      "callbackPending": "The on-chain deposit transaction succeeded, but backend credit confirmation is not complete yet: {{message}}. Click \"Notify backend again\" later, and do not submit the same deposit again.",
+      "orderIdPrecision": "Order ID precision is invalid. Ask the backend to return it as a string and try again.",
+      "receiptReverted": "Deposit transaction was submitted on chain but failed to execute. USDT was not deposited; check the transaction details.",
+      "callbackNoData": "Deposit callback returned no valid data.",
+      "backendNotProcessed": "Backend has not completed credit processing yet.",
+      "loginFirst": "Complete wallet login before depositing.",
+      "walletClientNotReady": "Wallet client is not ready. Please try again later.",
+      "configLoading": "Deposit config is loading. Please try again later.",
+      "missingUsdtAddress": "BSC USDT contract address was not found. Refresh and try again.",
+      "invalidAmount": "Enter a valid deposit amount.",
+      "minAmount": "Current minimum deposit amount is {{amount}} USDT.",
+      "createOrderFailed": "Failed to create deposit order.",
+      "invalidContractAddress": "Backend did not return a valid deposit contract address.",
+      "invalidBackendSignature": "Backend did not return a valid deposit signature."
+    }
+  },
+  "withdraw": {
+    "success": {
+      "submitted": "Withdrawal request submitted and pending review"
+    },
+    "errors": {
+      "failed": "Withdrawal request failed. Please try again later.",
+      "loginFirst": "Complete wallet login before withdrawing.",
+      "configLoading": "Withdrawal config is loading. Please try again later.",
+      "invalidAmount": "Enter a valid withdrawal amount.",
+      "minAmount": "Current minimum withdrawal amount is {{amount}} USDT.",
+      "maxAmount": "Current maximum withdrawal amount is {{amount}} USDT.",
+      "exceedsBalance": "Withdrawal amount cannot exceed the current available balance.",
+      "applyFailed": "Failed to apply withdrawal."
     }
   }
 }
