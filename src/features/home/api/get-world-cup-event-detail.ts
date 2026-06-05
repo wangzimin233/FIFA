@@ -13,6 +13,7 @@ import {
   getYesNoPrices,
   getOrderMarketMetadata,
   hasMarketType,
+  isZhLanguage,
   normalizeGame,
   type WorldCupGameEvent,
   type WorldCupGameTeam,
@@ -278,9 +279,12 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
     return undefined
   }
 
+  const titleZh = event.titleZh?.trim()
+  const titleEn = event.title?.trim()
+
   return {
     id: String(event.id),
-    title: event.title ?? 'Halftime Result',
+    title: isZhLanguage(language) ? titleZh || titleEn || 'Halftime Result' : titleEn || titleZh || 'Halftime Result',
     volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(event.markets), language),
     outcomes,
   }

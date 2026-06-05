@@ -774,7 +774,7 @@ export function MatchDetailPage() {
                   </p>
                 </div>
                 <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                  {halftimeResult.outcomes.map((outcome) => {
+                  {halftimeResult.outcomes.map((outcome, outcomeIndex) => {
                     const isActive =
                       isCurrentMatchSelection &&
                       activeSelection?.template === 'winner' &&
@@ -825,7 +825,7 @@ export function MatchDetailPage() {
                           outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
                         ].join(' ')}
                       >
-                        {outcome.shortLabel}{' '}
+                        {getWinnerOutcomeDisplayLabel(outcomeIndex, t)}{' '}
                         <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
                       </button>
                     )
