@@ -998,9 +998,8 @@ function RewardRecordRow({ item }: { item: WalletRewardPageItem }) {
           <div className="mt-1 text-[11px] text-ink-soft">{resolveRewardBizType(item.bizType, item.bizTypeName)}</div>
         </div>
       </div>
-      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
+      <div className="mt-3 grid gap-2 text-[12px] text-ink-soft">
         <span>{t('profile.fields.coin')}: <b className="font-semibold text-ink">{item.coinCode || '--'}</b></span>
-        <span>{t('profile.fields.remark')}: <b className="font-semibold text-ink">{item.remark || '--'}</b></span>
       </div>
     </div>
   )
