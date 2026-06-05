@@ -97,6 +97,14 @@ function resolveSelectionDisplayPrice(selection: MarketSelection) {
       }
 }
 
+export function getActiveSelectionDisplayPrice(
+  selection: MarketSelection,
+  priceByAssetId: Record<string, number>,
+) {
+  const target = resolveSelectionDisplayPrice(selection)
+  return getDisplayPrice(priceByAssetId, target.assetId, target.fallbackPrice)
+}
+
 export function useDisplayPrice(assetId: string | undefined, fallbackPrice: number) {
   return usePolymarketPriceStore((state) => getDisplayPrice(state.displayPriceByAssetId, assetId, fallbackPrice))
 }
@@ -107,8 +115,7 @@ export function useActiveSelectionPrice(selection: MarketSelection | null | unde
       return null
     }
 
-    const target = resolveSelectionDisplayPrice(selection)
-    return getDisplayPrice(state.displayPriceByAssetId, target.assetId, target.fallbackPrice)
+    return getActiveSelectionDisplayPrice(selection, state.displayPriceByAssetId)
   })
 }
 

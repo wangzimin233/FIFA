@@ -3,6 +3,8 @@ import { useMutation } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { queryClient } from '../../config/query-client'
 import i18n from '../../config/i18n'
+import { getActiveSelectionDisplayPrice } from '../market-realtime/price-utils'
+import { usePolymarketPriceStore } from '../market-realtime/polymarket-price-store'
 import { createPolymarketOrder, type PolymarketCreateOrderRequest } from './api/polymarket-orders'
 import { type MarketSelection, useOrderStore } from './order-store'
 
@@ -23,6 +25,7 @@ type OrderTarget = {
 }
 
 export const MIN_POLYMARKET_ORDER_AMOUNT = 2
+export const MIN_ORDER_DECIMAL_ODDS = 1
 
 function getFallbackText(value: string | undefined, fallback: string) {
   const trimmed = value?.trim()
@@ -196,6 +199,7 @@ function isConditionId(value: string) {
 export function buildPolymarketOrderPayload(
   selection: MarketSelection | null,
   amount: number,
+  displayPriceByAssetId: Record<string, number> = {},
 ): PolymarketCreateOrderRequest {
   if (!selection) {
     throw new Error(i18n.t('orderErrors.selectMarket'))
@@ -204,6 +208,10 @@ export function buildPolymarketOrderPayload(
   const target = resolveOrderTarget(selection)
   if (target.acceptingOrders !== true) {
     throw new Error(i18n.t('orderErrors.unsupportedMarket'))
+  }
+
+  if (getActiveSelectionDisplayPrice(selection, displayPriceByAssetId) < MIN_ORDER_DECIMAL_ODDS) {
+    throw new Error(i18n.t('orderErrors.oddsTooLow', { odds: MIN_ORDER_DECIMAL_ODDS }))
   }
 
   if (!Number.isFinite(amount) || amount <= 0) {
@@ -259,7 +267,12 @@ export function buildPolymarketOrderPayload(
 export function useSubmitPolymarketOrder() {
   const [slippageConfirmation, setSlippageConfirmation] = useState({ key: '', confirmed: false })
   const { activeSelection, amount } = useOrderStore()
+  const displayPriceByAssetId = usePolymarketPriceStore((state) => state.displayPriceByAssetId)
   const isAcceptingOrders = isSelectionAcceptingOrders(activeSelection)
+  const activeDisplayPrice = activeSelection
+    ? getActiveSelectionDisplayPrice(activeSelection, displayPriceByAssetId)
+    : null
+  const isOddsAllowed = activeDisplayPrice === null || activeDisplayPrice >= MIN_ORDER_DECIMAL_ODDS
   const orderKey = useMemo(() => {
     if (!activeSelection) {
       return ''
@@ -300,19 +313,20 @@ export function useSubmitPolymarketOrder() {
 
   const payload = useMemo(() => {
     try {
-      return buildPolymarketOrderPayload(activeSelection, amount)
+      return buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId)
     } catch {
       return null
     }
-  }, [activeSelection, amount])
+  }, [activeSelection, amount, displayPriceByAssetId])
 
   const submitOrder = useCallback(() => {
-    const nextPayload = buildPolymarketOrderPayload(activeSelection, amount)
+    const nextPayload = buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId)
     mutation.mutate(nextPayload)
-  }, [activeSelection, amount, mutation])
+  }, [activeSelection, amount, displayPriceByAssetId, mutation])
 
   return {
-    canSubmit: isAcceptingOrders && !!payload && !mutation.isPending,
+    canSubmit: isAcceptingOrders && isOddsAllowed && !!payload && !mutation.isPending,
+    isOddsAllowed,
     isAcceptingOrders,
     isSubmitting: mutation.isPending,
     slippageConfirmed,

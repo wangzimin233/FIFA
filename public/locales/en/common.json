@@ -187,6 +187,7 @@
     "invalidConditionId": "This market conditionId is invalid and cannot submit an order.",
     "missingGammaMarketId": "This market is missing Gamma marketId and cannot submit an order.",
     "missingTokenId": "This market is missing tokenId and cannot submit an order.",
+    "oddsTooLow": "Current odds are below {{odds}} and cannot be traded.",
     "submitted": "Order submitted",
     "submitFailed": "Failed to submit order.",
     "slippageExceeded": "Price slippage exceeded the threshold. Click again to confirm the trade.",

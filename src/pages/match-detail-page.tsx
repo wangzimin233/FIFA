@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -101,6 +101,7 @@ export function MatchDetailPage() {
   const language = i18n.resolvedLanguage ?? i18n.language
   const state = location.state as MatchDetailLocationState | null
   const [tab, setTab] = useState<MatchDetailTab>('markets')
+  const defaultSelectionKeyRef = useRef('')
   const {
     activeSelection,
     selectWinner,
@@ -178,17 +179,108 @@ export function MatchDetailPage() {
       return
     }
 
-    const currentMatchSelected =
-      activeSelection?.contextType === 'match' && activeSelection.matchId === detail.match.id
-
-    if (!currentMatchSelected) {
+    if (tab === 'markets') {
       const defaultOutcome = detail.match.winnerMarket.outcomes[0]
+      const defaultSelectionKey = `${detail.match.id}:markets:${defaultOutcome?.id ?? ''}`
 
-      if (defaultOutcome) {
-        selectWinner(detail.match, defaultOutcome, 'yes', { openPanel: false })
+      if (!defaultOutcome || defaultSelectionKeyRef.current === defaultSelectionKey) {
+        return
       }
+
+      defaultSelectionKeyRef.current = defaultSelectionKey
+      selectWinner(detail.match, defaultOutcome, 'yes', { openPanel: false })
+      return
     }
-  }, [activeSelection, detail, selectWinner])
+
+    if (tab === 'exact') {
+      const defaultExactScore = exactScores[0]
+      const defaultSelectionKey = `${detail.match.id}:exact:${defaultExactScore?.id ?? ''}`
+
+      if (!defaultExactScore || defaultSelectionKeyRef.current === defaultSelectionKey) {
+        return
+      }
+
+      defaultSelectionKeyRef.current = defaultSelectionKey
+      selectProposition(
+        {
+          contextType: 'match',
+          sourceTab: 'matches',
+          matchId: detail.match.id,
+          eventSlug: defaultExactScore.eventSlug ?? detail.match.slug,
+          marketId: defaultExactScore.marketId ?? defaultExactScore.id,
+          marketSlug: defaultExactScore.marketSlug,
+          conditionId: defaultExactScore.conditionId,
+          acceptingOrders: defaultExactScore.acceptingOrders,
+          negRisk: defaultExactScore.negRisk,
+          eventTitle: defaultExactScore.eventTitle,
+          eventTitleZh: defaultExactScore.eventTitleZh,
+          marketTitle: defaultExactScore.marketTitle,
+          marketTitleZh: defaultExactScore.marketTitleZh,
+          yesOutcomeTitle: defaultExactScore.yesOutcomeTitle,
+          noOutcomeTitle: defaultExactScore.noOutcomeTitle,
+          yesOutcomeTitleZh: defaultExactScore.yesOutcomeTitleZh,
+          noOutcomeTitleZh: defaultExactScore.noOutcomeTitleZh,
+          title: detail.match.matchup,
+          badge: defaultExactScore.badge,
+          badgeLogo: defaultExactScore.badgeLogo,
+          subject: defaultExactScore.subject,
+          shortLabel: defaultExactScore.shortLabel,
+          yesPrice: defaultExactScore.yesPrice,
+          noPrice: defaultExactScore.noPrice,
+          yesOrderPrice: defaultExactScore.yesOrderPrice,
+          noOrderPrice: defaultExactScore.noOrderPrice,
+          yesAssetId: defaultExactScore.yesAssetId,
+          noAssetId: defaultExactScore.noAssetId,
+          activeSide: 'yes',
+        },
+        { openPanel: false },
+      )
+      return
+    }
+
+    const defaultHalftimeOutcome = halftimeResult?.outcomes[0]
+    const defaultSelectionKey = `${detail.match.id}:halftime:${defaultHalftimeOutcome?.id ?? ''}`
+
+    if (!defaultHalftimeOutcome || defaultSelectionKeyRef.current === defaultSelectionKey) {
+      return
+    }
+
+    defaultSelectionKeyRef.current = defaultSelectionKey
+    selectProposition(
+      {
+        contextType: 'match',
+        sourceTab: 'matches',
+        matchId: detail.match.id,
+        eventSlug: defaultHalftimeOutcome.eventSlug ?? detail.match.slug,
+        marketId: defaultHalftimeOutcome.marketId ?? defaultHalftimeOutcome.id,
+        marketSlug: defaultHalftimeOutcome.marketSlug,
+        conditionId: defaultHalftimeOutcome.conditionId,
+        acceptingOrders: defaultHalftimeOutcome.acceptingOrders,
+        negRisk: defaultHalftimeOutcome.negRisk,
+        eventTitle: defaultHalftimeOutcome.eventTitle,
+        eventTitleZh: defaultHalftimeOutcome.eventTitleZh,
+        marketTitle: defaultHalftimeOutcome.marketTitle,
+        marketTitleZh: defaultHalftimeOutcome.marketTitleZh,
+        yesOutcomeTitle: defaultHalftimeOutcome.yesOutcomeTitle,
+        noOutcomeTitle: defaultHalftimeOutcome.noOutcomeTitle,
+        yesOutcomeTitleZh: defaultHalftimeOutcome.yesOutcomeTitleZh,
+        noOutcomeTitleZh: defaultHalftimeOutcome.noOutcomeTitleZh,
+        title: detail.match.matchup,
+        badge: defaultHalftimeOutcome.badge,
+        badgeLogo: defaultHalftimeOutcome.badgeLogo,
+        subject: defaultHalftimeOutcome.subject,
+        shortLabel: defaultHalftimeOutcome.shortLabel,
+        yesPrice: defaultHalftimeOutcome.yesPrice,
+        noPrice: defaultHalftimeOutcome.noPrice,
+        yesOrderPrice: defaultHalftimeOutcome.yesOrderPrice,
+        noOrderPrice: defaultHalftimeOutcome.noOrderPrice,
+        yesAssetId: defaultHalftimeOutcome.yesAssetId,
+        noAssetId: defaultHalftimeOutcome.noAssetId,
+        activeSide: 'yes',
+      },
+      { openPanel: false },
+    )
+  }, [detail, exactScores, halftimeResult, selectProposition, selectWinner, tab])
 
   if (isLoading) {
     return (

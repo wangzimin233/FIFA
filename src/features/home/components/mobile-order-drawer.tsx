@@ -323,7 +323,7 @@ function MobileQuickAmounts() {
 function MobileDrawerContent() {
   const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
-  const { canSubmit, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
+  const { canSubmit, isOddsAllowed, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
 
   if (!activeSelection) {
     return null
@@ -342,7 +342,9 @@ function MobileDrawerContent() {
       )}
       <MobileComputedResult />
       <div className="mt-4 text-center text-[13px] font-medium text-ink-soft">
-        {t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })}
+        {isOddsAllowed
+          ? t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })
+          : t('orderErrors.oddsTooLow', { odds: 1 })}
       </div>
       <MobileQuickAmounts />
       <Button
@@ -350,7 +352,13 @@ function MobileDrawerContent() {
         onPress={submitOrder}
         className="mt-8 h-16 w-full rounded-[18px] bg-sky-500 text-[18px] font-semibold text-white shadow-[inset_0_-8px_0_rgba(0,0,0,0.14)] disabled:opacity-60"
       >
-        {isSubmitting ? t('orderPanel.submitting') : slippageConfirmed ? t('orderPanel.confirmSlippage') : t('orderPanel.trade')}
+        {isSubmitting
+          ? t('orderPanel.submitting')
+          : !isOddsAllowed
+            ? t('orderPanel.unsupportedOrder')
+            : slippageConfirmed
+              ? t('orderPanel.confirmSlippage')
+              : t('orderPanel.trade')}
       </Button>
     </div>
   )

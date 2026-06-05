@@ -98,7 +98,7 @@ function AmountSection() {
   const { t } = useTranslation()
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
-  const { canSubmit, isAcceptingOrders, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
+  const { canSubmit, isAcceptingOrders, isOddsAllowed, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
   const amountDisplay = useMemo(() => `$${amount}`, [amount])
   const amountTone = amount > 0 ? 'text-ink' : 'text-[#66758d]'
   const computedResult = useMemo(() => {
@@ -171,7 +171,9 @@ function AmountSection() {
       ) : null}
 
       <div className="mt-3 text-center text-[11px] font-medium text-ink-soft">
-        {isAcceptingOrders
+        {!isOddsAllowed
+          ? t('orderErrors.oddsTooLow', { odds: 1 })
+          : isAcceptingOrders
           ? t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })
           : t('orderPanel.unsupportedMarket')}
       </div>
@@ -185,7 +187,9 @@ function AmountSection() {
           ? t('orderPanel.submitting')
           : !isAcceptingOrders
             ? t('orderPanel.unsupportedOrder')
-            : slippageConfirmed
+            : !isOddsAllowed
+              ? t('orderPanel.unsupportedOrder')
+              : slippageConfirmed
               ? t('orderPanel.confirmSlippage')
               : t('orderPanel.trade')}
       </Button>

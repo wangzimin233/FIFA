@@ -187,6 +187,7 @@
     "invalidConditionId": "当前盘口 market 不是有效的 conditionId，无法提交订单。",
     "missingGammaMarketId": "当前盘口缺少 Gamma marketId，无法提交订单。",
     "missingTokenId": "当前盘口缺少 tokenId，无法提交订单。",
+    "oddsTooLow": "当前赔率低于 {{odds}}，不可下单。",
     "submitted": "订单已提交",
     "submitFailed": "提交订单失败。",
     "slippageExceeded": "价格滑点超过阈值，请再次点击确认交易。",
