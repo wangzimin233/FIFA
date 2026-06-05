@@ -9,11 +9,13 @@ type PolymarketPriceMessage = {
   asset_id?: string
   best_bid?: string | number
   best_ask?: string | number
+  decimalOdds?: string | number
   price_changes?: Array<{
     asset_id?: string
     price?: string | number
     best_bid?: string | number
     best_ask?: string | number
+    decimalOdds?: string | number
     timestamp?: string | number
   }>
   timestamp?: string
@@ -23,6 +25,7 @@ type PolymarketPriceMessage = {
 type PolymarketPriceState = {
   connectionStatus: ConnectionStatus
   priceByAssetId: Record<string, number>
+  displayPriceByAssetId: Record<string, number>
   requestedAssetIds: string[]
   subscribeAssets: (assetIds: string[]) => void
   unsubscribeAssets: (assetIds: string[]) => void
@@ -33,7 +36,15 @@ const PRICE_FLUSH_INTERVAL_MS = 16
 const assetSubscriberCounts = new Map<string, number>()
 const requestedAssetIds = new Set<string>()
 const latestPriceVersionByAssetId = new Map<string, { timestamp: number | null; sequence: number }>()
-const pendingPriceUpdates = new Map<string, { price: number; timestamp: number | null; sequence: number }>()
+const pendingPriceUpdates = new Map<
+  string,
+  {
+    orderPrice?: number
+    displayPrice?: number
+    timestamp: number | null
+    sequence: number
+  }
+>()
 let sentAssetIds = new Set<string>()
 let socket: WebSocket | null = null
 let reconnectTimer: number | null = null
@@ -188,6 +199,13 @@ function resolveRealtimePriceCents(payload: {
   return null
 }
 
+function resolveRealtimeDisplayPrice(payload: {
+  decimalOdds?: string | number
+}) {
+  const decimalOdds = parseDecimal(payload.decimalOdds)
+  return decimalOdds !== null && decimalOdds > 0 ? decimalOdds : null
+}
+
 function shouldApplyPriceUpdate(
   assetId: string,
   nextVersion: { timestamp: number | null; sequence: number },
@@ -224,7 +242,11 @@ function flushPendingPriceUpdates() {
         sequence: update.sequence,
       })
 
-      if (nextPriceByAssetId[assetId] === update.price) {
+      if (update.orderPrice === undefined) {
+        return
+      }
+
+      if (nextPriceByAssetId[assetId] === update.orderPrice) {
         return
       }
 
@@ -233,12 +255,33 @@ function flushPendingPriceUpdates() {
         hasPriceChanges = true
       }
 
-      nextPriceByAssetId[assetId] = update.price
+      nextPriceByAssetId[assetId] = update.orderPrice
     })
 
-    return hasPriceChanges
+    let nextDisplayPriceByAssetId = state.displayPriceByAssetId
+    let hasDisplayPriceChanges = false
+
+    updates.forEach(([assetId, update]) => {
+      if (update.displayPrice === undefined) {
+        return
+      }
+
+      if (nextDisplayPriceByAssetId[assetId] === update.displayPrice) {
+        return
+      }
+
+      if (!hasDisplayPriceChanges) {
+        nextDisplayPriceByAssetId = { ...state.displayPriceByAssetId }
+        hasDisplayPriceChanges = true
+      }
+
+      nextDisplayPriceByAssetId[assetId] = update.displayPrice
+    })
+
+    return hasPriceChanges || hasDisplayPriceChanges
       ? {
           priceByAssetId: nextPriceByAssetId,
+          displayPriceByAssetId: nextDisplayPriceByAssetId,
         }
       : state
   })
@@ -254,15 +297,23 @@ function schedulePriceFlush() {
 
 function queuePriceUpdate(
   assetId: string,
-  price: number,
+  update: {
+    orderPrice?: number
+    displayPrice?: number
+  },
   version: { timestamp: number | null; sequence: number },
 ) {
+  if (update.orderPrice === undefined && update.displayPrice === undefined) {
+    return
+  }
+
   if (!shouldApplyPriceUpdate(assetId, version)) {
     return
   }
 
   pendingPriceUpdates.set(assetId, {
-    price,
+    orderPrice: update.orderPrice,
+    displayPrice: update.displayPrice,
     timestamp: version.timestamp,
     sequence: version.sequence,
   })
@@ -274,14 +325,21 @@ function applyPriceChanges(message: PolymarketPriceMessage) {
 
   if (message.asset_id) {
     const assetId = message.asset_id.trim()
-    const price = resolveRealtimePriceCents({
+    const orderPrice = resolveRealtimePriceCents({
       price: message.price_changes?.[0]?.price,
       best_bid: message.best_bid,
       best_ask: message.best_ask,
     })
 
-    if (assetId && price !== null) {
-      queuePriceUpdate(assetId, price, {
+    const displayPrice = resolveRealtimeDisplayPrice({
+      decimalOdds: message.decimalOdds ?? message.price_changes?.[0]?.decimalOdds,
+    })
+
+    if (assetId && (orderPrice !== null || displayPrice !== null)) {
+      queuePriceUpdate(assetId, {
+        orderPrice: orderPrice ?? undefined,
+        displayPrice: displayPrice ?? undefined,
+      }, {
         timestamp: parseMessageTimestamp(message.timestamp),
         sequence,
       })
@@ -295,16 +353,22 @@ function applyPriceChanges(message: PolymarketPriceMessage) {
       return
     }
 
-    const price = resolveRealtimePriceCents({
+    const orderPrice = resolveRealtimePriceCents({
       price: item.price,
       best_bid: item.best_bid,
       best_ask: item.best_ask,
     })
-    if (price === null) {
+    const displayPrice = resolveRealtimeDisplayPrice({
+      decimalOdds: item.decimalOdds,
+    })
+    if (orderPrice === null && displayPrice === null) {
       return
     }
 
-    queuePriceUpdate(assetId, price, {
+    queuePriceUpdate(assetId, {
+      orderPrice: orderPrice ?? undefined,
+      displayPrice: displayPrice ?? undefined,
+    }, {
       timestamp: parseMessageTimestamp(item.timestamp ?? message.timestamp),
       sequence,
     })
@@ -477,15 +541,18 @@ function prunePrices(assetIds: string[]) {
 
   usePolymarketPriceStore.setState((state) => {
     const nextPriceByAssetId = { ...state.priceByAssetId }
+    const nextDisplayPriceByAssetId = { ...state.displayPriceByAssetId }
 
     assetIds.forEach((assetId) => {
       latestPriceVersionByAssetId.delete(assetId)
       pendingPriceUpdates.delete(assetId)
       delete nextPriceByAssetId[assetId]
+      delete nextDisplayPriceByAssetId[assetId]
     })
 
     return {
       priceByAssetId: nextPriceByAssetId,
+      displayPriceByAssetId: nextDisplayPriceByAssetId,
     }
   })
 }
@@ -502,6 +569,7 @@ function restartSocketWithCurrentSubscriptions(reason: string) {
 export const usePolymarketPriceStore = create<PolymarketPriceState>((set) => ({
   connectionStatus: 'idle',
   priceByAssetId: {},
+  displayPriceByAssetId: {},
   requestedAssetIds: [],
   subscribeAssets: (assetIds) => {
     const normalizedAssetIds = normalizeAssetIds(assetIds)

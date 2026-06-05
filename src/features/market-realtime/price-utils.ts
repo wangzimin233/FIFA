@@ -1,4 +1,5 @@
 import type { MarketSelection } from '../home/order-store'
+import { usePolymarketPriceStore } from './polymarket-price-store'
 
 export function getDisplayPrice(
   priceByAssetId: Record<string, number>,
@@ -73,8 +74,7 @@ function resolveSelectionDisplayPrice(selection: MarketSelection) {
 }
 
 export function useDisplayPrice(assetId: string | undefined, fallbackPrice: number) {
-  void assetId
-  return fallbackPrice
+  return usePolymarketPriceStore((state) => getDisplayPrice(state.displayPriceByAssetId, assetId, fallbackPrice))
 }
 
 export function useActiveSelectionPrice(selection: MarketSelection | null | undefined) {
