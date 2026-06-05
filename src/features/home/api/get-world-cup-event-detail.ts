@@ -10,7 +10,7 @@ import {
   getYesNoAssetIds,
   getYesNoOrderPrices,
   getYesNoPrices,
-  getOrderMarketId,
+  getOrderMarketMetadata,
   hasMarketType,
   normalizeGame,
   type WorldCupGameEvent,
@@ -200,7 +200,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       if (/draw/i.test(label)) {
         return {
           id: String(market.id),
-          marketId: getOrderMarketId(market),
+          ...getOrderMarketMetadata(event, market),
           negRisk: market.negRisk,
           shortLabel: 'DRAW',
           subject: 'Draw',
@@ -225,7 +225,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       if (label.toLowerCase() === homeSourceName?.toLowerCase()) {
         return {
           id: String(market.id),
-          marketId: getOrderMarketId(market),
+          ...getOrderMarketMetadata(event, market),
           negRisk: market.negRisk,
           shortLabel: home.shortLabel,
           subject: home.subject,
@@ -245,7 +245,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
       if (label.toLowerCase() === awaySourceName?.toLowerCase()) {
         return {
           id: String(market.id),
-          marketId: getOrderMarketId(market),
+          ...getOrderMarketMetadata(event, market),
           negRisk: market.negRisk,
           shortLabel: away.shortLabel,
           subject: away.subject,
@@ -307,7 +307,7 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
 
       return {
         id: String(market.id),
-        marketId: getOrderMarketId(market),
+        ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         title: rawTitle,
         volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market])),
@@ -341,7 +341,7 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined, language?: 
 
   return {
     id: String(market.id),
-    marketId: getOrderMarketId(market),
+    ...getOrderMarketMetadata(event, market),
     negRisk: market.negRisk,
     title,
     volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market])),

@@ -11,10 +11,16 @@ type BaseSelection = {
   title: string
 }
 
+type OrderMarketMetadata = {
+  eventSlug?: string
+  marketId?: string
+  marketSlug?: string
+  conditionId?: string
+}
+
 export type WinnerSelection = BaseSelection & {
   template: 'winner'
   marketType: MatchMarketType
-  marketId?: string
   negRisk?: boolean
   badge: string
   badgeLogo?: string
@@ -27,7 +33,7 @@ export type WinnerSelection = BaseSelection & {
   yesAssetId?: string
   noAssetId?: string
   activeSide: 'yes' | 'no'
-}
+} & OrderMarketMetadata
 
 export type SpreadSelection = BaseSelection & {
   template: 'spread'
@@ -45,7 +51,7 @@ export type SpreadSelection = BaseSelection & {
   activeVariantId: string
   variants: SpreadVariant[]
   activeTeamSide: 'home' | 'away'
-}
+} & OrderMarketMetadata
 
 export type TotalSelection = BaseSelection & {
   template: 'total'
@@ -55,7 +61,7 @@ export type TotalSelection = BaseSelection & {
   activeLineId: string
   lines: TotalLine[]
   activeSide: 'over' | 'under'
-}
+} & OrderMarketMetadata
 
 export type MarketSelection = WinnerSelection | SpreadSelection | TotalSelection
 
@@ -67,7 +73,10 @@ type PropositionSelectionInput = {
   contextType: OrderContextType
   sourceTab: HomeTab
   matchId: string
+  eventSlug?: string
   marketId?: string
+  marketSlug?: string
+  conditionId?: string
   negRisk?: boolean
   title: string
   badge: string
@@ -89,6 +98,10 @@ function getSpreadFavoredSide(variant: SpreadVariant): 'home' | 'away' {
   }
 
   return variant.homeHandicap.startsWith('-') ? 'home' : 'away'
+}
+
+function getMatchEventSlug(match: MatchCard) {
+  return match.slug
 }
 
 interface OrderStore {
@@ -130,7 +143,10 @@ const buildWinnerSelection = ({
   sourceTab,
   matchId,
   title,
+  eventSlug,
   marketId,
+  marketSlug,
+  conditionId,
   negRisk,
   badge,
   badgeLogo,
@@ -149,7 +165,10 @@ const buildWinnerSelection = ({
   template: 'winner',
   marketType: 'winner',
   matchId,
+  eventSlug,
   marketId,
+  marketSlug,
+  conditionId,
   negRisk,
   title,
   badge,
@@ -182,7 +201,10 @@ export const useOrderStore = create<OrderStore>((set) => ({
         sourceTab: 'matches',
         matchId: match.id,
         title: match.matchup,
+        eventSlug: outcome.eventSlug ?? getMatchEventSlug(match),
         marketId: outcome.marketId ?? outcome.id,
+        marketSlug: outcome.marketSlug,
+        conditionId: outcome.conditionId,
         negRisk: outcome.negRisk,
         badge: outcome.badge,
         badgeLogo: outcome.badgeLogo,
@@ -220,6 +242,7 @@ export const useOrderStore = create<OrderStore>((set) => ({
         template: 'spread',
         marketType: 'spread',
         matchId: match.id,
+        eventSlug: getMatchEventSlug(match),
         title: match.matchup,
         badge: activeTeamSide === 'home' ? match.primaryFlag : match.secondaryFlag,
         badgeLogo: activeTeamSide === 'home' ? match.primaryLogo : match.secondaryLogo,
@@ -284,6 +307,7 @@ export const useOrderStore = create<OrderStore>((set) => ({
         template: 'total',
         marketType: 'total',
         matchId: match.id,
+        eventSlug: getMatchEventSlug(match),
         title: 'Over vs Under',
         badge: 'O/U',
         activeLineId: lineId,

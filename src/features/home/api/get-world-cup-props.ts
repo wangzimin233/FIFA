@@ -7,7 +7,8 @@ import {
   getYesNoAssetIds,
   getYesNoOrderPrices,
   getYesNoPrices,
-  getOrderMarketId,
+  getEventSlug,
+  getOrderMarketMetadata,
   type WorldCupGameEvent,
   type WorldCupGameMarket,
 } from './get-world-cup-games'
@@ -83,14 +84,19 @@ function getCandidateName(market: WorldCupGameMarket, index: number, language?: 
   return label && label.length > 0 ? label : `Option ${index + 1}`
 }
 
-function buildCandidate(market: WorldCupGameMarket, index: number, language?: string): MarketListCandidate {
+function buildCandidate(
+  event: WorldCupGameEvent,
+  market: WorldCupGameMarket,
+  index: number,
+  language?: string,
+): MarketListCandidate {
   const { yesPrice, noPrice } = getYesNoPrices(market)
   const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
   const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
 
   return {
     id: String(market.id ?? `${index}`),
-    marketId: getOrderMarketId(market),
+    ...getOrderMarketMetadata(event, market),
     negRisk: market.negRisk,
     name: getCandidateName(market, index, language),
     probability: yesPrice,
@@ -110,12 +116,13 @@ function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCar
   }
 
   const id = getEventCardId(event)
+  const eventSlug = getEventSlug(event)
   const title = getEventTitle(event)
   const icon = getFallbackIcon(event)
   const iconLogo = getEventIconLogo(event)
 
   if (markets.length === 1) {
-    const candidate = buildCandidate(markets[0], 0, language)
+    const candidate = buildCandidate(event, markets[0], 0, language)
 
     return {
       id,
@@ -129,7 +136,10 @@ function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCar
       noPrice: candidate.noPrice,
       yesOrderPrice: candidate.yesOrderPrice,
       noOrderPrice: candidate.noOrderPrice,
+      eventSlug,
       marketId: candidate.marketId,
+      marketSlug: candidate.marketSlug,
+      conditionId: candidate.conditionId,
       negRisk: candidate.negRisk,
       yesAssetId: candidate.yesAssetId,
       noAssetId: candidate.noAssetId,
@@ -137,7 +147,7 @@ function buildMarketCard(event: WorldCupGameEvent, language?: string): MarketCar
     }
   }
 
-  const candidates = markets.map((market, index) => buildCandidate(market, index, language))
+  const candidates = markets.map((market, index) => buildCandidate(event, market, index, language))
 
   return {
     id,

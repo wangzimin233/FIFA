@@ -2,7 +2,10 @@ import { marketCards, matchGroups, type MatchCard, type SpreadVariant, type Tota
 
 export type MatchDetailProposition = {
   id: string
+  eventSlug?: string
   marketId?: string
+  marketSlug?: string
+  conditionId?: string
   negRisk?: boolean
   title: string
   volumeLabel: string

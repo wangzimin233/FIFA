@@ -457,8 +457,21 @@ export function getYesNoAssetIds(market: WorldCupGameMarket) {
   }
 }
 
+export function getEventSlug(event: WorldCupGameEvent | undefined) {
+  return event?.slug ?? event?.ticker
+}
+
 export function getOrderMarketId(market: WorldCupGameMarket) {
-  return market.conditionId
+  return String(market.id)
+}
+
+export function getOrderMarketMetadata(event: WorldCupGameEvent | undefined, market: WorldCupGameMarket) {
+  return {
+    eventSlug: getEventSlug(event),
+    marketId: getOrderMarketId(market),
+    marketSlug: market.slug,
+    conditionId: market.conditionId,
+  }
 }
 
 export function getEventType(event: WorldCupGameEvent) {
@@ -578,7 +591,7 @@ function normalizeWinnerOutcomes(
     if (/draw/i.test(label)) {
       fallback.draw = {
         id: String(market.id),
-        marketId: getOrderMarketId(market),
+        ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         shortLabel: 'DRAW',
         subject: 'Draw',
@@ -597,7 +610,7 @@ function normalizeWinnerOutcomes(
     if (label.toLowerCase() === homeTeam.toLowerCase()) {
       fallback.home = {
         id: String(market.id),
-        marketId: getOrderMarketId(market),
+        ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         shortLabel: homeCode,
         subject: homeTeam,
@@ -617,7 +630,7 @@ function normalizeWinnerOutcomes(
     if (label.toLowerCase() === awayTeam.toLowerCase()) {
       fallback.away = {
         id: String(market.id),
-        marketId: getOrderMarketId(market),
+        ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         shortLabel: awayCode,
         subject: awayTeam,
@@ -668,7 +681,7 @@ export function buildSpreadVariants(
 
       return {
         id: String(market.id),
-        marketId: getOrderMarketId(market),
+        ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         displayLine: formatLineNumber(lineValue),
         homeHandicap: favoredSide === 'home' ? formatHandicap(lineValue) : formatHandicap(oppositeLineValue),
@@ -705,7 +718,7 @@ export function buildTotalLines(event: WorldCupGameEvent | undefined) {
       const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
       return {
         id: String(market.id),
-        marketId: getOrderMarketId(market),
+        ...getOrderMarketMetadata(event, market),
         negRisk: market.negRisk,
         line: formatLineNumber(lineValue),
         overPrice: yesPrice,

@@ -2,33 +2,36 @@ import { toast } from '@heroui/react'
 import { useMutation } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { queryClient } from '../../config/query-client'
-import { usePolymarketPriceStore } from '../market-realtime/polymarket-price-store'
-import { getActiveSelectionPrice } from '../market-realtime/price-utils'
 import { createPolymarketOrder, type PolymarketCreateOrderRequest } from './api/polymarket-orders'
 import { type MarketSelection, useOrderStore } from './order-store'
 
 type OrderTarget = {
-  market?: string
+  eventSlug?: string
+  marketSlug?: string
+  marketId?: string
+  conditionId?: string
   tokenId?: string
   negRisk?: boolean
 }
 
 export const MIN_POLYMARKET_ORDER_AMOUNT = 2
 
-function toOrderPrice(cents: number) {
-  return Math.round((cents / 100) * 1_000_000) / 1_000_000
-}
-
 function resolveOrderTarget(selection: MarketSelection): OrderTarget {
   if (selection.template === 'winner') {
     return selection.activeSide === 'yes'
       ? {
-          market: selection.marketId,
+          eventSlug: selection.eventSlug,
+          marketSlug: selection.marketSlug,
+          marketId: selection.marketId,
+          conditionId: selection.conditionId,
           tokenId: selection.yesAssetId,
           negRisk: selection.negRisk,
         }
       : {
-          market: selection.marketId,
+          eventSlug: selection.eventSlug,
+          marketSlug: selection.marketSlug,
+          marketId: selection.marketId,
+          conditionId: selection.conditionId,
           tokenId: selection.noAssetId,
           negRisk: selection.negRisk,
         }
@@ -41,12 +44,18 @@ function resolveOrderTarget(selection: MarketSelection): OrderTarget {
 
     return selection.activeTeamSide === 'home'
       ? {
-          market: activeVariant?.marketId ?? activeVariant?.id,
+          eventSlug: activeVariant?.eventSlug ?? selection.eventSlug,
+          marketSlug: activeVariant?.marketSlug,
+          marketId: activeVariant?.marketId ?? activeVariant?.id,
+          conditionId: activeVariant?.conditionId,
           tokenId: activeVariant?.homeAssetId,
           negRisk: activeVariant?.negRisk,
         }
       : {
-          market: activeVariant?.marketId ?? activeVariant?.id,
+          eventSlug: activeVariant?.eventSlug ?? selection.eventSlug,
+          marketSlug: activeVariant?.marketSlug,
+          marketId: activeVariant?.marketId ?? activeVariant?.id,
+          conditionId: activeVariant?.conditionId,
           tokenId: activeVariant?.awayAssetId,
           negRisk: activeVariant?.negRisk,
         }
@@ -56,12 +65,18 @@ function resolveOrderTarget(selection: MarketSelection): OrderTarget {
 
   return selection.activeSide === 'over'
     ? {
-        market: activeLine?.marketId ?? activeLine?.id,
+        eventSlug: activeLine?.eventSlug ?? selection.eventSlug,
+        marketSlug: activeLine?.marketSlug,
+        marketId: activeLine?.marketId ?? activeLine?.id,
+        conditionId: activeLine?.conditionId,
         tokenId: activeLine?.overAssetId,
         negRisk: activeLine?.negRisk,
       }
     : {
-        market: activeLine?.marketId ?? activeLine?.id,
+        eventSlug: activeLine?.eventSlug ?? selection.eventSlug,
+        marketSlug: activeLine?.marketSlug,
+        marketId: activeLine?.marketId ?? activeLine?.id,
+        conditionId: activeLine?.conditionId,
         tokenId: activeLine?.underAssetId,
         negRisk: activeLine?.negRisk,
       }
@@ -79,8 +94,6 @@ function isConditionId(value: string) {
 export function buildPolymarketOrderPayload(
   selection: MarketSelection | null,
   amount: number,
-  priceByAssetId: Record<string, number>,
-  slippageConfirmed: boolean,
 ): PolymarketCreateOrderRequest {
   if (!selection) {
     throw new Error('请先选择一个盘口。')
@@ -95,47 +108,52 @@ export function buildPolymarketOrderPayload(
   }
 
   const target = resolveOrderTarget(selection)
-  if (!target.market) {
+  if (!target.eventSlug) {
+    throw new Error('当前盘口缺少 eventSlug，无法提交订单。')
+  }
+
+  if (!target.marketSlug) {
+    throw new Error('当前盘口缺少 marketSlug，无法提交订单。')
+  }
+
+  if (!target.conditionId) {
     throw new Error('当前盘口缺少 market conditionId，无法提交订单。')
   }
 
-  if (!isConditionId(target.market)) {
+  if (!isConditionId(target.conditionId)) {
     throw new Error('当前盘口 market 不是有效的 conditionId，无法提交订单。')
+  }
+
+  if (!target.marketId) {
+    throw new Error('当前盘口缺少 Gamma marketId，无法提交订单。')
   }
 
   if (!target.tokenId) {
     throw new Error('当前盘口缺少 tokenId，无法提交订单。')
   }
 
-  const activePrice = getActiveSelectionPrice(selection, priceByAssetId)
-  if (!Number.isFinite(activePrice) || activePrice <= 0 || activePrice >= 100) {
-    throw new Error('当前盘口价格无效，无法提交订单。')
-  }
-
-  const price = toOrderPrice(activePrice)
-
   return {
-    market: target.market,
+    eventSlug: target.eventSlug,
+    marketSlug: target.marketSlug,
+    marketId: target.marketId,
+    conditionId: target.conditionId,
+    market: target.conditionId,
     tokenId: target.tokenId,
-    price,
-    currentPrice: price,
     amount,
     negRisk: target.negRisk ?? false,
-    slippageConfirmed,
   }
 }
 
 export function useSubmitPolymarketOrder() {
   const [slippageConfirmation, setSlippageConfirmation] = useState({ key: '', confirmed: false })
   const { activeSelection, amount } = useOrderStore()
-  const priceByAssetId = usePolymarketPriceStore((state) => state.priceByAssetId)
   const orderKey = useMemo(() => {
     if (!activeSelection) {
       return ''
     }
 
     const target = resolveOrderTarget(activeSelection)
-    return [activeSelection.template, target.market, target.tokenId, amount].join('|')
+    return [activeSelection.template, target.conditionId, target.tokenId, amount].join('|')
   }, [activeSelection, amount])
   const slippageConfirmed = slippageConfirmation.key === orderKey && slippageConfirmation.confirmed
   const mutation = useMutation({
@@ -169,16 +187,16 @@ export function useSubmitPolymarketOrder() {
 
   const payload = useMemo(() => {
     try {
-      return buildPolymarketOrderPayload(activeSelection, amount, priceByAssetId, slippageConfirmed)
+      return buildPolymarketOrderPayload(activeSelection, amount)
     } catch {
       return null
     }
-  }, [activeSelection, amount, priceByAssetId, slippageConfirmed])
+  }, [activeSelection, amount])
 
   const submitOrder = useCallback(() => {
-    const nextPayload = buildPolymarketOrderPayload(activeSelection, amount, priceByAssetId, slippageConfirmed)
+    const nextPayload = buildPolymarketOrderPayload(activeSelection, amount)
     mutation.mutate(nextPayload)
-  }, [activeSelection, amount, mutation, priceByAssetId, slippageConfirmed])
+  }, [activeSelection, amount, mutation])
 
   return {
     canSubmit: !!payload && !mutation.isPending,

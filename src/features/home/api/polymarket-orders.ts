@@ -16,13 +16,14 @@ type PageResult<T> = {
 }
 
 export type PolymarketCreateOrderRequest = {
+  eventSlug: string
+  marketSlug: string
+  marketId: string
+  conditionId: string
   market: string
   tokenId: string
-  price: number
-  currentPrice: number
   amount: number
   negRisk: boolean
-  slippageConfirmed: boolean
 }
 
 export type PolymarketCreateOrderResponse = {

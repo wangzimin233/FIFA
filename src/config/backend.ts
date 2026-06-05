@@ -20,7 +20,12 @@ export function createBackendWsUrl(host = DEFAULT_BACKEND_HOST, path = '', proto
   return `${protocol}://${normalizeBackendHost(host)}${normalizedPath}`
 }
 
-export function createCurrentOriginWsUrl(location: Location, path = '') {
+type BrowserLocationLike = {
+  protocol: string
+  host: string
+}
+
+export function createCurrentOriginWsUrl(location: BrowserLocationLike, path = '') {
   const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws'
 
   return createBackendWsUrl(location.host, path, wsProtocol)
