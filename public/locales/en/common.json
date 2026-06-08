@@ -142,9 +142,15 @@
       "halftime": "Halftime result"
     },
     "sections": {
+      "matchMarkets": "Match markets",
       "exactScore": "Exact score",
       "halftime": "Halftime result",
       "context": "Match background"
+    },
+    "betLabels": {
+      "homeWin": "Home win",
+      "draw": "Draw",
+      "awayWin": "Away win"
     },
     "exact": {
       "loading": "Loading exact scores...",

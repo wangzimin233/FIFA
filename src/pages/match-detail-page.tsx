@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, type ReactNode, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
@@ -11,86 +11,314 @@ import {
 import { MobileOrderDrawer } from '../features/home/components/mobile-order-drawer'
 import { OrderPanel } from '../features/home/components/order-panel'
 import { TeamMark } from '../features/home/components/team-mark'
+import type { MatchDetailProposition } from '../features/home/detail-data'
+import type { MatchCard, TotalLine, WinnerOutcome } from '../features/home/home-data'
 import { useOrderStore } from '../features/home/order-store'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
 import { RollingNumber } from '../features/market-realtime/rolling-number'
 import { usePolymarketAssetSubscription } from '../features/market-realtime/use-polymarket-asset-subscription'
 
-type MatchDetailTab = 'markets' | 'exact' | 'halftime'
-
-const detailTabs: Array<{ key: MatchDetailTab; labelKey: string }> = [
-  { key: 'markets', labelKey: 'matchDetail.tabs.markets' },
-  { key: 'exact', labelKey: 'matchDetail.tabs.exact' },
-  { key: 'halftime', labelKey: 'matchDetail.tabs.halftime' },
-]
-
-function sectionCardClass() {
-  return 'rounded-[20px] border border-white/8 bg-panel/95 shadow-[0_12px_28px_rgba(0,0,0,0.14)]'
+type MatchDetailLocationState = {
+  backTo?: string
 }
 
-function outcomeButtonClass(active: boolean, tone: 'positive' | 'negative' | 'neutral' = 'neutral') {
-  if (!active) {
-    return 'border-transparent bg-white/4 text-ink-soft hover:border-white/14 hover:text-ink'
-  }
+function sectionCardClass() {
+  return 'overflow-hidden rounded-[20px] border border-white/8 bg-panel/95 shadow-[0_12px_28px_rgba(0,0,0,0.14)]'
+}
 
-  if (tone === 'negative') {
-    return 'border-transparent bg-rose-500/90 text-white'
-  }
-
-  return 'border-transparent bg-emerald-500/85 text-white'
+function outcomeButtonClass(active: boolean) {
+  return active
+    ? 'border-brand/35 bg-brand/16 text-brand shadow-[inset_0_-6px_0_rgba(0,0,0,0.14)]'
+    : 'border-white/8 bg-white/[0.035] text-ink-soft hover:border-white/18 hover:bg-white/[0.06] hover:text-ink'
 }
 
 function getWinnerOutcomeDisplayLabel(index: number, t: TFunction) {
   return index === 0
-    ? t('markets.outcomes.home')
+    ? t('matchDetail.betLabels.homeWin')
     : index === 1
-      ? t('markets.outcomes.draw')
-      : t('markets.outcomes.away')
+      ? t('matchDetail.betLabels.draw')
+      : t('matchDetail.betLabels.awayWin')
 }
 
-function getSpreadFavoredSide(variant: { favoredSide?: 'home' | 'away'; homeHandicap: string }) {
-  if (variant.favoredSide) {
-    return variant.favoredSide
-  }
+function formatOdds(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+}
 
-  return variant.homeHandicap.startsWith('-') ? 'home' : 'away'
+function RealtimePriceValue({
+  assetId,
+  fallbackPrice,
+}: {
+  assetId?: string
+  fallbackPrice: number
+}) {
+  const price = useDisplayPrice(assetId, fallbackPrice)
+  const displayPrice = formatOdds(price)
+
+  return (
+    <>
+      <span aria-hidden="true">
+        <RollingNumber value={displayPrice} />
+      </span>
+      <span className="sr-only">{displayPrice}</span>
+    </>
+  )
+}
+
+function MarketSection({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle?: string
+  children: ReactNode
+}) {
+  return (
+    <section className={sectionCardClass()}>
+      <div className="border-b border-white/8 px-3.5 py-3 sm:px-5 sm:py-4">
+        <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{title}</h2>
+        {subtitle ? <p className="mt-1 text-[12px] text-ink-soft sm:text-[13px]">{subtitle}</p> : null}
+      </div>
+      <div className="px-3 py-3 sm:px-4 sm:py-4">{children}</div>
+    </section>
+  )
 }
 
 function EmptyDataSection({ title }: { title: string }) {
   const { t } = useTranslation()
 
   return (
-    <section className={sectionCardClass()}>
-      <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
-        <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{title}</h2>
-        <p className="mt-2 text-[12px] text-ink-soft sm:text-[14px]">
-          {t('matchDetail.emptyData')}
-        </p>
+    <MarketSection title={title}>
+      <div className="rounded-[14px] border border-white/8 bg-white/[0.03] px-3 py-3 text-[12px] text-ink-soft sm:text-[13px]">
+        {t('matchDetail.emptyData')}
       </div>
-    </section>
+    </MarketSection>
   )
 }
 
-function RealtimePriceValue({
+function LoadingDataSection({ title, message }: { title: string; message: string }) {
+  return (
+    <MarketSection title={title}>
+      <div className="rounded-[14px] border border-white/8 bg-white/[0.03] px-3 py-3 text-[12px] text-ink-soft sm:text-[13px]">
+        {message}
+      </div>
+    </MarketSection>
+  )
+}
+
+function ErrorDataSection({ title, message }: { title: string; message: string }) {
+  return (
+    <MarketSection title={title}>
+      <div className="rounded-[14px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200 sm:text-[13px]">
+        {message}
+      </div>
+    </MarketSection>
+  )
+}
+
+function OddsButton({
+  active,
+  label,
+  subLabel,
   assetId,
   fallbackPrice,
-  suffix = '',
+  onClick,
 }: {
+  active: boolean
+  label: string
+  subLabel?: string
   assetId?: string
   fallbackPrice: number
-  suffix?: string
+  onClick: () => void
 }) {
-  const price = useDisplayPrice(assetId, fallbackPrice)
   return (
-    <>
-      <RollingNumber value={price} />
-      {suffix}
-    </>
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'grid min-h-[58px] min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[13px] border px-3 py-2.5 text-left transition sm:min-h-[62px]',
+        outcomeButtonClass(active),
+      ].join(' ')}
+    >
+      <span className="min-w-0">
+        <span className="block truncate text-[13px] font-semibold leading-tight sm:text-[14px]">{label}</span>
+        {subLabel ? <span className="mt-1 block truncate text-[11px] font-medium text-current/65">{subLabel}</span> : null}
+      </span>
+      <span className="text-[15px] font-semibold tabular-nums sm:text-[16px]">
+        <RealtimePriceValue assetId={assetId} fallbackPrice={fallbackPrice} />
+      </span>
+    </button>
   )
 }
 
-type MatchDetailLocationState = {
-  backTo?: string
+function CompactOddsButton({
+  active,
+  label,
+  assetId,
+  fallbackPrice,
+  onClick,
+}: {
+  active: boolean
+  label: string
+  assetId?: string
+  fallbackPrice: number
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'grid min-h-[54px] min-w-0 place-items-center rounded-[10px] border px-1.5 py-2 text-center transition sm:min-h-[58px]',
+        active
+          ? 'border-brand/40 bg-brand/16 text-brand'
+          : 'border-white/8 bg-white/[0.025] text-ink-soft hover:border-white/18 hover:bg-white/[0.05] hover:text-ink',
+      ].join(' ')}
+    >
+      <span className="block max-w-full truncate text-[13px] font-semibold leading-tight sm:text-[14px]">
+        {label}
+      </span>
+      <span className="mt-1 block text-[13px] font-semibold leading-none tabular-nums text-current/78 sm:text-[14px]">
+        <RealtimePriceValue assetId={assetId} fallbackPrice={fallbackPrice} />
+      </span>
+    </button>
+  )
+}
+
+function isWinnerOutcomeActive(
+  activeSelection: ReturnType<typeof useOrderStore.getState>['activeSelection'],
+  matchId: string,
+  outcome: WinnerOutcome,
+) {
+  return (
+    activeSelection?.contextType === 'match' &&
+    activeSelection.matchId === matchId &&
+    activeSelection.template === 'winner' &&
+    activeSelection.activeSide === 'yes' &&
+    activeSelection.marketId === (outcome.marketId ?? outcome.id) &&
+    activeSelection.subject === outcome.subject
+  )
+}
+
+function MoneylineSection({ match }: { match: MatchCard }) {
+  const { t } = useTranslation()
+  const { activeSelection, selectWinner } = useOrderStore()
+
+  return (
+    <MarketSection title={t('markets.types.moneyline')} subtitle={match.volumeLabel}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {match.winnerMarket.outcomes.map((outcome, outcomeIndex) => (
+          <OddsButton
+            key={outcome.id}
+            active={isWinnerOutcomeActive(activeSelection, match.id, outcome)}
+            label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
+            subLabel={outcome.subject}
+            assetId={outcome.yesAssetId}
+            fallbackPrice={outcome.yesPrice}
+            onClick={() => selectWinner(match, outcome, 'yes')}
+          />
+        ))}
+      </div>
+    </MarketSection>
+  )
+}
+
+function SpreadSection({ match }: { match: MatchCard }) {
+  const { t } = useTranslation()
+  const { activeSelection, selectSpread } = useOrderStore()
+
+  if (!match.spreadMarket.variants.length) {
+    return null
+  }
+
+  return (
+    <MarketSection title={t('markets.types.spread')}>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
+        {match.spreadMarket.variants.map((variant) => {
+          const homeActive =
+            activeSelection?.contextType === 'match' &&
+            activeSelection.matchId === match.id &&
+            activeSelection.template === 'spread' &&
+            activeSelection.activeVariantId === variant.id &&
+            activeSelection.activeTeamSide === 'home'
+          const awayActive =
+            activeSelection?.contextType === 'match' &&
+            activeSelection.matchId === match.id &&
+            activeSelection.template === 'spread' &&
+              activeSelection.activeVariantId === variant.id &&
+              activeSelection.activeTeamSide === 'away'
+
+          return (
+            <Fragment key={variant.id}>
+              <CompactOddsButton
+                active={homeActive}
+                label={`${t('markets.outcomes.home')} ${variant.homeHandicap}`}
+                assetId={variant.homeAssetId}
+                fallbackPrice={variant.homePrice}
+                onClick={() => selectSpread(match, variant.id, 'home')}
+              />
+              <CompactOddsButton
+                active={awayActive}
+                label={`${t('markets.outcomes.away')} ${variant.awayHandicap}`}
+                assetId={variant.awayAssetId}
+                fallbackPrice={variant.awayPrice}
+                onClick={() => selectSpread(match, variant.id, 'away')}
+              />
+            </Fragment>
+          )
+        })}
+      </div>
+    </MarketSection>
+  )
+}
+
+function TotalSection({ match }: { match: MatchCard }) {
+  const { t } = useTranslation()
+  const { activeSelection, selectTotal } = useOrderStore()
+
+  if (!match.totalMarket.lines.length) {
+    return null
+  }
+
+  return (
+    <MarketSection title={t('markets.types.total')}>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
+        {match.totalMarket.lines.map((line: TotalLine) => {
+          const overActive =
+            activeSelection?.contextType === 'match' &&
+            activeSelection.matchId === match.id &&
+            activeSelection.template === 'total' &&
+            activeSelection.activeLineId === line.id &&
+            activeSelection.activeSide === 'over'
+          const underActive =
+            activeSelection?.contextType === 'match' &&
+            activeSelection.matchId === match.id &&
+            activeSelection.template === 'total' &&
+              activeSelection.activeLineId === line.id &&
+              activeSelection.activeSide === 'under'
+
+          return (
+            <Fragment key={line.id}>
+              <CompactOddsButton
+                active={overActive}
+                label={`${t('markets.outcomes.over')} ${line.line}`}
+                assetId={line.overAssetId}
+                fallbackPrice={line.overPrice}
+                onClick={() => selectTotal(match, line.id, 'over')}
+              />
+              <CompactOddsButton
+                active={underActive}
+                label={`${t('markets.outcomes.under')} ${line.line}`}
+                assetId={line.underAssetId}
+                fallbackPrice={line.underPrice}
+                onClick={() => selectTotal(match, line.id, 'under')}
+              />
+            </Fragment>
+          )
+        })}
+      </div>
+    </MarketSection>
+  )
 }
 
 export function MatchDetailPage() {
@@ -100,17 +328,8 @@ export function MatchDetailPage() {
   const { t, i18n } = useTranslation()
   const language = i18n.resolvedLanguage ?? i18n.language
   const state = location.state as MatchDetailLocationState | null
-  const [tab, setTab] = useState<MatchDetailTab>('markets')
   const defaultSelectionKeyRef = useRef('')
-  const {
-    activeSelection,
-    selectWinner,
-    selectSpread,
-    selectTotal,
-    selectProposition,
-    setSpreadVariant,
-    setTotalLine,
-  } = useOrderStore()
+  const { activeSelection, selectWinner, selectProposition } = useOrderStore()
   const { data: detail, isLoading, isError } = useQuery({
     queryKey: ['world-cup-event-detail', slug, language],
     queryFn: () => getWorldCupEventDetail(slug, language),
@@ -123,7 +342,7 @@ export function MatchDetailPage() {
   } = useQuery({
     queryKey: ['world-cup-event-detail-exact-score', slug, language],
     queryFn: () => getWorldCupExactScores(slug, language),
-    enabled: slug.length > 0 && tab === 'exact',
+    enabled: slug.length > 0,
   })
   const {
     data: halftimeResult,
@@ -132,7 +351,7 @@ export function MatchDetailPage() {
   } = useQuery({
     queryKey: ['world-cup-event-detail-halftime-result', slug, detail?.match.id, language],
     queryFn: () => getWorldCupHalftimeResult(slug, detail.match, language),
-    enabled: slug.length > 0 && tab === 'halftime' && !!detail,
+    enabled: slug.length > 0 && !!detail,
   })
 
   const subscribedAssetIds = useMemo(() => {
@@ -140,147 +359,31 @@ export function MatchDetailPage() {
       return []
     }
 
-    const activeSpreadVariant =
-      activeSelection?.contextType === 'match' &&
-      activeSelection.matchId === detail.match.id &&
-      activeSelection.template === 'spread'
-        ? detail.spreadVariants.find((variant) => variant.id === activeSelection.activeVariantId) ??
-          detail.spreadVariants[0]
-        : detail.spreadVariants[0]
-
-    const activeTotalLine =
-      activeSelection?.contextType === 'match' &&
-      activeSelection.matchId === detail.match.id &&
-      activeSelection.template === 'total'
-        ? detail.totalLines.find((line) => line.id === activeSelection.activeLineId) ??
-          detail.totalLines[0]
-        : detail.totalLines[0]
-
     return [
-      ...detail.match.winnerMarket.outcomes.flatMap((outcome) => [outcome.yesAssetId, outcome.noAssetId]),
-      activeSpreadVariant?.homeAssetId,
-      activeSpreadVariant?.awayAssetId,
-      activeTotalLine?.overAssetId,
-      activeTotalLine?.underAssetId,
-      ...(detail.bothTeamsToScore
-        ? [detail.bothTeamsToScore.yesAssetId, detail.bothTeamsToScore.noAssetId]
-        : []),
-      ...(tab === 'exact' ? exactScores.flatMap((item) => [item.yesAssetId, item.noAssetId]) : []),
-      ...(tab === 'halftime'
-        ? (halftimeResult?.outcomes.flatMap((outcome) => [outcome.yesAssetId, outcome.noAssetId]) ?? [])
-        : []),
+      ...detail.match.winnerMarket.outcomes.map((outcome) => outcome.yesAssetId),
+      ...detail.match.spreadMarket.variants.flatMap((variant) => [variant.homeAssetId, variant.awayAssetId]),
+      ...detail.match.totalMarket.lines.flatMap((line) => [line.overAssetId, line.underAssetId]),
+      ...exactScores.map((item) => item.yesAssetId),
+      ...(halftimeResult?.outcomes.map((outcome) => outcome.yesAssetId) ?? []),
     ]
-  }, [activeSelection, detail, exactScores, halftimeResult, tab])
+  }, [detail, exactScores, halftimeResult])
 
   usePolymarketAssetSubscription(subscribedAssetIds)
 
   useEffect(() => {
-    if (!detail) {
+    const defaultOutcome = detail?.match.winnerMarket.outcomes[0]
+    if (!detail || !defaultOutcome) {
       return
     }
 
-    if (tab === 'markets') {
-      const defaultOutcome = detail.match.winnerMarket.outcomes[0]
-      const defaultSelectionKey = `${detail.match.id}:markets:${defaultOutcome?.id ?? ''}`
-
-      if (!defaultOutcome || defaultSelectionKeyRef.current === defaultSelectionKey) {
-        return
-      }
-
-      defaultSelectionKeyRef.current = defaultSelectionKey
-      selectWinner(detail.match, defaultOutcome, 'yes', { openPanel: false })
-      return
-    }
-
-    if (tab === 'exact') {
-      const defaultExactScore = exactScores[0]
-      const defaultSelectionKey = `${detail.match.id}:exact:${defaultExactScore?.id ?? ''}`
-
-      if (!defaultExactScore || defaultSelectionKeyRef.current === defaultSelectionKey) {
-        return
-      }
-
-      defaultSelectionKeyRef.current = defaultSelectionKey
-      selectProposition(
-        {
-          contextType: 'match',
-          sourceTab: 'matches',
-          matchId: detail.match.id,
-          eventSlug: defaultExactScore.eventSlug ?? detail.match.slug,
-          marketId: defaultExactScore.marketId ?? defaultExactScore.id,
-          marketSlug: defaultExactScore.marketSlug,
-          conditionId: defaultExactScore.conditionId,
-          acceptingOrders: defaultExactScore.acceptingOrders,
-          negRisk: defaultExactScore.negRisk,
-          eventTitle: defaultExactScore.eventTitle,
-          eventTitleZh: defaultExactScore.eventTitleZh,
-          marketTitle: defaultExactScore.marketTitle,
-          marketTitleZh: defaultExactScore.marketTitleZh,
-          yesOutcomeTitle: defaultExactScore.yesOutcomeTitle,
-          noOutcomeTitle: defaultExactScore.noOutcomeTitle,
-          yesOutcomeTitleZh: defaultExactScore.yesOutcomeTitleZh,
-          noOutcomeTitleZh: defaultExactScore.noOutcomeTitleZh,
-          title: detail.match.matchup,
-          badge: defaultExactScore.badge,
-          badgeLogo: defaultExactScore.badgeLogo,
-          subject: defaultExactScore.subject,
-          shortLabel: defaultExactScore.shortLabel,
-          yesPrice: defaultExactScore.yesPrice,
-          noPrice: defaultExactScore.noPrice,
-          yesOrderPrice: defaultExactScore.yesOrderPrice,
-          noOrderPrice: defaultExactScore.noOrderPrice,
-          yesAssetId: defaultExactScore.yesAssetId,
-          noAssetId: defaultExactScore.noAssetId,
-          activeSide: 'yes',
-        },
-        { openPanel: false },
-      )
-      return
-    }
-
-    const defaultHalftimeOutcome = halftimeResult?.outcomes[0]
-    const defaultSelectionKey = `${detail.match.id}:halftime:${defaultHalftimeOutcome?.id ?? ''}`
-
-    if (!defaultHalftimeOutcome || defaultSelectionKeyRef.current === defaultSelectionKey) {
+    const defaultSelectionKey = `${detail.match.id}:moneyline:${defaultOutcome.id}`
+    if (defaultSelectionKeyRef.current === defaultSelectionKey) {
       return
     }
 
     defaultSelectionKeyRef.current = defaultSelectionKey
-    selectProposition(
-      {
-        contextType: 'match',
-        sourceTab: 'matches',
-        matchId: detail.match.id,
-        eventSlug: defaultHalftimeOutcome.eventSlug ?? detail.match.slug,
-        marketId: defaultHalftimeOutcome.marketId ?? defaultHalftimeOutcome.id,
-        marketSlug: defaultHalftimeOutcome.marketSlug,
-        conditionId: defaultHalftimeOutcome.conditionId,
-        acceptingOrders: defaultHalftimeOutcome.acceptingOrders,
-        negRisk: defaultHalftimeOutcome.negRisk,
-        eventTitle: defaultHalftimeOutcome.eventTitle,
-        eventTitleZh: defaultHalftimeOutcome.eventTitleZh,
-        marketTitle: defaultHalftimeOutcome.marketTitle,
-        marketTitleZh: defaultHalftimeOutcome.marketTitleZh,
-        yesOutcomeTitle: defaultHalftimeOutcome.yesOutcomeTitle,
-        noOutcomeTitle: defaultHalftimeOutcome.noOutcomeTitle,
-        yesOutcomeTitleZh: defaultHalftimeOutcome.yesOutcomeTitleZh,
-        noOutcomeTitleZh: defaultHalftimeOutcome.noOutcomeTitleZh,
-        title: detail.match.matchup,
-        badge: defaultHalftimeOutcome.badge,
-        badgeLogo: defaultHalftimeOutcome.badgeLogo,
-        subject: defaultHalftimeOutcome.subject,
-        shortLabel: defaultHalftimeOutcome.shortLabel,
-        yesPrice: defaultHalftimeOutcome.yesPrice,
-        noPrice: defaultHalftimeOutcome.noPrice,
-        yesOrderPrice: defaultHalftimeOutcome.yesOrderPrice,
-        noOrderPrice: defaultHalftimeOutcome.noOrderPrice,
-        yesAssetId: defaultHalftimeOutcome.yesAssetId,
-        noAssetId: defaultHalftimeOutcome.noAssetId,
-        activeSide: 'yes',
-      },
-      { openPanel: false },
-    )
-  }, [detail, exactScores, halftimeResult, selectProposition, selectWinner, tab])
+    selectWinner(detail.match, defaultOutcome, 'yes', { openPanel: false })
+  }, [detail, selectWinner])
 
   if (isLoading) {
     return (
@@ -306,19 +409,73 @@ export function MatchDetailPage() {
     )
   }
 
-  const isCurrentMatchSelection =
-    activeSelection?.contextType === 'match' && activeSelection.matchId === detail.match.id
+  const selectExactScore = (item: MatchDetailProposition) => {
+    selectProposition({
+      contextType: 'match',
+      sourceTab: 'matches',
+      matchId: detail.match.id,
+      eventSlug: item.eventSlug ?? detail.match.slug,
+      marketId: item.marketId ?? item.id,
+      marketSlug: item.marketSlug,
+      conditionId: item.conditionId,
+      acceptingOrders: item.acceptingOrders,
+      negRisk: item.negRisk,
+      eventTitle: detail.match.matchup,
+      eventTitleZh: detail.match.matchup,
+      marketTitle: item.shortLabel,
+      marketTitleZh: item.shortLabel,
+      yesOutcomeTitle: item.yesOutcomeTitle,
+      noOutcomeTitle: item.noOutcomeTitle,
+      yesOutcomeTitleZh: item.yesOutcomeTitleZh,
+      noOutcomeTitleZh: item.noOutcomeTitleZh,
+      title: detail.match.matchup,
+      badge: item.badge,
+      badgeLogo: item.badgeLogo,
+      subject: item.shortLabel,
+      shortLabel: item.shortLabel,
+      yesPrice: item.yesPrice,
+      noPrice: item.noPrice,
+      yesOrderPrice: item.yesOrderPrice,
+      noOrderPrice: item.noOrderPrice,
+      yesAssetId: item.yesAssetId,
+      noAssetId: item.noAssetId,
+      activeSide: 'yes',
+    })
+  }
 
-  const currentSpreadVariant =
-    isCurrentMatchSelection && activeSelection?.template === 'spread'
-      ? detail.spreadVariants.find((variant) => variant.id === activeSelection.activeVariantId) ??
-        detail.spreadVariants[0]
-      : detail.spreadVariants[0]
-
-  const currentTotalLine =
-    isCurrentMatchSelection && activeSelection?.template === 'total'
-      ? detail.totalLines.find((line) => line.id === activeSelection.activeLineId) ?? detail.totalLines[0]
-      : detail.totalLines[0]
+  const selectHalftimeOutcome = (outcome: WinnerOutcome) => {
+    selectProposition({
+      contextType: 'match',
+      sourceTab: 'matches',
+      matchId: detail.match.id,
+      eventSlug: outcome.eventSlug ?? detail.match.slug,
+      marketId: outcome.marketId ?? outcome.id,
+      marketSlug: outcome.marketSlug,
+      conditionId: outcome.conditionId,
+      acceptingOrders: outcome.acceptingOrders,
+      negRisk: outcome.negRisk,
+      eventTitle: detail.match.matchup,
+      eventTitleZh: detail.match.matchup,
+      marketTitle: outcome.marketTitle,
+      marketTitleZh: outcome.marketTitleZh,
+      yesOutcomeTitle: outcome.yesOutcomeTitle,
+      noOutcomeTitle: outcome.noOutcomeTitle,
+      yesOutcomeTitleZh: outcome.yesOutcomeTitleZh,
+      noOutcomeTitleZh: outcome.noOutcomeTitleZh,
+      title: detail.match.matchup,
+      badge: outcome.badge,
+      badgeLogo: outcome.badgeLogo,
+      subject: outcome.subject,
+      shortLabel: outcome.shortLabel,
+      yesPrice: outcome.yesPrice,
+      noPrice: outcome.noPrice,
+      yesOrderPrice: outcome.yesOrderPrice,
+      noOrderPrice: outcome.noOrderPrice,
+      yesAssetId: outcome.yesAssetId,
+      noAssetId: outcome.noAssetId,
+      activeSide: 'yes',
+    })
+  }
 
   return (
     <div className="grid gap-3 sm:gap-4">
@@ -384,570 +541,91 @@ export function MatchDetailPage() {
       </section>
 
       <div className="grid gap-3 sm:gap-4 lg:grid-cols-[minmax(0,1.42fr)_300px]">
-        <div className="min-w-0">
-          <div className="mb-3 flex items-center gap-4 overflow-x-auto text-[12px] font-semibold text-ink-soft sm:mb-4 sm:text-[15px]">
-            {detailTabs.map((detailTab) => (
-              <button
-                key={detailTab.key}
-                type="button"
-                onClick={() => setTab(detailTab.key)}
-                className={detailTab.key === tab ? 'text-ink' : 'transition hover:text-ink'}
-              >
-                {t(detailTab.labelKey)}
-              </button>
-            ))}
+        <div className="grid min-w-0 gap-3 sm:gap-4">
+          <div className="grid gap-3 sm:gap-4">
+            <div className="px-1 text-[13px] font-semibold text-ink-soft sm:text-[14px]">
+              {t('matchDetail.sections.matchMarkets')}
+            </div>
+            <MoneylineSection match={detail.match} />
+            <SpreadSection match={detail.match} />
+            <TotalSection match={detail.match} />
           </div>
 
-          {tab === 'markets' ? (
-            <div className="grid gap-3 sm:gap-4">
-              <section className={sectionCardClass()}>
-                <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                  <div>
-                    <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-                      {t('markets.types.moneyline')}
-                    </h2>
-                    <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.moneylineVolumeLabel}</p>
-                  </div>
-                  <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                    {detail.match.winnerMarket.outcomes.map((outcome, outcomeIndex) => {
-                      const isActive =
-                        isCurrentMatchSelection &&
-                        activeSelection?.template === 'winner' &&
-                        activeSelection.subject === outcome.subject
+          {isExactScoresLoading ? (
+            <LoadingDataSection title={t('matchDetail.sections.exactScore')} message={t('matchDetail.exact.loading')} />
+          ) : isExactScoresError ? (
+            <ErrorDataSection title={t('matchDetail.sections.exactScore')} message={t('matchDetail.exact.error')} />
+          ) : exactScores.length ? (
+            <MarketSection title={t('matchDetail.sections.exactScore')}>
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6">
+                {exactScores.map((item) => {
+                  const isActive =
+                    activeSelection?.contextType === 'match' &&
+                    activeSelection.matchId === detail.match.id &&
+                    activeSelection.template === 'winner' &&
+                    activeSelection.activeSide === 'yes' &&
+                    activeSelection.marketId === (item.marketId ?? item.id) &&
+                    activeSelection.shortLabel === item.shortLabel
 
-                      return (
-                        <button
-                          key={outcome.id}
-                          type="button"
-                          onClick={() => selectWinner(detail.match, outcome)}
-                          className={[
-                            'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px] sm:px-4 sm:py-3 sm:text-[15px]',
-                            outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
-                          ].join(' ')}
-                        >
-                          {getWinnerOutcomeDisplayLabel(outcomeIndex, t)}{' '}
-                          <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </section>
-
-              {detail.spreadVariants.length && currentSpreadVariant ? (
-                <section className={sectionCardClass()}>
-                  <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                    <div>
-                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-                        {t('markets.types.spread')}
-                      </h2>
-                      <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.spreadVolumeLabel}</p>
-                    </div>
-                    <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                      <button
-                        type="button"
-                        onClick={() => selectSpread(detail.match, currentSpreadVariant.id, 'home')}
-                        className={[
-                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                          outcomeButtonClass(
-                            isCurrentMatchSelection &&
-                              activeSelection?.template === 'spread' &&
-                              activeSelection.activeTeamSide === 'home',
-                            'positive',
-                          ),
-                        ].join(' ')}
-                      >
-                        {t('markets.outcomes.home')} {currentSpreadVariant.homeHandicap}{' '}
-                        <RealtimePriceValue
-                          assetId={currentSpreadVariant.homeAssetId}
-                          fallbackPrice={currentSpreadVariant.homePrice}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => selectSpread(detail.match, currentSpreadVariant.id, 'away')}
-                        className={[
-                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                          outcomeButtonClass(
-                            isCurrentMatchSelection &&
-                              activeSelection?.template === 'spread' &&
-                              activeSelection.activeTeamSide === 'away',
-                            'negative',
-                          ),
-                        ].join(' ')}
-                      >
-                        {t('markets.outcomes.away')} {currentSpreadVariant.awayHandicap}{' '}
-                        <RealtimePriceValue
-                          assetId={currentSpreadVariant.awayAssetId}
-                          fallbackPrice={currentSpreadVariant.awayPrice}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 px-3.5 py-3 text-[13px] text-ink-soft sm:px-5 sm:py-4 sm:text-[14px]">
-                    <span className="text-lg sm:text-xl">‹</span>
-                    <div className="flex flex-1 items-center justify-center gap-5 overflow-x-auto sm:gap-6">
-                      {detail.spreadVariants.map((variant) => {
-                        const isActive = currentSpreadVariant.id === variant.id
-
-                        return (
-                          <button
-                            key={variant.id}
-                            type="button"
-                            onClick={() => {
-                              if (isCurrentMatchSelection && activeSelection?.template === 'spread') {
-                                setSpreadVariant(variant.id)
-                              } else {
-                                selectSpread(detail.match, variant.id, getSpreadFavoredSide(variant))
-                              }
-                            }}
-                            className={isActive ? 'font-semibold text-ink' : 'transition hover:text-ink'}
-                          >
-                            {variant.displayLine}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <span className="text-lg sm:text-xl">›</span>
-                  </div>
-                </section>
-              ) : null}
-
-              {detail.totalLines.length && currentTotalLine ? (
-                <section className={sectionCardClass()}>
-                  <div className="flex flex-col gap-3 border-b border-white/8 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                    <div>
-                      <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-                        {t('markets.types.total')}
-                      </h2>
-                      <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{detail.totalVolumeLabel}</p>
-                    </div>
-                    <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                      <button
-                        type="button"
-                        onClick={() => selectTotal(detail.match, currentTotalLine.id, 'over')}
-                        className={[
-                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                          outcomeButtonClass(
-                            isCurrentMatchSelection &&
-                              activeSelection?.template === 'total' &&
-                              activeSelection.activeSide === 'over',
-                            'positive',
-                          ),
-                        ].join(' ')}
-                      >
-                        {t('markets.outcomes.over')} {currentTotalLine.line}{' '}
-                        <RealtimePriceValue
-                          assetId={currentTotalLine.overAssetId}
-                          fallbackPrice={currentTotalLine.overPrice}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => selectTotal(detail.match, currentTotalLine.id, 'under')}
-                        className={[
-                          'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[140px] sm:px-4 sm:py-3 sm:text-[15px]',
-                          outcomeButtonClass(
-                            isCurrentMatchSelection &&
-                              activeSelection?.template === 'total' &&
-                              activeSelection.activeSide === 'under',
-                            'negative',
-                          ),
-                        ].join(' ')}
-                      >
-                        {t('markets.outcomes.under')} {currentTotalLine.line}{' '}
-                        <RealtimePriceValue
-                          assetId={currentTotalLine.underAssetId}
-                          fallbackPrice={currentTotalLine.underPrice}
-                        />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2 px-3.5 py-3 text-[13px] text-ink-soft sm:px-5 sm:py-4 sm:text-[14px]">
-                    <span className="text-lg sm:text-xl">‹</span>
-                    <div className="flex flex-1 items-center justify-center gap-5 overflow-x-auto sm:gap-6">
-                      {detail.totalLines.map((line) => {
-                        const isActive = currentTotalLine.id === line.id
-
-                        return (
-                          <button
-                            key={line.id}
-                            type="button"
-                            onClick={() => {
-                              if (isCurrentMatchSelection && activeSelection?.template === 'total') {
-                                setTotalLine(line.id)
-                              } else {
-                                selectTotal(detail.match, line.id, 'over')
-                              }
-                            }}
-                            className={isActive ? 'font-semibold text-ink' : 'transition hover:text-ink'}
-                          >
-                            {line.line}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <span className="text-lg sm:text-xl">›</span>
-                  </div>
-                </section>
-              ) : null}
-
-              {detail.bothTeamsToScore ? (
-                <section className={sectionCardClass()}>
-                <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                  <div>
-                    <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-                      {detail.bothTeamsToScore.title}
-                    </h2>
-                    <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">
-                      {detail.bothTeamsToScore.volumeLabel}
-                    </p>
-                  </div>
-                  <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        selectProposition(
-                          {
-                            contextType: 'match',
-                            sourceTab: 'matches',
-                            matchId: detail.match.id,
-                            eventSlug: detail.bothTeamsToScore.eventSlug ?? detail.match.slug,
-                            marketId: detail.bothTeamsToScore.marketId ?? detail.bothTeamsToScore.id,
-                            marketSlug: detail.bothTeamsToScore.marketSlug,
-                            conditionId: detail.bothTeamsToScore.conditionId,
-                            acceptingOrders: detail.bothTeamsToScore.acceptingOrders,
-                            negRisk: detail.bothTeamsToScore.negRisk,
-                            eventTitle: detail.bothTeamsToScore.eventTitle,
-                            eventTitleZh: detail.bothTeamsToScore.eventTitleZh,
-                            marketTitle: detail.bothTeamsToScore.marketTitle,
-                            marketTitleZh: detail.bothTeamsToScore.marketTitleZh,
-                            yesOutcomeTitle: detail.bothTeamsToScore.yesOutcomeTitle,
-                            noOutcomeTitle: detail.bothTeamsToScore.noOutcomeTitle,
-                            yesOutcomeTitleZh: detail.bothTeamsToScore.yesOutcomeTitleZh,
-                            noOutcomeTitleZh: detail.bothTeamsToScore.noOutcomeTitleZh,
-                            title: detail.match.matchup,
-                            badge: detail.bothTeamsToScore.badge,
-                            badgeLogo: detail.bothTeamsToScore.badgeLogo,
-                            subject: detail.bothTeamsToScore.title,
-                            shortLabel: detail.bothTeamsToScore.shortLabel,
-                            yesPrice: detail.bothTeamsToScore.yesPrice,
-                            noPrice: detail.bothTeamsToScore.noPrice,
-                            yesOrderPrice: detail.bothTeamsToScore.yesOrderPrice,
-                            noOrderPrice: detail.bothTeamsToScore.noOrderPrice,
-                            yesAssetId: detail.bothTeamsToScore.yesAssetId,
-                            noAssetId: detail.bothTeamsToScore.noAssetId,
-                            activeSide: 'yes',
-                          },
-                          { openPanel: true },
-                        )
-                      }
-                      className={[
-                        'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px] sm:px-4 sm:py-3 sm:text-[15px]',
-                        outcomeButtonClass(
-                          isCurrentMatchSelection &&
-                            activeSelection?.template === 'winner' &&
-                            activeSelection.subject === detail.bothTeamsToScore.title &&
-                            activeSelection.activeSide === 'yes',
-                          'positive',
-                        ),
-                      ].join(' ')}
-                    >
-                      {t('markets.outcomes.yes')}{' '}
-                      <RealtimePriceValue
-                        assetId={detail.bothTeamsToScore.yesAssetId}
-                        fallbackPrice={detail.bothTeamsToScore.yesPrice}
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        selectProposition(
-                          {
-                            contextType: 'match',
-                            sourceTab: 'matches',
-                            matchId: detail.match.id,
-                            eventSlug: detail.bothTeamsToScore.eventSlug ?? detail.match.slug,
-                            marketId: detail.bothTeamsToScore.marketId ?? detail.bothTeamsToScore.id,
-                            marketSlug: detail.bothTeamsToScore.marketSlug,
-                            conditionId: detail.bothTeamsToScore.conditionId,
-                            acceptingOrders: detail.bothTeamsToScore.acceptingOrders,
-                            negRisk: detail.bothTeamsToScore.negRisk,
-                            eventTitle: detail.bothTeamsToScore.eventTitle,
-                            eventTitleZh: detail.bothTeamsToScore.eventTitleZh,
-                            marketTitle: detail.bothTeamsToScore.marketTitle,
-                            marketTitleZh: detail.bothTeamsToScore.marketTitleZh,
-                            yesOutcomeTitle: detail.bothTeamsToScore.yesOutcomeTitle,
-                            noOutcomeTitle: detail.bothTeamsToScore.noOutcomeTitle,
-                            yesOutcomeTitleZh: detail.bothTeamsToScore.yesOutcomeTitleZh,
-                            noOutcomeTitleZh: detail.bothTeamsToScore.noOutcomeTitleZh,
-                            title: detail.match.matchup,
-                            badge: detail.bothTeamsToScore.badge,
-                            badgeLogo: detail.bothTeamsToScore.badgeLogo,
-                            subject: detail.bothTeamsToScore.title,
-                            shortLabel: detail.bothTeamsToScore.shortLabel,
-                            yesPrice: detail.bothTeamsToScore.yesPrice,
-                            noPrice: detail.bothTeamsToScore.noPrice,
-                            yesOrderPrice: detail.bothTeamsToScore.yesOrderPrice,
-                            noOrderPrice: detail.bothTeamsToScore.noOrderPrice,
-                            yesAssetId: detail.bothTeamsToScore.yesAssetId,
-                            noAssetId: detail.bothTeamsToScore.noAssetId,
-                            activeSide: 'no',
-                          },
-                          { openPanel: true },
-                        )
-                      }
-                      className={[
-                        'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px] sm:px-4 sm:py-3 sm:text-[15px]',
-                        outcomeButtonClass(
-                          isCurrentMatchSelection &&
-                            activeSelection?.template === 'winner' &&
-                            activeSelection.subject === detail.bothTeamsToScore.title &&
-                            activeSelection.activeSide === 'no',
-                          'negative',
-                        ),
-                      ].join(' ')}
-                    >
-                      {t('markets.outcomes.no')}{' '}
-                      <RealtimePriceValue
-                        assetId={detail.bothTeamsToScore.noAssetId}
-                        fallbackPrice={detail.bothTeamsToScore.noPrice}
-                      />
-                    </button>
-                  </div>
-                </div>
-                </section>
-              ) : null}
-            </div>
-          ) : tab === 'exact' ? (
-            isExactScoresLoading ? (
-              <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-                {t('matchDetail.exact.loading')}
+                  return (
+                    <CompactOddsButton
+                      key={item.id}
+                      active={isActive}
+                      label={item.shortLabel}
+                      assetId={item.yesAssetId}
+                      fallbackPrice={item.yesPrice}
+                      onClick={() => selectExactScore(item)}
+                    />
+                  )
+                })}
               </div>
-            ) : isExactScoresError ? (
-              <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-                {t('matchDetail.exact.error')}
-              </div>
-            ) : exactScores.length ? (
-            <div className="grid gap-3 sm:gap-4">
-              {exactScores.map((item) => {
-                const isActive =
-                  isCurrentMatchSelection &&
-                  activeSelection?.template === 'winner' &&
-                  activeSelection.subject === item.subject
-
-                return (
-                  <section key={item.id} className={sectionCardClass()}>
-                    <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                      <div>
-                        <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{item.title}</h2>
-                        <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">{item.volumeLabel}</p>
-                      </div>
-                      <div className="grid min-w-0 grid-cols-[repeat(2,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            selectProposition(
-                              {
-                                contextType: 'match',
-                                sourceTab: 'matches',
-                                matchId: detail.match.id,
-                                eventSlug: item.eventSlug ?? detail.match.slug,
-                                marketId: item.marketId ?? item.id,
-                                marketSlug: item.marketSlug,
-                                conditionId: item.conditionId,
-                                acceptingOrders: item.acceptingOrders,
-                                negRisk: item.negRisk,
-                                eventTitle: item.eventTitle,
-                                eventTitleZh: item.eventTitleZh,
-                                marketTitle: item.marketTitle,
-                                marketTitleZh: item.marketTitleZh,
-                                yesOutcomeTitle: item.yesOutcomeTitle,
-                                noOutcomeTitle: item.noOutcomeTitle,
-                                yesOutcomeTitleZh: item.yesOutcomeTitleZh,
-                                noOutcomeTitleZh: item.noOutcomeTitleZh,
-                                title: detail.match.matchup,
-                                badge: item.badge,
-                                badgeLogo: item.badgeLogo,
-                                subject: item.subject,
-                                shortLabel: item.shortLabel,
-                                yesPrice: item.yesPrice,
-                                noPrice: item.noPrice,
-                                yesOrderPrice: item.yesOrderPrice,
-                                noOrderPrice: item.noOrderPrice,
-                                yesAssetId: item.yesAssetId,
-                                noAssetId: item.noAssetId,
-                                activeSide: 'yes',
-                              },
-                              { openPanel: true },
-                            )
-                          }
-                          className={[
-                            'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px] sm:px-4 sm:py-3 sm:text-[15px]',
-                            outcomeButtonClass(isActive && activeSelection?.activeSide === 'yes', 'positive'),
-                          ].join(' ')}
-                        >
-                          {t('markets.outcomes.yes')} <RealtimePriceValue assetId={item.yesAssetId} fallbackPrice={item.yesPrice} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            selectProposition(
-                              {
-                                contextType: 'match',
-                                sourceTab: 'matches',
-                                matchId: detail.match.id,
-                                eventSlug: item.eventSlug ?? detail.match.slug,
-                                marketId: item.marketId ?? item.id,
-                                marketSlug: item.marketSlug,
-                                conditionId: item.conditionId,
-                                acceptingOrders: item.acceptingOrders,
-                                negRisk: item.negRisk,
-                                eventTitle: item.eventTitle,
-                                eventTitleZh: item.eventTitleZh,
-                                marketTitle: item.marketTitle,
-                                marketTitleZh: item.marketTitleZh,
-                                yesOutcomeTitle: item.yesOutcomeTitle,
-                                noOutcomeTitle: item.noOutcomeTitle,
-                                yesOutcomeTitleZh: item.yesOutcomeTitleZh,
-                                noOutcomeTitleZh: item.noOutcomeTitleZh,
-                                title: detail.match.matchup,
-                                badge: item.badge,
-                                badgeLogo: item.badgeLogo,
-                                subject: item.subject,
-                                shortLabel: item.shortLabel,
-                                yesPrice: item.yesPrice,
-                                noPrice: item.noPrice,
-                                yesOrderPrice: item.yesOrderPrice,
-                                noOrderPrice: item.noOrderPrice,
-                                yesAssetId: item.yesAssetId,
-                                noAssetId: item.noAssetId,
-                                activeSide: 'no',
-                              },
-                              { openPanel: true },
-                            )
-                          }
-                          className={[
-                            'min-w-0 whitespace-nowrap rounded-[14px] border px-2 py-2.5 text-[11px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px] sm:px-4 sm:py-3 sm:text-[15px]',
-                            outcomeButtonClass(isActive && activeSelection?.activeSide === 'no', 'negative'),
-                          ].join(' ')}
-                        >
-                          {t('markets.outcomes.no')} <RealtimePriceValue assetId={item.noAssetId} fallbackPrice={item.noPrice} />
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-                )
-              })}
-            </div>
-            ) : (
-              <EmptyDataSection title={t('matchDetail.sections.exactScore')} />
-            )
-          ) : isHalftimeResultLoading ? (
-            <div className="rounded-[20px] border border-white/8 bg-panel/95 p-4 text-[13px] text-ink-soft">
-              {t('matchDetail.halftime.loading')}
-            </div>
-          ) : isHalftimeResultError ? (
-            <div className="rounded-[20px] border border-rose-500/20 bg-panel/95 p-4 text-[13px] text-rose-300">
-              {t('matchDetail.halftime.error')}
-            </div>
+            </MarketSection>
           ) : (
-            halftimeResult ? (
-            <section className={sectionCardClass()}>
-              <div className="flex flex-col gap-3 px-3.5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-4">
-                <div>
-                  <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-                    {halftimeResult.title}
-                  </h2>
-                  <p className="mt-1 text-[12px] text-ink-soft sm:text-[14px]">
-                    {halftimeResult.volumeLabel}
-                  </p>
-                </div>
-                <div className="grid min-w-0 grid-cols-[repeat(3,minmax(0,1fr))] gap-1.5 sm:gap-2">
-                  {halftimeResult.outcomes.map((outcome, outcomeIndex) => {
-                    const isActive =
-                      isCurrentMatchSelection &&
-                      activeSelection?.template === 'winner' &&
-                      activeSelection.subject === outcome.subject
+            <EmptyDataSection title={t('matchDetail.sections.exactScore')} />
+          )}
 
-                    return (
-                      <button
-                        key={outcome.id}
-                        type="button"
-                        onClick={() =>
-                          selectProposition(
-                            {
-                              contextType: 'match',
-                              sourceTab: 'matches',
-                              matchId: detail.match.id,
-                              eventSlug: outcome.eventSlug ?? detail.match.slug,
-                              marketId: outcome.marketId ?? outcome.id,
-                              marketSlug: outcome.marketSlug,
-                              conditionId: outcome.conditionId,
-                              acceptingOrders: outcome.acceptingOrders,
-                              negRisk: outcome.negRisk,
-                              eventTitle: outcome.eventTitle,
-                              eventTitleZh: outcome.eventTitleZh,
-                              marketTitle: outcome.marketTitle,
-                              marketTitleZh: outcome.marketTitleZh,
-                              yesOutcomeTitle: outcome.yesOutcomeTitle,
-                              noOutcomeTitle: outcome.noOutcomeTitle,
-                              yesOutcomeTitleZh: outcome.yesOutcomeTitleZh,
-                              noOutcomeTitleZh: outcome.noOutcomeTitleZh,
-                              title: detail.match.matchup,
-                              badge: outcome.badge,
-                              badgeLogo: outcome.badgeLogo,
-                              subject: outcome.subject,
-                              shortLabel: outcome.shortLabel,
-                              yesPrice: outcome.yesPrice,
-                              noPrice: outcome.noPrice,
-                              yesOrderPrice: outcome.yesOrderPrice,
-                              noOrderPrice: outcome.noOrderPrice,
-                              yesAssetId: outcome.yesAssetId,
-                              noAssetId: outcome.noAssetId,
-                              activeSide: 'yes',
-                            },
-                            { openPanel: true },
-                          )
-                        }
-                        className={[
-                          'min-w-0 whitespace-nowrap rounded-[14px] border px-1.5 py-2.5 text-[10.5px] font-semibold shadow-[inset_0_-6px_0_rgba(0,0,0,0.12)] transition sm:min-w-[126px] sm:px-4 sm:py-3 sm:text-[15px]',
-                          outcomeButtonClass(isActive, outcome.shortLabel === 'DRAW' ? 'neutral' : 'positive'),
-                        ].join(' ')}
-                      >
-                        {getWinnerOutcomeDisplayLabel(outcomeIndex, t)}{' '}
-                        <RealtimePriceValue assetId={outcome.yesAssetId} fallbackPrice={outcome.yesPrice} />
-                      </button>
-                    )
-                  })}
-                </div>
+          {isHalftimeResultLoading ? (
+            <LoadingDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.loading')} />
+          ) : isHalftimeResultError ? (
+            <ErrorDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.error')} />
+          ) : halftimeResult ? (
+            <MarketSection title={halftimeResult.title} subtitle={halftimeResult.volumeLabel}>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                {halftimeResult.outcomes.map((outcome, outcomeIndex) => (
+                  <OddsButton
+                    key={outcome.id}
+                    active={isWinnerOutcomeActive(activeSelection, detail.match.id, outcome)}
+                    label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
+                    subLabel={outcome.subject}
+                    assetId={outcome.yesAssetId}
+                    fallbackPrice={outcome.yesPrice}
+                    onClick={() => selectHalftimeOutcome(outcome)}
+                  />
+                ))}
+              </div>
+            </MarketSection>
+          ) : (
+            <EmptyDataSection title={t('matchDetail.sections.halftime')} />
+          )}
+
+          {detail.contextDescription ? (
+            <section className={sectionCardClass()}>
+              <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
+                <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
+                  {t('matchDetail.sections.context')}
+                </h2>
+                <p className="mt-2 text-[12px] leading-6 text-ink-soft sm:mt-3 sm:text-[14px] sm:leading-7">
+                  {detail.contextDescription}
+                </p>
               </div>
             </section>
-            ) : (
-              <EmptyDataSection title={t('matchDetail.sections.halftime')} />
-            )
-          )}
+          ) : null}
         </div>
 
         <div className="hidden lg:sticky lg:top-[84px] lg:block lg:self-start">
           <OrderPanel />
         </div>
       </div>
-
-      {detail.contextDescription ? (
-        <section className={sectionCardClass()}>
-          <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
-            <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">
-              {t('matchDetail.sections.context')}
-            </h2>
-            <p className="mt-2 text-[12px] leading-6 text-ink-soft sm:mt-3 sm:text-[14px] sm:leading-7">
-              {detail.contextDescription}
-            </p>
-          </div>
-        </section>
-      ) : null}
 
       <MobileOrderDrawer />
     </div>

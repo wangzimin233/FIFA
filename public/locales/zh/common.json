@@ -142,9 +142,15 @@
       "halftime": "半场结果"
     },
     "sections": {
+      "matchMarkets": "比赛盘口",
       "exactScore": "准确比分",
       "halftime": "半场结果",
       "context": "比赛背景"
+    },
+    "betLabels": {
+      "homeWin": "主胜",
+      "draw": "平局",
+      "awayWin": "客胜"
     },
     "exact": {
       "loading": "正在加载准确比分...",

@@ -803,7 +803,7 @@ export function normalizeGame(event: WorldCupGameEvent, language?: string): Matc
       return { ...outcome, subject: away }
     }
 
-    return outcome
+    return { ...outcome, subject: i18n.t('markets.outcomes.draw', { lng: language }) }
   })
   const primaryRecord = getRecordLabel(homeTeamData?.record)
   const secondaryRecord = getRecordLabel(awayTeamData?.record)

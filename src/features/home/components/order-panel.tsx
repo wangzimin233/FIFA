@@ -52,8 +52,15 @@ function getLocalizedText({
   const normalizedLanguage = language?.toLowerCase()
   const primaryText = normalizedLanguage?.startsWith('zh') ? zh : en
   const secondaryText = normalizedLanguage?.startsWith('zh') ? en : zh
+  const fallbackText = fallback.trim()
 
-  return primaryText?.trim() || secondaryText?.trim() || fallback
+  return primaryText?.trim() || fallbackText || secondaryText?.trim() || fallback
+}
+
+function getWinnerSubjectFallback(selection: Extract<MarketSelection, { template: 'winner' }>, drawLabel: string) {
+  return selection.shortLabel.toLowerCase() === 'draw' || selection.subject.toLowerCase() === 'draw'
+    ? drawLabel
+    : selection.subject
 }
 
 function SelectionBadge({ value, logo }: { value: string; logo?: string }) {
@@ -247,16 +254,18 @@ function PanelHeader({
 
 function WinnerContent({ onClose }: { onClose?: () => void }) {
   const { t, i18n } = useTranslation()
-  const { activeSelection, setWinnerSide } = useOrderStore()
+  const { activeSelection } = useOrderStore()
   const winnerSelection = activeSelection?.template === 'winner' ? activeSelection : null
-  const yesPrice = useDisplayPrice(winnerSelection?.yesAssetId, winnerSelection?.yesPrice ?? 50)
-  const noPrice = useDisplayPrice(winnerSelection?.noAssetId, winnerSelection?.noPrice ?? 50)
+  const selectedAssetId =
+    winnerSelection?.activeSide === 'no' ? winnerSelection.noAssetId : winnerSelection?.yesAssetId
+  const selectedFallbackPrice =
+    winnerSelection?.activeSide === 'no' ? winnerSelection.noPrice : (winnerSelection?.yesPrice ?? 50)
+  const selectedPrice = useDisplayPrice(selectedAssetId, selectedFallbackPrice ?? 50)
 
   if (!winnerSelection) {
     return null
   }
 
-  const yesActive = winnerSelection.activeSide === 'yes'
   const headerTitle = getLocalizedText({
     en: winnerSelection.eventTitle,
     zh: winnerSelection.eventTitleZh,
@@ -264,9 +273,9 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
     language: i18n.resolvedLanguage,
   })
   const headerSubject = getLocalizedText({
-    en: winnerSelection.marketTitle,
-    zh: winnerSelection.marketTitleZh,
-    fallback: winnerSelection.subject,
+    en: winnerSelection.activeSide === 'no' ? winnerSelection.noOutcomeTitle : winnerSelection.marketTitle,
+    zh: winnerSelection.activeSide === 'no' ? winnerSelection.noOutcomeTitleZh : winnerSelection.marketTitleZh,
+    fallback: getWinnerSubjectFallback(winnerSelection, t('markets.outcomes.draw')),
     language: i18n.resolvedLanguage,
   })
 
@@ -280,31 +289,10 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
         onClose={onClose}
       />
 
-      <div className="mt-4.5 grid gap-2 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={() => setWinnerSide('yes')}
-          className={[
-            'flex min-h-[58px] items-center justify-center rounded-[15px] px-3 py-3 text-center shadow-[inset_0_-7px_0_rgba(0,0,0,0.12)] transition',
-            yesActive ? 'bg-emerald-500/85 text-white' : 'bg-white/4 text-ink-soft hover:text-ink',
-          ].join(' ')}
-        >
-          <div className="text-[15px] font-semibold sm:text-[16px]">
-            {t('markets.outcomes.yes')} <RollingOdds value={yesPrice} />
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => setWinnerSide('no')}
-          className={[
-            'flex min-h-[58px] items-center justify-center rounded-[15px] px-3 py-3 text-center shadow-[inset_0_-7px_0_rgba(0,0,0,0.12)] transition',
-            !yesActive ? 'bg-rose-500/90 text-white' : 'bg-white/4 text-ink-soft hover:text-ink',
-          ].join(' ')}
-        >
-          <div className="text-[15px] font-semibold sm:text-[16px]">
-            {t('markets.outcomes.no')} <RollingOdds value={noPrice} />
-          </div>
-        </button>
+      <div className="mt-4.5 rounded-[15px] border border-brand/20 bg-brand/10 px-3.5 py-3.5 text-center">
+        <div className="text-[24px] font-semibold leading-none text-brand sm:text-[28px]">
+          <RollingOdds value={selectedPrice} />
+        </div>
       </div>
 
       <AmountSection />

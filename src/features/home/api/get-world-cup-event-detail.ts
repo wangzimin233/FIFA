@@ -206,7 +206,7 @@ function buildHalftimeResult(event: WorldCupGameEvent | undefined, match: MatchD
           ...getOrderMarketMetadata(event, market),
           negRisk: market.negRisk,
           shortLabel: 'DRAW',
-          subject: 'Draw',
+          subject: i18n.t('markets.outcomes.draw', { lng: language }),
           badge: '◌',
           yesPrice,
           noPrice,
@@ -305,7 +305,7 @@ function buildExactScores(event: WorldCupGameEvent | undefined, teams?: WorldCup
     })
     .map((market) => {
       const rawTitle = getLocalizedGroupItemTitle(market, language) ?? market.question ?? 'Exact Score'
-      const scoreLabel = rawTitle.replace(/^Exact Score:\s*/i, '')
+      const scoreLabel = rawTitle.replace(/^(Exact Score|准确比分|确切比分)\s*[:：]\s*/i, '')
       const { badge, badgeLogo } = toExactScoreBadge(scoreLabel, home, away)
       const { yesPrice, noPrice } = getYesNoPrices(market)
       const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)

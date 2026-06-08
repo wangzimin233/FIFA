@@ -44,18 +44,15 @@ function getMobileTitle(selection: MarketSelection, totalLabel: string) {
 
 function getMobileSubject(
   selection: MarketSelection,
-  labels: { away: string; home: string; over: string; under: string; yes: string; no: string },
+  labels: { away: string; draw: string; home: string; over: string; under: string },
 ) {
   if (selection.template === 'winner') {
-    return (
-      <>
-        <span className="text-ink">{selection.subject}</span>
-        <span className="mx-2 text-ink-soft">•</span>
-        <span className={getMobilePriceTone(selection)}>
-          {selection.activeSide === 'yes' ? labels.yes : labels.no}
-        </span>
-      </>
-    )
+    const subject =
+      selection.shortLabel.toLowerCase() === 'draw' || selection.subject.toLowerCase() === 'draw'
+        ? labels.draw
+        : selection.subject
+
+    return <span className={getMobilePriceTone(selection)}>{subject}</span>
   }
 
   if (selection.template === 'spread') {
@@ -122,11 +119,10 @@ function MobileHeader() {
           <div className="mt-1.5 text-[20px] font-semibold leading-tight">
             {getMobileSubject(activeSelection, {
               away: t('markets.outcomes.away'),
+              draw: t('markets.outcomes.draw'),
               home: t('markets.outcomes.home'),
               over: t('markets.outcomes.over'),
               under: t('markets.outcomes.under'),
-              yes: t('markets.outcomes.yes'),
-              no: t('markets.outcomes.no'),
             })}
           </div>
         </div>
@@ -154,44 +150,6 @@ function MobileAmountDisplay() {
         className="absolute inset-0 h-full w-full border-none bg-transparent text-center text-[84px] font-semibold text-transparent caret-white outline-none placeholder:text-transparent"
       />
     </label>
-  )
-}
-
-function MobileWinnerSegment() {
-  const { t } = useTranslation()
-  const { activeSelection, setWinnerSide } = useOrderStore()
-
-  if (!activeSelection || activeSelection.template !== 'winner') {
-    return null
-  }
-
-  const yesActive = activeSelection.activeSide === 'yes'
-
-  return (
-    <div className="mt-8 flex justify-center">
-      <div className="inline-flex rounded-full bg-white/4 p-0.75">
-        <button
-          type="button"
-          onClick={() => setWinnerSide('yes')}
-          className={[
-            'min-w-[96px] rounded-full px-6 py-2.5 text-[15px] font-semibold transition',
-            yesActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
-          ].join(' ')}
-        >
-          {t('markets.outcomes.yes')}
-        </button>
-        <button
-          type="button"
-          onClick={() => setWinnerSide('no')}
-          className={[
-            'min-w-[96px] rounded-full px-6 py-2.5 text-[15px] font-semibold transition',
-            !yesActive ? 'bg-white/10 text-ink' : 'text-ink-soft',
-          ].join(' ')}
-        >
-          {t('markets.outcomes.no')}
-        </button>
-      </div>
-    </div>
   )
 }
 
@@ -320,7 +278,7 @@ function MobileQuickAmounts() {
   )
 }
 
-function MobileDrawerContent() {
+function MobileDrawerContent({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
   const { canSubmit, isOddsAllowed, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
@@ -330,16 +288,22 @@ function MobileDrawerContent() {
   }
 
   return (
-    <div className="rounded-t-[28px] border border-white/8 bg-panel px-5 pb-5 pt-4 shadow-[0_-18px_38px_rgba(0,0,0,0.28)]">
+    <div className="relative rounded-t-[28px] border border-white/8 bg-panel px-5 pb-5 pt-4 shadow-[0_-18px_38px_rgba(0,0,0,0.28)]">
+      <button
+        type="button"
+        aria-label={t('actions.close')}
+        onClick={onClose}
+        className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-white/8 bg-white/5 text-[18px] font-medium leading-none text-ink-soft transition hover:border-white/14 hover:bg-white/8 hover:text-ink"
+      >
+        ×
+      </button>
       <MobileHeader />
       <MobileAmountDisplay />
-      {activeSelection.template === 'winner' ? (
-        <MobileWinnerSegment />
-      ) : activeSelection.template === 'spread' ? (
+      {activeSelection.template === 'spread' ? (
         <MobileSpreadSegment />
-      ) : (
+      ) : activeSelection.template === 'total' ? (
         <MobileTotalSegment />
-      )}
+      ) : null}
       <MobileComputedResult />
       <div className="mt-4 text-center text-[13px] font-medium text-ink-soft">
         {isOddsAllowed
@@ -388,7 +352,7 @@ export function MobileOrderDrawer() {
             transition={{ duration: 0.22 }}
             className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-3xl px-2 pb-0 lg:hidden"
           >
-            <MobileDrawerContent />
+            <MobileDrawerContent onClose={closePanel} />
           </motion.div>
         </>
       ) : null}

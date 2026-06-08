@@ -1,4 +1,4 @@
-export const DEFAULT_BACKEND_HOST = '192.168.0.12:8080'
+export const DEFAULT_BACKEND_HOST = '192.168.1.6:8080'
 export const POLYMARKET_MARKET_WS_PATH = '/ws/polymarket/market'
 
 export function normalizeBackendHost(host = DEFAULT_BACKEND_HOST) {

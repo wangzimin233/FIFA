@@ -53,6 +53,17 @@ function getBinaryOutcomeText(
 }
 
 function getWinnerOrderText(selection: Extract<MarketSelection, { template: 'winner' }>) {
+  if (selection.activeSide === 'yes') {
+    return {
+      eventTitle: getFallbackText(selection.eventTitle, selection.title),
+      eventTitleZh: getFallbackText(selection.eventTitleZh, selection.title),
+      marketTitle: getFallbackText(selection.marketTitle, selection.subject),
+      marketTitleZh: getFallbackText(selection.marketTitleZh, selection.subject),
+      outcomeTitle: getFallbackText(selection.marketTitle, selection.subject),
+      outcomeTitleZh: getFallbackText(selection.marketTitleZh, selection.subject),
+    }
+  }
+
   return {
     eventTitle: getFallbackText(selection.eventTitle, selection.title),
     eventTitleZh: getFallbackText(selection.eventTitleZh, selection.title),
