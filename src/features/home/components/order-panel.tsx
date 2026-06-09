@@ -106,7 +106,16 @@ function AmountSection() {
   const { t } = useTranslation()
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
-  const { canSubmit, isAcceptingOrders, isOddsAllowed, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
+  const {
+    canSubmit,
+    isAcceptingOrders,
+    isOddsAllowed,
+    isSubmitting,
+    isWalletAuthenticated,
+    isWalletConnected,
+    slippageConfirmed,
+    submitOrder,
+  } = useSubmitPolymarketOrder()
   const amountDisplay = useMemo(() => `$${amount}`, [amount])
   const amountTone = amount > 0 ? 'text-ink' : 'text-[#66758d]'
   const computedResult = useMemo(() => {
@@ -195,6 +204,10 @@ function AmountSection() {
       >
         {isSubmitting
           ? t('orderPanel.submitting')
+          : !isWalletConnected
+            ? t('actions.connectWallet')
+          : !isWalletAuthenticated
+            ? t('walletAuth.buttons.completeLogin')
           : !isAcceptingOrders
             ? t('orderPanel.unsupportedOrder')
             : !isOddsAllowed

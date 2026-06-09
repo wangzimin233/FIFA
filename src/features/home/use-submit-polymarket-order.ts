@@ -1,10 +1,12 @@
 import { toast } from '@heroui/react'
 import { useMutation } from '@tanstack/react-query'
+import { useAppKitAccount } from '@reown/appkit/react'
 import { useCallback, useMemo, useState } from 'react'
 import { queryClient } from '../../config/query-client'
 import i18n from '../../config/i18n'
 import { getActiveSelectionDisplayPrice, getActiveSelectionPrice } from '../market-realtime/price-utils'
 import { usePolymarketPriceStore } from '../market-realtime/polymarket-price-store'
+import { useWalletAuthStore } from '../wallet-auth/auth-store'
 import { createPolymarketOrder, type PolymarketCreateOrderRequest } from './api/polymarket-orders'
 import { type MarketSelection, useOrderStore } from './order-store'
 
@@ -207,6 +209,10 @@ function isConditionId(value: string) {
   return /^0x[a-fA-F0-9]{64}$/.test(value)
 }
 
+function normalizeWalletAddress(value: string | undefined | null) {
+  return value?.trim().toLowerCase() ?? ''
+}
+
 export function buildPolymarketOrderPayload(
   selection: MarketSelection | null,
   amount: number,
@@ -290,10 +296,17 @@ export function buildPolymarketOrderPayload(
 
 export function useSubmitPolymarketOrder() {
   const [slippageConfirmation, setSlippageConfirmation] = useState({ key: '', confirmed: false })
+  const { address, isConnected } = useAppKitAccount({ namespace: 'eip155' })
+  const walletAuthSession = useWalletAuthStore((state) => state.session)
   const { activeSelection, amount, slippage } = useOrderStore()
   const priceByAssetId = usePolymarketPriceStore((state) => state.priceByAssetId)
   const displayPriceByAssetId = usePolymarketPriceStore((state) => state.displayPriceByAssetId)
   const isAcceptingOrders = isSelectionAcceptingOrders(activeSelection)
+  const isWalletAuthenticated =
+    isConnected &&
+    Boolean(walletAuthSession?.token) &&
+    normalizeWalletAddress(address).length > 0 &&
+    normalizeWalletAddress(address) === normalizeWalletAddress(walletAuthSession?.walletAddress)
   const activeDisplayPrice = activeSelection
     ? getActiveSelectionDisplayPrice(activeSelection, displayPriceByAssetId)
     : null
@@ -345,12 +358,19 @@ export function useSubmitPolymarketOrder() {
   }, [activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage])
 
   const submitOrder = useCallback(() => {
+    if (!isWalletAuthenticated) {
+      toast(i18n.t('walletAuth.errors.loginRequired'))
+      return
+    }
+
     const nextPayload = buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage)
     mutation.mutate(nextPayload)
-  }, [activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage, mutation])
+  }, [activeSelection, amount, displayPriceByAssetId, isWalletAuthenticated, priceByAssetId, slippage, mutation])
 
   return {
-    canSubmit: isAcceptingOrders && isOddsAllowed && !!payload && !mutation.isPending,
+    canSubmit: isWalletAuthenticated && isAcceptingOrders && isOddsAllowed && !!payload && !mutation.isPending,
+    isWalletAuthenticated,
+    isWalletConnected: isConnected,
     isOddsAllowed,
     isAcceptingOrders,
     isSubmitting: mutation.isPending,

@@ -282,7 +282,15 @@ function MobileQuickAmounts() {
 function MobileDrawerContent({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
-  const { canSubmit, isOddsAllowed, isSubmitting, slippageConfirmed, submitOrder } = useSubmitPolymarketOrder()
+  const {
+    canSubmit,
+    isOddsAllowed,
+    isSubmitting,
+    isWalletAuthenticated,
+    isWalletConnected,
+    slippageConfirmed,
+    submitOrder,
+  } = useSubmitPolymarketOrder()
 
   if (!activeSelection) {
     return null
@@ -320,6 +328,10 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
       >
         {isSubmitting
           ? t('orderPanel.submitting')
+          : !isWalletConnected
+            ? t('actions.connectWallet')
+          : !isWalletAuthenticated
+            ? t('walletAuth.buttons.completeLogin')
           : !isOddsAllowed
             ? t('orderPanel.unsupportedOrder')
             : slippageConfirmed
