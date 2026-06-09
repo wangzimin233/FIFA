@@ -172,28 +172,12 @@ function parseMessageTimestamp(value?: string | number) {
 }
 
 function resolveRealtimePriceCents(payload: {
-  price?: string | number
-  best_bid?: string | number
   best_ask?: string | number
 }) {
-  const bestBid = parseDecimal(payload.best_bid)
   const bestAsk = parseDecimal(payload.best_ask)
-
-  if (bestBid !== null && bestAsk !== null) {
-    return parsePriceToCents((bestBid + bestAsk) / 2)
-  }
 
   if (bestAsk !== null) {
     return parsePriceToCents(bestAsk)
-  }
-
-  if (bestBid !== null) {
-    return parsePriceToCents(bestBid)
-  }
-
-  const tradePrice = parseDecimal(payload.price)
-  if (tradePrice !== null) {
-    return parsePriceToCents(tradePrice)
   }
 
   return null
@@ -326,8 +310,6 @@ function applyPriceChanges(message: PolymarketPriceMessage) {
   if (message.asset_id) {
     const assetId = message.asset_id.trim()
     const orderPrice = resolveRealtimePriceCents({
-      price: message.price_changes?.[0]?.price,
-      best_bid: message.best_bid,
       best_ask: message.best_ask,
     })
 
@@ -354,8 +336,6 @@ function applyPriceChanges(message: PolymarketPriceMessage) {
     }
 
     const orderPrice = resolveRealtimePriceCents({
-      price: item.price,
-      best_bid: item.best_bid,
       best_ask: item.best_ask,
     })
     const displayPrice = resolveRealtimeDisplayPrice({

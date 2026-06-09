@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useCallback, useMemo, useState } from 'react'
 import { queryClient } from '../../config/query-client'
 import i18n from '../../config/i18n'
-import { getActiveSelectionDisplayPrice } from '../market-realtime/price-utils'
+import { getActiveSelectionDisplayPrice, getActiveSelectionPrice } from '../market-realtime/price-utils'
 import { usePolymarketPriceStore } from '../market-realtime/polymarket-price-store'
 import { createPolymarketOrder, type PolymarketCreateOrderRequest } from './api/polymarket-orders'
 import { type MarketSelection, useOrderStore } from './order-store'
@@ -211,6 +211,8 @@ export function buildPolymarketOrderPayload(
   selection: MarketSelection | null,
   amount: number,
   displayPriceByAssetId: Record<string, number> = {},
+  priceByAssetId: Record<string, number> = {},
+  slippage: number | null = null,
 ): PolymarketCreateOrderRequest {
   if (!selection) {
     throw new Error(i18n.t('orderErrors.selectMarket'))
@@ -257,6 +259,15 @@ export function buildPolymarketOrderPayload(
     throw new Error(i18n.t('orderErrors.missingTokenId'))
   }
 
+  if (slippage === null || !Number.isFinite(slippage) || slippage < 0) {
+    throw new Error(i18n.t('orderErrors.invalidSlippage'))
+  }
+
+  const currentPrice = getActiveSelectionPrice(selection, priceByAssetId) / 100
+  if (!Number.isFinite(currentPrice) || currentPrice <= 0) {
+    throw new Error(i18n.t('orderErrors.invalidCurrentPrice'))
+  }
+
   return {
     eventSlug: target.eventSlug,
     marketSlug: target.marketSlug,
@@ -271,13 +282,16 @@ export function buildPolymarketOrderPayload(
     outcomeTitleZh: target.outcomeTitleZh ?? '',
     tokenId: target.tokenId,
     amount,
+    currentPrice,
+    slippage,
     negRisk: target.negRisk ?? false,
   }
 }
 
 export function useSubmitPolymarketOrder() {
   const [slippageConfirmation, setSlippageConfirmation] = useState({ key: '', confirmed: false })
-  const { activeSelection, amount } = useOrderStore()
+  const { activeSelection, amount, slippage } = useOrderStore()
+  const priceByAssetId = usePolymarketPriceStore((state) => state.priceByAssetId)
   const displayPriceByAssetId = usePolymarketPriceStore((state) => state.displayPriceByAssetId)
   const isAcceptingOrders = isSelectionAcceptingOrders(activeSelection)
   const activeDisplayPrice = activeSelection
@@ -290,8 +304,8 @@ export function useSubmitPolymarketOrder() {
     }
 
     const target = resolveOrderTarget(activeSelection)
-    return [activeSelection.template, target.conditionId, target.tokenId, amount].join('|')
-  }, [activeSelection, amount])
+    return [activeSelection.template, target.conditionId, target.tokenId, amount, slippage].join('|')
+  }, [activeSelection, amount, slippage])
   const slippageConfirmed = slippageConfirmation.key === orderKey && slippageConfirmation.confirmed
   const mutation = useMutation({
     mutationFn: (payload: PolymarketCreateOrderRequest) => createPolymarketOrder(payload),
@@ -324,16 +338,16 @@ export function useSubmitPolymarketOrder() {
 
   const payload = useMemo(() => {
     try {
-      return buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId)
+      return buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage)
     } catch {
       return null
     }
-  }, [activeSelection, amount, displayPriceByAssetId])
+  }, [activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage])
 
   const submitOrder = useCallback(() => {
-    const nextPayload = buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId)
+    const nextPayload = buildPolymarketOrderPayload(activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage)
     mutation.mutate(nextPayload)
-  }, [activeSelection, amount, displayPriceByAssetId, mutation])
+  }, [activeSelection, amount, displayPriceByAssetId, priceByAssetId, slippage, mutation])
 
   return {
     canSubmit: isAcceptingOrders && isOddsAllowed && !!payload && !mutation.isPending,

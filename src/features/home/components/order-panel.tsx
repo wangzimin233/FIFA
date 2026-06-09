@@ -7,6 +7,7 @@ import { RollingNumber } from '../../market-realtime/rolling-number'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
+import { SlippageSelector } from './slippage-selector'
 
 const quickAmounts = [2, 5, 10, 100]
 
@@ -162,6 +163,8 @@ function AmountSection() {
           </button>
         ))}
       </div>
+
+      <SlippageSelector />
 
       {computedResult ? (
         <div className="mt-3.5 text-center">

@@ -427,9 +427,40 @@ function splitMatchTitle(title?: string) {
   }
 }
 
+function normalizeTeamLookupValue(value?: string) {
+  return value
+    ?.toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\band\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() ?? ''
+}
+
+function findTeamByTitleName(
+  teams: WorldCupGameTeam[],
+  titleName: string,
+  excludedTeam?: WorldCupGameTeam,
+) {
+  const normalizedTitleName = normalizeTeamLookupValue(titleName)
+  if (!normalizedTitleName) {
+    return undefined
+  }
+
+  return teams.find((team) => team !== excludedTeam && normalizeTeamLookupValue(team.name) === normalizedTitleName)
+}
+
 function getOrderedTeams(event: WorldCupGameEvent) {
-  const home = event.teams?.find((team) => team.ordering === 'home')
-  const away = event.teams?.find((team) => team.ordering === 'away')
+  const teams = event.teams ?? []
+  const orderedHome = teams.find((team) => team.ordering === 'home')
+  const orderedAway = teams.find((team) => team.ordering === 'away')
+  const { home: titleHome, away: titleAway } = splitMatchTitle(event.title)
+  const home = orderedHome ?? findTeamByTitleName(teams, titleHome) ?? teams[0]
+  const away =
+    orderedAway ??
+    findTeamByTitleName(teams, titleAway, home) ??
+    teams.find((team) => team !== home) ??
+    teams[1]
 
   return { home, away }
 }
@@ -571,17 +602,19 @@ export function isZhLanguage(language?: string) {
   return language?.toLowerCase().startsWith('zh') ?? false
 }
 
-export function getLocalizedGroupItemTitle(market: WorldCupGameMarket, language?: string) {
-  const zhTitle = market.groupItemTitleZh?.trim()
-  const enTitle = market.groupItemTitle?.trim()
+export function getLocalizedGroupItemTitle(market: WorldCupGameMarket | undefined, language?: string) {
+  const zhTitle = market?.groupItemTitleZh?.trim()
+  const enTitle = market?.groupItemTitle?.trim()
 
   return isZhLanguage(language) ? zhTitle || enTitle : enTitle || zhTitle
 }
 
 function getWinnerTeamMarket(event: WorldCupGameEvent, teamName: string) {
+  const normalizedTeamName = normalizeTeamLookupValue(teamName)
+
   return event.markets?.find((market) => {
     const label = market.groupItemTitle?.trim()
-    return label?.toLowerCase() === teamName.toLowerCase()
+    return normalizeTeamLookupValue(label) === normalizedTeamName
   })
 }
 

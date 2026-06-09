@@ -109,6 +109,7 @@ function getMatchEventSlug(match: MatchCard) {
 interface OrderStore {
   activeSelection: MarketSelection | null
   amount: number
+  slippage: number | null
   isPanelOpen: boolean
   selectProposition: (input: PropositionSelectionInput, options?: SelectionOptions) => void
   selectWinner: (
@@ -136,6 +137,7 @@ interface OrderStore {
   setTotalSide: (side: 'over' | 'under') => void
   setAmount: (amount: number) => void
   addAmount: (delta: number) => void
+  setSlippage: (slippage: number) => void
   closePanel: () => void
   clearSelection: () => void
 }
@@ -207,6 +209,7 @@ const buildWinnerSelection = ({
 export const useOrderStore = create<OrderStore>((set) => ({
   activeSelection: null,
   amount: 0,
+  slippage: null,
   isPanelOpen: false,
   selectProposition: (input, options) =>
     set({
@@ -374,6 +377,7 @@ export const useOrderStore = create<OrderStore>((set) => ({
     }),
   setAmount: (amount) => set({ amount: Number.isFinite(amount) ? Math.max(0, amount) : 0 }),
   addAmount: (delta) => set((state) => ({ amount: Math.max(0, state.amount + delta) })),
+  setSlippage: (slippage) => set({ slippage }),
   closePanel: () => set({ isPanelOpen: false }),
   clearSelection: () => set({ activeSelection: null, amount: 0, isPanelOpen: false }),
 }))

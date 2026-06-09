@@ -29,6 +29,8 @@ export type PolymarketCreateOrderRequest = {
   outcomeTitleZh: string
   tokenId: string
   amount: number
+  currentPrice: number
+  slippage: number
   negRisk: boolean
 }
 

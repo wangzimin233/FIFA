@@ -7,6 +7,7 @@ import { RollingNumber } from '../../market-realtime/rolling-number'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
 import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
+import { SlippageSelector } from './slippage-selector'
 
 const quickAmounts = [2, 5, 10, 100]
 
@@ -288,7 +289,7 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="relative rounded-t-[28px] border border-white/8 bg-panel px-5 pb-5 pt-4 shadow-[0_-18px_38px_rgba(0,0,0,0.28)]">
+    <div className="relative max-h-[88dvh] overflow-y-auto overscroll-contain rounded-t-[28px] border border-white/8 bg-panel px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-18px_38px_rgba(0,0,0,0.28)]">
       <button
         type="button"
         aria-label={t('actions.close')}
@@ -311,6 +312,7 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
           : t('orderErrors.oddsTooLow', { odds: 1 })}
       </div>
       <MobileQuickAmounts />
+      <SlippageSelector mobile />
       <Button
         isDisabled={!canSubmit}
         onPress={submitOrder}
