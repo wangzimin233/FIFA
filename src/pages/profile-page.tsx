@@ -364,14 +364,6 @@ function formatIntegerValue(value?: number) {
   }).format(value)
 }
 
-function formatPercentValue(value?: number) {
-  if (value === undefined || value === null || !Number.isFinite(value)) {
-    return '--'
-  }
-
-  return `${formatNumberValue(value * 100)}%`
-}
-
 function formatOrderDisplayId(item: Pick<PolymarketOrderPageItem, 'orderNo' | 'polymarketOrderId' | 'id'>) {
   return item.orderNo || item.polymarketOrderId || String(item.id)
 }
@@ -932,7 +924,6 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span>{t('profile.fields.amount')}: <b className="font-semibold text-ink">{formatNumberValue(item.requestAmount)}</b></span>
-        <span>{t('profile.fields.price')}: <b className="font-semibold text-ink">{formatNumberValue(item.price)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span className="min-w-0">{t('profile.fields.event')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'event')}</b></span>
@@ -942,12 +933,6 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
         <span>{t('profile.fields.currentOdds')}: <b className="font-semibold text-ink">{formatNumberValue(item.currentOdds)}</b></span>
         <span>{t('profile.fields.estimatedReturn')}: <b className="font-semibold text-ink">{formatNumberValue(item.estimatedReturnAmount)}</b></span>
-      </div>
-      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
-        <span>{t('profile.fields.side')}: <b className="font-semibold text-ink">{item.side || '--'}</b></span>
-      </div>
-      <div className="mt-2 grid gap-2 text-[12px] text-ink-soft">
-        <span>{t('profile.fields.commission')}: <b className="font-semibold text-ink">{formatNumberValue(item.commissionAmount)} / {formatPercentValue(item.commissionRate)}</b></span>
       </div>
       {item.updateTime ? (
         <div className="mt-2 text-[12px] text-ink-soft">
