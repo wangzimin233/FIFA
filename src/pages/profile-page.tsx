@@ -151,27 +151,6 @@ function resolveDepositButtonLabel({
   }
 }
 
-function resolveWithdrawStatusMeta(status: ReturnType<typeof useWithdraw>['status']) {
-  const labelMap: Record<ReturnType<typeof useWithdraw>['status'], string> = {
-    idle: i18n.t('profile.deposit.status.idle'),
-    applying: i18n.t('profile.withdraw.status.applying'),
-    success: i18n.t('profile.withdraw.status.success'),
-    error: i18n.t('profile.status.flowError'),
-  }
-
-  const toneMap: Record<ReturnType<typeof useWithdraw>['status'], string> = {
-    idle: 'border-white/10 bg-white/[0.04] text-ink-soft',
-    applying: 'border-sky-400/20 bg-sky-400/10 text-sky-200',
-    success: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200',
-    error: 'border-rose-500/20 bg-rose-500/10 text-rose-200',
-  }
-
-  return {
-    label: labelMap[status],
-    tone: toneMap[status],
-  }
-}
-
 function resolveWithdrawButtonLabel({
   isConnected,
   isSessionReady,
@@ -406,15 +385,6 @@ function FieldLine({ label, value }: { label: string; value: ReactNode }) {
     <div className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-3 border-b border-white/6 py-2.5 last:border-b-0">
       <span className="text-[12px] text-ink-soft">{label}</span>
       <span className="min-w-0 text-right text-[13px] font-medium text-ink">{value}</span>
-    </div>
-  )
-}
-
-function MetricCell({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="min-w-0 border-white/6 px-3 py-3 sm:border-r sm:last:border-r-0">
-      <div className="text-[11px] text-ink-soft">{label}</div>
-      <div className="mt-1 truncate text-[18px] font-semibold text-ink">{value}</div>
     </div>
   )
 }
@@ -781,7 +751,6 @@ function WithdrawActionDialog({
   withdraw: ReturnType<typeof useWithdraw>
 }) {
   const { t } = useTranslation()
-  const statusMeta = resolveWithdrawStatusMeta(withdraw.status)
   const buttonLabel = resolveWithdrawButtonLabel({
     isConnected,
     isSessionReady,
@@ -793,7 +762,6 @@ function WithdrawActionDialog({
       <DialogHeader
         eyebrow="Withdraw"
         title={t('profile.withdraw.title')}
-        status={<span className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold ${statusMeta.tone}`}>{statusMeta.label}</span>}
         onClose={onClose}
       />
       <div className="max-h-[calc(92vh-73px)] overflow-y-auto px-4 py-4 sm:px-5">
@@ -818,8 +786,7 @@ function WithdrawActionDialog({
           </div>
         </label>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>{t('profile.form.fillMin')}</SecondaryButton>
+        <div className="mt-3 grid gap-2">
           <SecondaryButton onClick={() => onAmountChange(availableBalance || '')}>{t('profile.form.fillAllAvailable')}</SecondaryButton>
         </div>
 
@@ -1718,31 +1685,6 @@ export function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="grid border-b border-white/8 sm:grid-cols-5">
-                  <MetricCell label={t('profile.balance.total')} value={primaryAsset?.totalBalance ?? '--'} />
-                  <MetricCell label={t('profile.balance.frozen')} value={primaryAsset?.frozenBalance ?? '--'} />
-                  <MetricCell label={t('profile.balance.totalDeposit')} value={primaryAsset?.rechargeTotal ?? '--'} />
-                  <MetricCell label={t('profile.balance.totalWithdraw')} value={primaryAsset?.withdrawTotal ?? '--'} />
-                  <MetricCell label={t('profile.fields.coin')} value={primaryAsset ? `${primaryAsset.chainCode}-${primaryAsset.coinCode}` : '--'} />
-                </div>
-
-                <div className="grid gap-0 sm:grid-cols-2">
-                  <div className="border-b border-white/8 px-4 py-4 sm:border-b-0 sm:border-r sm:px-5">
-                    <div className="text-[11px] font-semibold uppercase text-ink-soft">{t('profile.deposit.rules')}</div>
-                    <div className="mt-2 grid gap-0">
-                      <FieldLine label={t('profile.fields.minAmount')} value={contractConfig?.rechargeMinAmount ? `${contractConfig.rechargeMinAmount} USDT` : '--'} />
-                      <FieldLine label={t('profile.fields.network')} value={contractConfig?.chainType ?? 'BSC'} />
-                    </div>
-                  </div>
-                  <div className="px-4 py-4 sm:px-5">
-                    <div className="text-[11px] font-semibold uppercase text-ink-soft">{t('profile.withdraw.rules')}</div>
-                    <div className="mt-2 grid gap-0">
-                      <FieldLine label={t('profile.fields.limit')} value={`${withdrawMinAmountLabel} / ${withdrawMaxAmountLabel}`} />
-                      <FieldLine label={t('profile.fields.fee')} value={withdrawFeeLabel} />
-                      <FieldLine label={t('profile.fields.availableBalance')} value={withdraw.availableBalance ? `${withdraw.availableBalance} USDT` : '--'} />
-                    </div>
-                  </div>
-                </div>
               </div>
 
               <div className="overflow-hidden rounded-[22px] border border-white/8 bg-panel/95 shadow-[0_14px_28px_rgba(0,0,0,0.16)]">
@@ -1761,7 +1703,6 @@ export function ProfilePage() {
                 <div className="px-4 py-3 sm:px-5">
                   <FieldLine label={t('profile.fields.walletAddress')} value={shortenAddress(walletUser.walletAddress)} />
                   <FieldLine label={t('profile.fields.inviteCode')} value={walletUser.inviteCode || '--'} />
-                  <FieldLine label={t('profile.fields.authType')} value={walletUser.authType || '--'} />
                 </div>
 
                 <div className="border-t border-white/8 px-4 py-4 sm:px-5">

@@ -482,7 +482,14 @@ export function MatchDetailPage() {
       <div>
         <button
           type="button"
-          onClick={() => navigate(state?.backTo ?? '/matches')}
+          onClick={() => {
+            if (state?.backTo) {
+              navigate(-1)
+              return
+            }
+
+            navigate('/matches')
+          }}
           className="inline-flex items-center gap-1.5 rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-[11px] font-medium text-ink-soft transition hover:border-white/14 hover:text-ink sm:px-3.5 sm:py-2 sm:text-[12px]"
         >
           <span aria-hidden="true" className="text-[13px] leading-none">

@@ -90,7 +90,7 @@
     "invite": {
       "eyebrow": "Invite",
       "title": "补充邀请码",
-      "description": "当前钱包还未注册。邀请码可以填写，也可以直接跳过；跳过后将不传这个参数。",
+      "description": "当前钱包还未注册。邀请码可以填写，也可以直接跳过。",
       "codeLabel": "邀请码（可选）",
       "placeholder": "例如 ROOT01",
       "skip": "跳过",

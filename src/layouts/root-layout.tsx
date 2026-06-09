@@ -3,7 +3,7 @@ import { AnimatePresence } from 'motion/react'
 import { motion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router-dom'
 import { GlobeIcon } from '../components/icons'
 import {
   loadInviteCodeFromSession,
@@ -364,6 +364,7 @@ export function RootLayout() {
           void completeRegistration()
         }}
       />
+      <ScrollRestoration />
     </div>
   )
 }
