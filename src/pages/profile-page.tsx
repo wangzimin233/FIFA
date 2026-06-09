@@ -232,28 +232,28 @@ function resolveWithdrawRecordStatus(status: number) {
   return { label: i18n.t('profile.status.withValue', { status }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
 }
 
-function resolvePolymarketOrderStatus(status?: number, errorMessage?: string) {
-  if (errorMessage) {
-    return { label: i18n.t('profile.status.abnormal'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
+function resolvePolymarketOrderSettlementStatus(marketClosed?: number) {
+  if (marketClosed === 0) {
+    return { label: i18n.t('profile.status.unsettled'), tone: 'border-amber-400/20 bg-amber-400/10 text-amber-200' }
   }
 
-  if (status === undefined || status === null) {
-    return { label: '--', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  if (marketClosed === 1) {
+    return { label: i18n.t('profile.status.settled'), tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
   }
 
-  if (status === 1) {
-    return { label: i18n.t('profile.status.processing'), tone: 'border-sky-400/20 bg-sky-400/10 text-sky-200' }
+  return { label: '--', tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+}
+
+function resolvePolymarketOrderWinStatus(winStatus?: number) {
+  if (winStatus === 1) {
+    return i18n.t('profile.status.win')
   }
 
-  if (status === 2) {
-    return { label: i18n.t('profile.status.completed'), tone: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-200' }
+  if (winStatus === 2) {
+    return i18n.t('profile.status.lose')
   }
 
-  if (status === 3) {
-    return { label: i18n.t('profile.status.failed'), tone: 'border-rose-500/20 bg-rose-500/10 text-rose-200' }
-  }
-
-  return { label: i18n.t('profile.status.withValue', { status }), tone: 'border-white/10 bg-white/[0.04] text-ink-soft' }
+  return i18n.t('profile.status.unknown')
 }
 
 function resolveDirectUserType(userType: number) {
@@ -876,7 +876,8 @@ function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
 
 function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
   const { t } = useTranslation()
-  const status = resolvePolymarketOrderStatus(item.status, item.errorMessage)
+  const settlementStatus = resolvePolymarketOrderSettlementStatus(item.marketClosed)
+  const winStatus = resolvePolymarketOrderWinStatus(item.winStatus)
 
   return (
     <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
@@ -885,8 +886,8 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
           <div className="truncate text-[13px] font-semibold text-ink">{formatOrderDisplayId(item)}</div>
           <div className="mt-1 text-[12px] text-ink-soft">{formatMaybeDate(item.createTime)}</div>
         </div>
-        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${status.tone}`}>
-          {status.label}
+        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${settlementStatus.tone}`}>
+          {settlementStatus.label}
         </span>
       </div>
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
@@ -895,7 +896,7 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span className="min-w-0">{t('profile.fields.event')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'event')}</b></span>
         <span className="min-w-0">{t('profile.fields.market')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'market')}</b></span>
-        <span className="min-w-0">{t('profile.fields.outcome')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'outcome')}</b></span>
+        <span className="min-w-0">{t('profile.fields.outcome')}: <b className="font-semibold text-ink">{winStatus}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
         <span>{t('profile.fields.currentOdds')}: <b className="font-semibold text-ink">{formatNumberValue(item.currentOdds)}</b></span>

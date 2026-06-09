@@ -81,6 +81,7 @@ export type PolymarketOrderPageItem = {
   marketClosed?: number
   marketClosedTime?: string | null
   marketResolutionStatus?: string
+  winStatus?: number
   errorMessage?: string
   createTime?: string
   updateTime?: string
