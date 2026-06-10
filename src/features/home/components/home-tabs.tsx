@@ -6,14 +6,14 @@ export function HomeTabs() {
   const { t } = useTranslation()
 
   return (
-    <div className="inline-flex rounded-[16px] border border-white/8 bg-white/4 p-0.75">
+    <div className="inline-flex rounded-[18px] border border-white/8 bg-white/4 p-1">
       {homeTabs.map((tab) => (
         <NavLink
           key={tab.key}
           to={`/${tab.key}`}
           className={({ isActive }) =>
             [
-              'min-w-[74px] rounded-[12px] px-3 py-1.75 text-center text-[11px] font-semibold transition sm:min-w-[82px] sm:px-3.5 sm:py-2 sm:text-[12px]',
+              'min-w-[92px] rounded-[14px] px-4 py-2.5 text-center text-[13px] font-semibold transition sm:min-w-[104px] sm:px-5 sm:py-3 sm:text-[14px]',
               isActive
                 ? 'bg-brand text-black shadow-[0_12px_28px_rgba(0,255,65,0.18)]'
                 : 'text-ink-soft hover:text-ink',

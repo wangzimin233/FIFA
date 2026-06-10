@@ -18,7 +18,7 @@ const languageOptions = [
 
 function UserGlyph() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4.5 w-4.5 sm:h-5 sm:w-5">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6 sm:h-6.5 sm:w-6.5">
       <path
         d="M12 12.25a3.75 3.75 0 1 0 0-7.5a3.75 3.75 0 0 0 0 7.5Zm0 2c-3.85 0-7 2.14-7 4.75c0 .41.34.75.75.75h12.5c.41 0 .75-.34.75-.75c0-2.61-3.15-4.75-7-4.75Z"
         fill="currentColor"

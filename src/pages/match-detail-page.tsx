@@ -44,6 +44,15 @@ function formatOdds(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 }
 
+function formatExactScoreDisplayLabel(label: string) {
+  const match = label.match(/(\d+)\s*-\s*(\d+)/)
+  return match ? `${match[1]}-${match[2]}` : label
+}
+
+function formatMatchupWithSides(match: Pick<MatchCard, 'primaryTeam' | 'secondaryTeam'>) {
+  return `${match.primaryTeam}（主） vs ${match.secondaryTeam}（客）`
+}
+
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
@@ -66,17 +75,26 @@ function RealtimePriceValue({
 
 function MarketSection({
   title,
+  matchup,
   subtitle,
   children,
 }: {
   title: string
+  matchup?: string
   subtitle?: string
   children: ReactNode
 }) {
   return (
     <section className={sectionCardClass()}>
       <div className="border-b border-white/8 px-3.5 py-3 sm:px-5 sm:py-4">
-        <h2 className="text-[15px] font-semibold text-ink sm:text-[18px]">{title}</h2>
+        <h2 className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1 text-[15px] font-semibold text-ink sm:text-[18px]">
+          <span>{title}</span>
+          {matchup ? (
+            <span className="min-w-0 text-[12px] font-medium text-ink-soft sm:text-[13px]">
+              {matchup}
+            </span>
+          ) : null}
+        </h2>
         {subtitle ? <p className="mt-1 text-[12px] text-ink-soft sm:text-[13px]">{subtitle}</p> : null}
       </div>
       <div className="px-3 py-3 sm:px-4 sm:py-4">{children}</div>
@@ -84,11 +102,11 @@ function MarketSection({
   )
 }
 
-function EmptyDataSection({ title }: { title: string }) {
+function EmptyDataSection({ matchup, title }: { matchup?: string; title: string }) {
   const { t } = useTranslation()
 
   return (
-    <MarketSection title={title}>
+    <MarketSection title={title} matchup={matchup}>
       <div className="rounded-[14px] border border-white/8 bg-white/[0.03] px-3 py-3 text-[12px] text-ink-soft sm:text-[13px]">
         {t('matchDetail.emptyData')}
       </div>
@@ -96,9 +114,9 @@ function EmptyDataSection({ title }: { title: string }) {
   )
 }
 
-function LoadingDataSection({ title, message }: { title: string; message: string }) {
+function LoadingDataSection({ matchup, title, message }: { matchup?: string; title: string; message: string }) {
   return (
-    <MarketSection title={title}>
+    <MarketSection title={title} matchup={matchup}>
       <div className="rounded-[14px] border border-white/8 bg-white/[0.03] px-3 py-3 text-[12px] text-ink-soft sm:text-[13px]">
         {message}
       </div>
@@ -106,9 +124,9 @@ function LoadingDataSection({ title, message }: { title: string; message: string
   )
 }
 
-function ErrorDataSection({ title, message }: { title: string; message: string }) {
+function ErrorDataSection({ matchup, title, message }: { matchup?: string; title: string; message: string }) {
   return (
-    <MarketSection title={title}>
+    <MarketSection title={title} matchup={matchup}>
       <div className="rounded-[14px] border border-rose-500/20 bg-rose-500/10 px-3 py-3 text-[12px] text-rose-200 sm:text-[13px]">
         {message}
       </div>
@@ -203,16 +221,16 @@ function isWinnerOutcomeActive(
 function MoneylineSection({ match }: { match: MatchCard }) {
   const { t } = useTranslation()
   const { activeSelection, selectWinner } = useOrderStore()
+  const matchup = formatMatchupWithSides(match)
 
   return (
-    <MarketSection title={t('markets.types.moneyline')} subtitle={match.volumeLabel}>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <MarketSection title="胜负平" matchup={matchup} subtitle={match.volumeLabel}>
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         {match.winnerMarket.outcomes.map((outcome, outcomeIndex) => (
           <OddsButton
             key={outcome.id}
             active={isWinnerOutcomeActive(activeSelection, match.id, outcome)}
             label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
-            subLabel={outcome.subject}
             assetId={outcome.yesAssetId}
             fallbackPrice={outcome.yesPrice}
             onClick={() => selectWinner(match, outcome, 'yes')}
@@ -226,13 +244,14 @@ function MoneylineSection({ match }: { match: MatchCard }) {
 function SpreadSection({ match }: { match: MatchCard }) {
   const { t } = useTranslation()
   const { activeSelection, selectSpread } = useOrderStore()
+  const matchup = formatMatchupWithSides(match)
 
   if (!match.spreadMarket.variants.length) {
     return null
   }
 
   return (
-    <MarketSection title={t('markets.types.spread')}>
+    <MarketSection title={t('markets.types.spread')} matchup={matchup}>
       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
         {match.spreadMarket.variants.map((variant) => {
           const homeActive =
@@ -275,13 +294,14 @@ function SpreadSection({ match }: { match: MatchCard }) {
 function TotalSection({ match }: { match: MatchCard }) {
   const { t } = useTranslation()
   const { activeSelection, selectTotal } = useOrderStore()
+  const matchup = formatMatchupWithSides(match)
 
   if (!match.totalMarket.lines.length) {
     return null
   }
 
   return (
-    <MarketSection title={t('markets.types.total')}>
+    <MarketSection title={t('markets.types.total')} matchup={matchup}>
       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
         {match.totalMarket.lines.map((line: TotalLine) => {
           const overActive =
@@ -408,6 +428,8 @@ export function MatchDetailPage() {
       </div>
     )
   }
+
+  const matchup = formatMatchupWithSides(detail.match)
 
   const selectExactScore = (item: MatchDetailProposition) => {
     selectProposition({
@@ -555,15 +577,38 @@ export function MatchDetailPage() {
             </div>
             <MoneylineSection match={detail.match} />
             <SpreadSection match={detail.match} />
+            {isHalftimeResultLoading ? (
+              <LoadingDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.loading')} />
+            ) : isHalftimeResultError ? (
+              <ErrorDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.error')} />
+            ) : halftimeResult ? (
+              <MarketSection title={halftimeResult.title} subtitle={halftimeResult.volumeLabel}>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {halftimeResult.outcomes.map((outcome, outcomeIndex) => (
+                    <OddsButton
+                      key={outcome.id}
+                      active={isWinnerOutcomeActive(activeSelection, detail.match.id, outcome)}
+                      label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
+                      subLabel={outcome.subject}
+                      assetId={outcome.yesAssetId}
+                      fallbackPrice={outcome.yesPrice}
+                      onClick={() => selectHalftimeOutcome(outcome)}
+                    />
+                  ))}
+                </div>
+              </MarketSection>
+            ) : (
+              <EmptyDataSection title={t('matchDetail.sections.halftime')} />
+            )}
             <TotalSection match={detail.match} />
           </div>
 
           {isExactScoresLoading ? (
-            <LoadingDataSection title={t('matchDetail.sections.exactScore')} message={t('matchDetail.exact.loading')} />
+            <LoadingDataSection title={t('matchDetail.sections.exactScore')} matchup={matchup} message={t('matchDetail.exact.loading')} />
           ) : isExactScoresError ? (
-            <ErrorDataSection title={t('matchDetail.sections.exactScore')} message={t('matchDetail.exact.error')} />
+            <ErrorDataSection title={t('matchDetail.sections.exactScore')} matchup={matchup} message={t('matchDetail.exact.error')} />
           ) : exactScores.length ? (
-            <MarketSection title={t('matchDetail.sections.exactScore')}>
+            <MarketSection title={t('matchDetail.sections.exactScore')} matchup={matchup}>
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6">
                 {exactScores.map((item) => {
                   const isActive =
@@ -578,7 +623,7 @@ export function MatchDetailPage() {
                     <CompactOddsButton
                       key={item.id}
                       active={isActive}
-                      label={item.shortLabel}
+                      label={formatExactScoreDisplayLabel(item.shortLabel)}
                       assetId={item.yesAssetId}
                       fallbackPrice={item.yesPrice}
                       onClick={() => selectExactScore(item)}
@@ -588,31 +633,7 @@ export function MatchDetailPage() {
               </div>
             </MarketSection>
           ) : (
-            <EmptyDataSection title={t('matchDetail.sections.exactScore')} />
-          )}
-
-          {isHalftimeResultLoading ? (
-            <LoadingDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.loading')} />
-          ) : isHalftimeResultError ? (
-            <ErrorDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.error')} />
-          ) : halftimeResult ? (
-            <MarketSection title={halftimeResult.title} subtitle={halftimeResult.volumeLabel}>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {halftimeResult.outcomes.map((outcome, outcomeIndex) => (
-                  <OddsButton
-                    key={outcome.id}
-                    active={isWinnerOutcomeActive(activeSelection, detail.match.id, outcome)}
-                    label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
-                    subLabel={outcome.subject}
-                    assetId={outcome.yesAssetId}
-                    fallbackPrice={outcome.yesPrice}
-                    onClick={() => selectHalftimeOutcome(outcome)}
-                  />
-                ))}
-              </div>
-            </MarketSection>
-          ) : (
-            <EmptyDataSection title={t('matchDetail.sections.halftime')} />
+            <EmptyDataSection title={t('matchDetail.sections.exactScore')} matchup={matchup} />
           )}
 
           {detail.contextDescription ? (
