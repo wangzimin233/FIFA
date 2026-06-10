@@ -33,6 +33,7 @@ import {
 } from '../features/wallet/profile/api'
 import { useWithdraw } from '../features/wallet/withdraw/use-withdraw'
 import { shortenAddress, shortenHash } from '../lib/format'
+import { CopyIcon } from '../components/icons'
 
 const WALLET_HISTORY_PAGE_SIZE = 10
 const ORDER_HISTORY_PAGE_SIZE = 10
@@ -380,11 +381,14 @@ function useDebouncedValue<TValue>(value: TValue, delay = 350) {
   return debouncedValue
 }
 
-function FieldLine({ label, value }: { label: string; value: ReactNode }) {
+function FieldLine({ action, label, value }: { action?: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-3 border-b border-white/6 py-2.5 last:border-b-0">
       <span className="text-[12px] text-ink-soft">{label}</span>
-      <span className="min-w-0 text-right text-[13px] font-medium text-ink">{value}</span>
+      <span className="flex min-w-0 items-center justify-end gap-2 text-right text-[13px] font-medium text-ink">
+        <span className="min-w-0 truncate">{value}</span>
+        {action}
+      </span>
     </div>
   )
 }
@@ -1464,6 +1468,7 @@ export function ProfilePage() {
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [isCopyingInviteLink, setIsCopyingInviteLink] = useState(false)
+  const [isCopyingInviteCode, setIsCopyingInviteCode] = useState(false)
 
   const handleDepositSuccess = useCallback(() => {
     setDepositAmount('')
@@ -1494,6 +1499,7 @@ export function ProfilePage() {
   const walletUser = data?.data
   const contractConfig = contractConfigResult?.data ?? undefined
   const walletUserId = walletUser?.userId
+  const inviteCode = walletUser?.inviteCode ?? ''
   const primaryAsset =
     walletUser?.assets.find((asset) => asset.chainCode === 'BSC' && asset.coinCode.toUpperCase() === 'USDT') ??
     walletUser?.assets[0]
@@ -1538,12 +1544,44 @@ export function ProfilePage() {
       : 'border-amber-400/20 bg-amber-400/10 text-amber-200'
   const userTypeLabel = walletUser?.userType === 2 ? t('profile.userTypes.node') : walletUser?.userType === 1 ? t('profile.userTypes.normal') : '--'
   const inviteLink = useMemo(() => {
-    if (typeof window === 'undefined' || !walletUser?.inviteCode) {
+    if (typeof window === 'undefined' || !inviteCode) {
       return ''
     }
 
-    return `${window.location.protocol}//${window.location.host}/?code=${walletUser.inviteCode}`
-  }, [walletUser?.inviteCode])
+    return `${window.location.protocol}//${window.location.host}/?code=${inviteCode}`
+  }, [inviteCode])
+  const handleCopyInviteCode = useCallback(async () => {
+    if (!inviteCode) {
+      toast(t('profile.invite.noCode'))
+      return
+    }
+
+    try {
+      setIsCopyingInviteCode(true)
+      await navigator.clipboard.writeText(inviteCode)
+      toast.success(t('profile.invite.codeCopied'))
+    } catch {
+      toast(t('profile.invite.copyFailed'))
+    } finally {
+      setIsCopyingInviteCode(false)
+    }
+  }, [inviteCode, t])
+  const handleCopyInviteLink = useCallback(async () => {
+    if (!inviteLink) {
+      toast(t('profile.invite.noLink'))
+      return
+    }
+
+    try {
+      setIsCopyingInviteLink(true)
+      await navigator.clipboard.writeText(inviteLink)
+      toast.success(t('profile.invite.copied'))
+    } catch {
+      toast(t('profile.invite.copyFailed'))
+    } finally {
+      setIsCopyingInviteLink(false)
+    }
+  }, [inviteLink, t])
   const withdrawMinAmount = Number(contractConfig?.withdrawMinAmount ?? '')
   const withdrawMaxAmount = Number(contractConfig?.withdrawMaxAmount ?? '')
   const withdrawMinAmountLabel =
@@ -1703,7 +1741,24 @@ export function ProfilePage() {
 
                 <div className="px-4 py-3 sm:px-5">
                   <FieldLine label={t('profile.fields.walletAddress')} value={shortenAddress(walletUser.walletAddress)} />
-                  <FieldLine label={t('profile.fields.inviteCode')} value={walletUser.inviteCode || '--'} />
+                  <FieldLine
+                    label={t('profile.fields.inviteCode')}
+                    value={inviteCode || '--'}
+                    action={
+                      inviteCode ? (
+                        <button
+                          type="button"
+                          onClick={handleCopyInviteCode}
+                          disabled={isCopyingInviteCode}
+                          aria-label={t('profile.invite.copyCode')}
+                          title={t('profile.invite.copyCode')}
+                          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04] text-ink-soft transition hover:border-white/16 hover:bg-white/[0.07] hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <CopyIcon className="h-4.5 w-4.5" aria-hidden="true" />
+                        </button>
+                      ) : null
+                    }
+                  />
                 </div>
 
                 <div className="border-t border-white/8 px-4 py-4 sm:px-5">
@@ -1713,22 +1768,7 @@ export function ProfilePage() {
                   </div>
                   <button
                     type="button"
-                    onClick={async () => {
-                      if (!inviteLink) {
-                        toast(t('profile.invite.noLink'))
-                        return
-                      }
-
-                      try {
-                        setIsCopyingInviteLink(true)
-                        await navigator.clipboard.writeText(inviteLink)
-                        toast.success(t('profile.invite.copied'))
-                      } catch {
-                        toast(t('profile.invite.copyFailed'))
-                      } finally {
-                        setIsCopyingInviteLink(false)
-                      }
-                    }}
+                    onClick={handleCopyInviteLink}
                     disabled={isCopyingInviteLink}
                     className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-[14px] border border-white/10 bg-white/[0.04] px-4 text-[12px] font-semibold text-ink transition hover:border-white/16 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
                   >

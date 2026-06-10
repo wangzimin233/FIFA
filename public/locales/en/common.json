@@ -373,10 +373,13 @@
     },
     "invite": {
       "noLink": "No invite link yet",
+      "noCode": "No invite code yet",
       "copied": "Invite link copied",
+      "codeCopied": "Invite code copied",
       "copyFailed": "Copy failed. Please copy manually.",
       "copying": "Copying...",
-      "copy": "Copy invite link"
+      "copy": "Copy invite link",
+      "copyCode": "Copy invite code"
     },
     "orders": {
       "title": "Order history",

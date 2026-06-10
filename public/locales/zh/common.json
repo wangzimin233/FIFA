@@ -373,10 +373,13 @@
     },
     "invite": {
       "noLink": "暂无邀请链接",
+      "noCode": "暂无邀请码",
       "copied": "邀请链接已复制",
+      "codeCopied": "邀请码已复制",
       "copyFailed": "复制失败，请手动复制",
       "copying": "复制中...",
-      "copy": "复制邀请链接"
+      "copy": "复制邀请链接",
+      "copyCode": "复制邀请码"
     },
     "orders": {
       "title": "订单记录",

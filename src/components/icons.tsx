@@ -39,3 +39,12 @@ export function WalletIcon(props: IconProps) {
     </svg>
   )
 }
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M5 15.5V6.8A1.8 1.8 0 0 1 6.8 5H15.5" />
+    </svg>
+  )
+}
