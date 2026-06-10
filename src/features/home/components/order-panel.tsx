@@ -102,7 +102,47 @@ function PanelShell({
   )
 }
 
-function AmountSection() {
+function normalizeAmountInput(value: string) {
+  const [integerPart = '', ...decimalParts] = value.replace(/[^\d.]/g, '').split('.')
+  return decimalParts.length > 0 ? `${integerPart}.${decimalParts.join('')}` : integerPart
+}
+
+function AmountInput({
+  amount,
+  ariaLabel,
+  className,
+  inputClassName,
+  onAmountChange,
+}: {
+  amount: number
+  ariaLabel: string
+  className: string
+  inputClassName: string
+  onAmountChange: (amount: number) => void
+}) {
+  const handleAmountChange = (value: string) => {
+    const normalizedValue = normalizeAmountInput(value)
+
+    const nextAmount = Number(normalizedValue)
+    onAmountChange(normalizedValue && Number.isFinite(nextAmount) ? nextAmount : 0)
+  }
+
+  return (
+    <div className={className}>
+      <span aria-hidden="true">$</span>
+      <input
+        value={amount > 0 ? String(amount) : ''}
+        onChange={(event) => handleAmountChange(event.target.value)}
+        inputMode="decimal"
+        placeholder="0"
+        aria-label={ariaLabel}
+        className={inputClassName}
+      />
+    </div>
+  )
+}
+
+function AmountSection({ onOrderSuccess }: { onOrderSuccess?: () => void }) {
   const { t } = useTranslation()
   const { activeSelection, amount, addAmount, setAmount } = useOrderStore()
   const activePrice = useActiveSelectionPrice(activeSelection)
@@ -115,9 +155,7 @@ function AmountSection() {
     isWalletConnected,
     slippageConfirmed,
     submitOrder,
-  } = useSubmitPolymarketOrder()
-  const amountDisplay = useMemo(() => `$${amount}`, [amount])
-  const amountTone = amount > 0 ? 'text-ink' : 'text-[#66758d]'
+  } = useSubmitPolymarketOrder({ onSuccess: onOrderSuccess })
   const computedResult = useMemo(() => {
     if (!activeSelection || amount <= 0 || activePrice === null) {
       return null
@@ -139,24 +177,13 @@ function AmountSection() {
           <span className="whitespace-pre-line text-[12px] font-semibold leading-[0.96] text-ink">
             {t('orderPanel.amountLabel')}
           </span>
-          <div className="relative min-w-0 text-right">
-            <div
-              className={[
-                'pointer-events-none text-[42px] font-semibold leading-none tracking-[-0.04em] sm:text-[48px]',
-                amountTone,
-              ].join(' ')}
-            >
-              {amountDisplay}
-            </div>
-            <input
-              value={amount === 0 ? '' : amount}
-              onChange={(event) => setAmount(Number(event.target.value))}
-              inputMode="decimal"
-              placeholder="0"
-              aria-label={t('orderPanel.amountInputLabel')}
-              className="absolute inset-0 w-full border-none bg-transparent text-right text-[42px] font-semibold text-transparent caret-white outline-none placeholder:text-transparent sm:text-[48px]"
-            />
-          </div>
+          <AmountInput
+            amount={amount}
+            ariaLabel={t('orderPanel.amountInputLabel')}
+            className="flex min-w-0 items-center justify-end gap-0.5 text-right text-[42px] font-semibold leading-none text-ink sm:text-[48px]"
+            inputClassName="min-w-0 flex-1 border-none bg-transparent p-0 text-right [font:inherit] leading-none text-ink caret-white outline-none placeholder:text-[#66758d]"
+            onAmountChange={setAmount}
+          />
         </div>
       </label>
 
@@ -311,7 +338,7 @@ function WinnerContent({ onClose }: { onClose?: () => void }) {
         </div>
       </div>
 
-      <AmountSection />
+      <AmountSection onOrderSuccess={onClose} />
     </>
   )
 }
@@ -380,7 +407,7 @@ function SpreadContent({ onClose }: { onClose?: () => void }) {
         </button>
       </div>
 
-      <AmountSection />
+      <AmountSection onOrderSuccess={onClose} />
     </>
   )
 }
@@ -439,7 +466,7 @@ function TotalContent({ onClose }: { onClose?: () => void }) {
         </button>
       </div>
 
-      <AmountSection />
+      <AmountSection onOrderSuccess={onClose} />
     </>
   )
 }

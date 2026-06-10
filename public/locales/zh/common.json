@@ -309,7 +309,9 @@
       "minPlaceholder": "最少 {{amount}}",
       "fillMin": "填入最小金额",
       "quickFill": "快速填入 {{amount}}",
-      "fillAllAvailable": "填入全部可用"
+      "fillAllAvailable": "填入全部可用",
+      "availableBalance": "钱包可用余额",
+      "loadingBalance": "读取中..."
     },
     "balance": {
       "availableBscUsdt": "BSC-USDT 可用余额",
@@ -390,7 +392,10 @@
     "history": {
       "loginRequired": "完成钱包登录后可查看记录。",
       "error": "记录加载失败，请稍后重试。",
-      "empty": "暂无记录。"
+      "empty": "暂无记录。",
+      "copied": "{{label}}已复制",
+      "copyFailed": "复制失败，请手动复制",
+      "copyValue": "复制{{label}}"
     },
     "relation": {
       "title": "邀请关系",

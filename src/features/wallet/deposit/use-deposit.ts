@@ -1,11 +1,11 @@
 import type { AxiosError } from 'axios'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { toast } from '@heroui/react'
 import { useAppKitProvider } from '@reown/appkit/react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   BaseError,
   ContractFunctionRevertedError,
+  formatUnits,
   type AbiEvent,
   type Address,
   type Hash,
@@ -14,6 +14,7 @@ import {
 import { usePublicClient } from 'wagmi'
 import { rechargeDepositAbi } from '../../../config/contracts'
 import i18n from '../../../config/i18n'
+import { toast } from '../../../lib/toast'
 import type { WalletUserInfoResponse } from '../../wallet-auth/api'
 import { useWalletAuthStore } from '../../wallet-auth/auth-store'
 import {
@@ -284,6 +285,44 @@ export function useDeposit({
     submitLockRef.current = false
   }, [])
 
+  const {
+    data: walletUsdtBalance = null,
+    isFetching: isWalletUsdtBalanceLoading,
+    refetch: refetchWalletUsdtBalance,
+  } = useQuery({
+    queryKey: ['wallet-usdt-balance', walletAddress ?? null, usdtAddress ?? null],
+    queryFn: async () => {
+      if (!publicClient || !walletAddress || !isAddressLike(walletAddress) || !usdtAddress) {
+        return null
+      }
+
+      try {
+        const [balance, decimals] = await Promise.all([
+          publicClient.readContract({
+            address: usdtAddress,
+            abi: usdtErc20Abi,
+            functionName: 'balanceOf',
+            args: [walletAddress],
+            authorizationList: undefined,
+          }),
+          publicClient.readContract({
+            address: usdtAddress,
+            abi: usdtErc20Abi,
+            functionName: 'decimals',
+            authorizationList: undefined,
+          }),
+        ])
+
+        return formatUnits(balance, decimals)
+      } catch (error) {
+        console.warn('[deposit] failed to read wallet USDT balance', error)
+        return null
+      }
+    },
+    enabled: Boolean(publicClient && isConnected && walletAddress && isAddressLike(walletAddress) && usdtAddress),
+    staleTime: 15_000,
+  })
+
   useEffect(() => {
     let isCancelled = false
 
@@ -370,6 +409,7 @@ export function useDeposit({
           setLastCallbackState(null)
           clearDepositCallbackState()
           await invalidateWalletData()
+          await refetchWalletUsdtBalance()
           await onSuccess?.()
           toast.success(callbackResult.data.message || i18n.t('deposit.success.completed'))
           return callbackResult.data
@@ -384,7 +424,7 @@ export function useDeposit({
 
       throw lastError ?? new Error(i18n.t('deposit.errors.callbackNoData'))
     },
-    [invalidateWalletData, onSuccess],
+    [invalidateWalletData, onSuccess, refetchWalletUsdtBalance],
   )
 
   const ensureBscNetwork = useCallback(
@@ -662,6 +702,7 @@ export function useDeposit({
     error,
     hasPendingCallback: Boolean(lastCallbackState),
     isBusy: status !== 'idle' && status !== 'success' && status !== 'error',
+    isWalletUsdtBalanceLoading,
     providerWarning,
     lastSuccessHash,
     reset,
@@ -669,5 +710,6 @@ export function useDeposit({
     status,
     submitDeposit,
     usdtAddress,
+    walletUsdtBalance,
   }
 }

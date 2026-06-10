@@ -1,10 +1,10 @@
 import { useAppKit } from '@reown/appkit/react'
-import { toast } from '@heroui/react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n from '../config/i18n'
+import { toast } from '../lib/toast'
 import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
@@ -324,6 +324,24 @@ function formatAmount(value?: string, coinCode = 'USDT') {
   return `${value} ${coinCode}`
 }
 
+function truncateDecimalString(value?: string, digits = 6) {
+  const normalizedValue = value?.trim()
+  if (!normalizedValue) {
+    return ''
+  }
+
+  const sign = normalizedValue.startsWith('-') ? '-' : ''
+  const unsignedValue = sign ? normalizedValue.slice(1) : normalizedValue
+  const [integerPart = '0', decimalPart = ''] = unsignedValue.split('.')
+  const safeIntegerPart = integerPart || '0'
+
+  if (digits <= 0) {
+    return `${sign}${safeIntegerPart}`
+  }
+
+  return `${sign}${safeIntegerPart}.${decimalPart.slice(0, digits).padEnd(digits, '0')}`
+}
+
 function formatNumberValue(value?: number) {
   if (value === undefined || value === null || !Number.isFinite(value)) {
     return '--'
@@ -390,6 +408,38 @@ function FieldLine({ action, label, value }: { action?: ReactNode; label: string
         {action}
       </span>
     </div>
+  )
+}
+
+function CopyValueButton({ label, value }: { label: string; value?: string }) {
+  const { t } = useTranslation()
+  const [isCopying, setIsCopying] = useState(false)
+
+  if (!value) {
+    return null
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          setIsCopying(true)
+          await navigator.clipboard.writeText(value)
+          toast.success(t('profile.history.copied', { label }))
+        } catch {
+          toast(t('profile.history.copyFailed'))
+        } finally {
+          setIsCopying(false)
+        }
+      }}
+      disabled={isCopying}
+      aria-label={t('profile.history.copyValue', { label })}
+      title={t('profile.history.copyValue', { label })}
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04] align-middle text-ink-soft transition hover:border-white/16 hover:bg-white/[0.07] hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <CopyIcon className="h-4.5 w-4.5" aria-hidden="true" />
+    </button>
   )
 }
 
@@ -592,8 +642,10 @@ function HistoryStatusFilter<TStatus extends number>({
 function DepositActionDialog({
   amount,
   authStatus,
+  availableBalance,
   deposit,
   isConnected,
+  isAvailableBalanceLoading,
   isContractConfigError,
   isContractConfigLoading,
   isOpen,
@@ -607,8 +659,10 @@ function DepositActionDialog({
 }: {
   amount: string
   authStatus: ReturnType<typeof useWalletAuth>['status']
+  availableBalance?: string
   deposit: ReturnType<typeof useDeposit>
   isConnected: boolean
+  isAvailableBalanceLoading: boolean
   isContractConfigError: boolean
   isContractConfigLoading: boolean
   isOpen: boolean
@@ -627,6 +681,8 @@ function DepositActionDialog({
     isSessionReady,
     status: deposit.status,
   })
+  const maxAmount = availableBalance ? truncateDecimalString(availableBalance, 6) : ''
+  const formattedAvailableBalance = isAvailableBalanceLoading ? t('profile.form.loadingBalance') : maxAmount ? `${maxAmount} USDT` : '--'
 
   return (
     <DialogFrame isOpen={isOpen} onClose={onClose}>
@@ -670,13 +726,19 @@ function DepositActionDialog({
               className="h-14 w-full bg-transparent text-[19px] font-medium text-ink outline-none placeholder:text-ink-soft/45"
             />
             <span className="text-[12px] font-semibold uppercase text-ink-soft">USDT</span>
+            <button
+              type="button"
+              onClick={() => onAmountChange(maxAmount)}
+              disabled={!maxAmount || isAvailableBalanceLoading}
+              className="inline-flex h-8 shrink-0 items-center justify-center rounded-[10px] border border-brand/25 bg-brand/12 px-3 text-[11px] font-bold uppercase text-brand transition hover:border-brand/35 hover:bg-brand/16 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/[0.04] disabled:text-ink-soft/60"
+            >
+              MAX
+            </button>
+          </div>
+          <div className="mt-1.5 text-right text-[12px] text-ink-soft">
+            {t('profile.form.availableBalance')}: <span className="font-medium text-ink">{formattedAvailableBalance}</span>
           </div>
         </label>
-
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <SecondaryButton onClick={() => onAmountChange(minAmount ?? '')}>{t('profile.form.fillMin')}</SecondaryButton>
-          <SecondaryButton onClick={() => onAmountChange('100')}>{t('profile.form.quickFill', { amount: 100 })}</SecondaryButton>
-        </div>
 
         <div className="mt-4 grid gap-2.5">
           <PrimaryButton
@@ -727,9 +789,7 @@ function WithdrawActionDialog({
   isConnected,
   isOpen,
   isSessionReady,
-  maxAmountLabel,
   minAmount,
-  minAmountLabel,
   onAmountChange,
   onClose,
   onConnect,
@@ -744,9 +804,7 @@ function WithdrawActionDialog({
   isConnected: boolean
   isOpen: boolean
   isSessionReady: boolean
-  maxAmountLabel: string
   minAmount?: string
-  minAmountLabel: string
   onAmountChange: (value: string) => void
   onClose: () => void
   onConnect: () => void
@@ -772,8 +830,6 @@ function WithdrawActionDialog({
         <div className="grid gap-2.5 sm:grid-cols-2">
           <FieldLine label={t('profile.fields.availableBalance')} value={availableBalance ? `${availableBalance} USDT` : '--'} />
           <FieldLine label={t('profile.fields.fee')} value={feeLabel} />
-          <FieldLine label={t('profile.withdraw.minWithdraw')} value={minAmountLabel} />
-          <FieldLine label={t('profile.withdraw.maxWithdraw')} value={maxAmountLabel} />
         </div>
 
         <label className="mt-5 block">
@@ -843,7 +899,10 @@ function DepositRecordRow({ item }: { item: DepositOrderPageItem }) {
       <div className="mt-3 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span>{t('profile.fields.amount')}: <b className="font-semibold text-ink">{formatAmount(item.amount, item.coinCode)}</b></span>
         <span>{t('profile.fields.network')}: <b className="font-semibold text-ink">{item.chainType}</b></span>
-        <span>{t('profile.fields.txReceipt')}: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span>{t('profile.fields.txReceipt')}: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+          <CopyValueButton label={t('profile.fields.txReceipt')} value={item.txHash} />
+        </span>
       </div>
     </div>
   )
@@ -870,8 +929,14 @@ function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
         <span>{t('profile.fields.fee')}: <b className="font-semibold text-ink">{formatAmount(item.feeAmount, item.coinCode)}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
-        <span>{t('profile.fields.receiveAddress')}: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
-        <span>{t('profile.fields.txReceipt')}: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span>{t('profile.fields.receiveAddress')}: <b className="font-semibold text-ink">{shortenAddress(item.toAddress)}</b></span>
+          <CopyValueButton label={t('profile.fields.receiveAddress')} value={item.toAddress} />
+        </span>
+        <span className="inline-flex min-w-0 items-center gap-1.5">
+          <span>{t('profile.fields.txReceipt')}: <b className="font-semibold text-ink">{shortenHash(item.txHash)}</b></span>
+          <CopyValueButton label={t('profile.fields.txReceipt')} value={item.txHash} />
+        </span>
       </div>
       {item.rejectReason ? <div className="mt-2 text-[12px] text-rose-200">{t('profile.fields.rejectReason')}: {item.rejectReason}</div> : null}
     </div>
@@ -924,7 +989,10 @@ function DirectUserRow({ item }: { item: WalletUserDirectPageItem }) {
     <div className="border-b border-white/6 px-4 py-3 last:border-b-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-ink">{shortenAddress(item.walletAddress)}</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[13px] font-semibold text-ink">{shortenAddress(item.walletAddress)}</span>
+            <CopyValueButton label={t('profile.fields.walletAddress')} value={item.walletAddress} />
+          </div>
           {item.nickname ? <div className="mt-1 text-[12px] text-ink-soft">{item.nickname}</div> : null}
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
@@ -1583,11 +1651,6 @@ export function ProfilePage() {
     }
   }, [inviteLink, t])
   const withdrawMinAmount = Number(contractConfig?.withdrawMinAmount ?? '')
-  const withdrawMaxAmount = Number(contractConfig?.withdrawMaxAmount ?? '')
-  const withdrawMinAmountLabel =
-    Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? `${contractConfig?.withdrawMinAmount} USDT` : t('profile.limits.unlimited')
-  const withdrawMaxAmountLabel =
-    Number.isFinite(withdrawMaxAmount) && withdrawMaxAmount > 0 ? `${contractConfig?.withdrawMaxAmount} USDT` : t('profile.limits.unlimited')
   const withdrawFeeLabel = contractConfig?.withdrawFeeValue
     ? contractConfig.withdrawFeeType === 2
       ? `${contractConfig.withdrawFeeValue}%`
@@ -1801,8 +1864,10 @@ export function ProfilePage() {
       <DepositActionDialog
         amount={depositAmount}
         authStatus={authStatus}
+        availableBalance={deposit.walletUsdtBalance ?? undefined}
         deposit={deposit}
         isConnected={isConnected}
+        isAvailableBalanceLoading={deposit.isWalletUsdtBalanceLoading}
         isContractConfigError={isContractConfigError}
         isContractConfigLoading={isContractConfigLoading}
         isOpen={activeAction === 'deposit'}
@@ -1823,9 +1888,7 @@ export function ProfilePage() {
         isConnected={isConnected}
         isOpen={activeAction === 'withdraw'}
         isSessionReady={isSessionForConnectedWallet}
-        maxAmountLabel={withdrawMaxAmountLabel}
         minAmount={Number.isFinite(withdrawMinAmount) && withdrawMinAmount > 0 ? contractConfig?.withdrawMinAmount : undefined}
-        minAmountLabel={withdrawMinAmountLabel}
         onAmountChange={setWithdrawAmount}
         onClose={() => setActiveAction(null)}
         onConnect={open}

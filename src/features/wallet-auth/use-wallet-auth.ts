@@ -1,11 +1,11 @@
 import type { AxiosError } from 'axios'
 import { useCallback, useEffect } from 'react'
-import { toast } from '@heroui/react'
 import {
   useAppKitAccount,
   useAppKitProvider,
 } from '@reown/appkit/react'
 import i18n from '../../config/i18n'
+import { toast } from '../../lib/toast'
 import {
   loginWithWallet,
   registerWithWallet,
@@ -25,6 +25,7 @@ const EVM_NAMESPACE = 'eip155'
 const BSC_CHAIN_ID = 56
 let hasSeenConnectedWallet = false
 let hasHandledDisconnect = false
+let activeWalletAuthRequestKey: string | null = null
 
 function normalizeAddress(value: string | undefined | null) {
   return value?.trim().toLowerCase() ?? ''
@@ -174,45 +175,56 @@ export function useWalletAuth() {
       return
     }
 
-    if (status === 'logging_out' || status === 'signing' || status === 'logging_in' || status === 'registering') {
+    const authRequestKey = normalizeAddress(address)
+    const currentStatus = useWalletAuthStore.getState().status
+    if (
+      activeWalletAuthRequestKey ||
+      currentStatus === 'logging_out' ||
+      currentStatus === 'signing' ||
+      currentStatus === 'logging_in' ||
+      currentStatus === 'registering'
+    ) {
       return
     }
 
-    let providerErrorMessage: string | null = null
-    const authProvider = await resolveWalletProvider({
-      fallbackProvider: walletProvider,
-      walletAddress: address,
-    }).catch((error: unknown) => {
-      providerErrorMessage = resolveErrorMessage(error)
-      return null
-    })
-
-    if (!authProvider) {
-      setError(providerErrorMessage || i18n.t('walletProvider.errors.noMatchingProvider'))
-      setStatus('error')
-      return
-    }
-
-    const providerChainId = authProvider.chainId ?? (await getProviderChainId(authProvider.provider))
-    const currentChainId = normalizeChainId(providerChainId)
-    if (currentChainId !== null && currentChainId !== BSC_CHAIN_ID) {
-      setError(i18n.t('walletAuth.errors.unsupportedNetwork'))
-      setStatus('error')
-      return
-    }
-
-    if (session?.token) {
-      clearLocalSession()
-    }
-
-    setPendingRegistration(null)
-    setError(null)
-    setStatus('signing')
-
+    activeWalletAuthRequestKey = authRequestKey
     const message = buildWalletAuthMessage(address)
     let signature = ''
+    let walletProviderIdentity: WalletProviderIdentity | undefined
 
     try {
+      let providerErrorMessage: string | null = null
+      const authProvider = await resolveWalletProvider({
+        fallbackProvider: walletProvider,
+        walletAddress: address,
+      }).catch((error: unknown) => {
+        providerErrorMessage = resolveErrorMessage(error)
+        return null
+      })
+
+      if (!authProvider) {
+        setError(providerErrorMessage || i18n.t('walletProvider.errors.noMatchingProvider'))
+        setStatus('error')
+        return
+      }
+      walletProviderIdentity = authProvider.identity
+
+      const providerChainId = authProvider.chainId ?? (await getProviderChainId(authProvider.provider))
+      const currentChainId = normalizeChainId(providerChainId)
+      if (currentChainId !== null && currentChainId !== BSC_CHAIN_ID) {
+        setError(i18n.t('walletAuth.errors.unsupportedNetwork'))
+        setStatus('error')
+        return
+      }
+
+      if (session?.token) {
+        clearLocalSession()
+      }
+
+      setPendingRegistration(null)
+      setError(null)
+      setStatus('signing')
+
       signature = await signWalletMessage(message, address, authProvider.provider)
       setStatus('logging_in')
 
@@ -264,7 +276,7 @@ export function useWalletAuth() {
           walletAddress: address,
           message,
           signature,
-          walletProviderIdentity: authProvider.identity,
+          walletProviderIdentity,
         })
         setStatus(signature ? 'awaiting_registration' : 'error')
         setError(
@@ -277,6 +289,10 @@ export function useWalletAuth() {
 
       setStatus('error')
       setError(resolveErrorMessage(error))
+    } finally {
+      if (activeWalletAuthRequestKey === authRequestKey) {
+        activeWalletAuthRequestKey = null
+      }
     }
   }, [
     address,
@@ -288,7 +304,6 @@ export function useWalletAuth() {
     setPendingRegistration,
     setStatus,
     signWalletMessage,
-    status,
     walletProvider,
   ])
 

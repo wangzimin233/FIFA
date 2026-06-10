@@ -1,9 +1,9 @@
-import { toast } from '@heroui/react'
 import { useMutation } from '@tanstack/react-query'
 import { useAppKitAccount } from '@reown/appkit/react'
 import { useCallback, useMemo, useState } from 'react'
 import { queryClient } from '../../config/query-client'
 import i18n from '../../config/i18n'
+import { toast } from '../../lib/toast'
 import { getActiveSelectionDisplayPrice, getActiveSelectionPrice } from '../market-realtime/price-utils'
 import { usePolymarketPriceStore } from '../market-realtime/polymarket-price-store'
 import { useWalletAuthStore } from '../wallet-auth/auth-store'
@@ -294,7 +294,11 @@ export function buildPolymarketOrderPayload(
   }
 }
 
-export function useSubmitPolymarketOrder() {
+type UseSubmitPolymarketOrderOptions = {
+  onSuccess?: () => void
+}
+
+export function useSubmitPolymarketOrder({ onSuccess }: UseSubmitPolymarketOrderOptions = {}) {
   const [slippageConfirmation, setSlippageConfirmation] = useState({ key: '', confirmed: false })
   const { address, isConnected } = useAppKitAccount({ namespace: 'eip155' })
   const walletAuthSession = useWalletAuthStore((state) => state.session)
@@ -336,6 +340,7 @@ export function useSubmitPolymarketOrder() {
 
       toast.success(message)
       setSlippageConfirmation({ key: '', confirmed: false })
+      onSuccess?.()
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : i18n.t('orderErrors.submitFailed')

@@ -1,6 +1,5 @@
 import { Button } from '@heroui/react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useActiveSelectionPrice } from '../../market-realtime/price-utils'
 import { RollingNumber } from '../../market-realtime/rolling-number'
@@ -135,21 +134,31 @@ function MobileHeader() {
 function MobileAmountDisplay() {
   const { t } = useTranslation()
   const { amount, setAmount } = useOrderStore()
-  const amountDisplay = useMemo(() => `$${amount}`, [amount])
+  const amountValue = amount > 0 ? String(amount) : ''
+  const amountInputWidth = `${Math.max(amountValue.length || 1, 1)}ch`
+
+  const handleAmountChange = (value: string) => {
+    const [integerPart = '', ...decimalParts] = value.replace(/[^\d.]/g, '').split('.')
+    const normalizedValue = decimalParts.length > 0 ? `${integerPart}.${decimalParts.join('')}` : integerPart
+
+    const nextAmount = Number(normalizedValue)
+    setAmount(normalizedValue && Number.isFinite(nextAmount) ? nextAmount : 0)
+  }
 
   return (
-    <label className="relative mt-10 block">
-      <div className="pointer-events-none text-center text-[84px] font-semibold leading-none tracking-[-0.05em] text-ink">
-        {amountDisplay}
+    <label className="mt-10 block">
+      <div className="flex min-h-[96px] items-center justify-center gap-1 text-[68px] font-semibold leading-none text-ink">
+        <span aria-hidden="true">$</span>
+        <input
+          value={amountValue}
+          onChange={(event) => handleAmountChange(event.target.value)}
+          inputMode="decimal"
+          placeholder="0"
+          aria-label={t('orderPanel.amountInputLabel')}
+          style={{ width: amountInputWidth }}
+          className="min-w-[1ch] max-w-[calc(100%-0.8em)] border-none bg-transparent p-0 text-left [font:inherit] leading-none text-ink caret-white outline-none placeholder:text-ink"
+        />
       </div>
-      <input
-        value={amount === 0 ? '' : amount}
-        onChange={(event) => setAmount(Number(event.target.value))}
-        inputMode="decimal"
-        placeholder="0"
-        aria-label={t('orderPanel.amountInputLabel')}
-        className="absolute inset-0 h-full w-full border-none bg-transparent text-center text-[84px] font-semibold text-transparent caret-white outline-none placeholder:text-transparent"
-      />
     </label>
   )
 }
@@ -233,7 +242,6 @@ function MobileTotalSegment() {
     </div>
   )
 }
-
 function MobileComputedResult() {
   const { t } = useTranslation()
   const { activeSelection, amount } = useOrderStore()
@@ -290,7 +298,7 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
     isWalletConnected,
     slippageConfirmed,
     submitOrder,
-  } = useSubmitPolymarketOrder()
+  } = useSubmitPolymarketOrder({ onSuccess: onClose })
 
   if (!activeSelection) {
     return null

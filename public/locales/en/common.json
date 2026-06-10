@@ -309,7 +309,9 @@
       "minPlaceholder": "Minimum {{amount}}",
       "fillMin": "Fill minimum amount",
       "quickFill": "Quick fill {{amount}}",
-      "fillAllAvailable": "Fill all available"
+      "fillAllAvailable": "Fill all available",
+      "availableBalance": "Wallet available",
+      "loadingBalance": "Loading..."
     },
     "balance": {
       "availableBscUsdt": "BSC-USDT available balance",
@@ -390,7 +392,10 @@
     "history": {
       "loginRequired": "Complete wallet login to view records.",
       "error": "Failed to load records. Please try again later.",
-      "empty": "No records yet."
+      "empty": "No records yet.",
+      "copied": "{{label}} copied",
+      "copyFailed": "Copy failed. Please copy manually.",
+      "copyValue": "Copy {{label}}"
     },
     "relation": {
       "title": "Invite relation",
