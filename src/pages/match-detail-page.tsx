@@ -7,11 +7,12 @@ import {
   getWorldCupEventDetail,
   getWorldCupExactScores,
   getWorldCupHalftimeResult,
+  getWorldCupSecondHalfResult,
 } from '../features/home/api/get-world-cup-event-detail'
 import { MobileOrderDrawer } from '../features/home/components/mobile-order-drawer'
 import { OrderPanel } from '../features/home/components/order-panel'
 import { TeamMark } from '../features/home/components/team-mark'
-import type { MatchDetailProposition } from '../features/home/detail-data'
+import type { MatchDetailProposition, MatchDetailThreeWay } from '../features/home/detail-data'
 import type { MatchCard, TotalLine, WinnerOutcome } from '../features/home/home-data'
 import { useOrderStore } from '../features/home/order-store'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
@@ -341,6 +342,59 @@ function TotalSection({ match }: { match: MatchCard }) {
   )
 }
 
+function HalftimeResultSection({
+  fallbackTitle,
+  result,
+  isLoading,
+  isError,
+  match,
+  onSelect,
+}: {
+  fallbackTitle: string
+  result?: MatchDetailThreeWay | null
+  isLoading: boolean
+  isError: boolean
+  match: MatchCard
+  onSelect: (outcome: WinnerOutcome) => void
+}) {
+  const { t } = useTranslation()
+  const { activeSelection } = useOrderStore()
+
+  if (isLoading) {
+    return (
+      <LoadingDataSection title={fallbackTitle} message={t('matchDetail.halftime.loading')} />
+    )
+  }
+
+  if (isError) {
+    return (
+      <ErrorDataSection title={fallbackTitle} message={t('matchDetail.halftime.error')} />
+    )
+  }
+
+  if (!result) {
+    return <EmptyDataSection title={fallbackTitle} />
+  }
+
+  return (
+    <MarketSection title={result.title} subtitle={result.volumeLabel}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {result.outcomes.map((outcome, outcomeIndex) => (
+          <OddsButton
+            key={outcome.id}
+            active={isWinnerOutcomeActive(activeSelection, match.id, outcome)}
+            label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
+            subLabel={outcome.subject}
+            assetId={outcome.yesAssetId}
+            fallbackPrice={outcome.yesPrice}
+            onClick={() => onSelect(outcome)}
+          />
+        ))}
+      </div>
+    </MarketSection>
+  )
+}
+
 export function MatchDetailPage() {
   const { slug = '' } = useParams()
   const navigate = useNavigate()
@@ -373,6 +427,15 @@ export function MatchDetailPage() {
     queryFn: () => getWorldCupHalftimeResult(slug, detail.match, language),
     enabled: slug.length > 0 && !!detail,
   })
+  const {
+    data: secondHalfResult,
+    isLoading: isSecondHalfResultLoading,
+    isError: isSecondHalfResultError,
+  } = useQuery({
+    queryKey: ['world-cup-event-detail-second-half-result', slug, detail?.match.id, language],
+    queryFn: () => getWorldCupSecondHalfResult(slug, detail.match, language),
+    enabled: slug.length > 0 && !!detail,
+  })
 
   const subscribedAssetIds = useMemo(() => {
     if (!detail) {
@@ -385,8 +448,9 @@ export function MatchDetailPage() {
       ...detail.match.totalMarket.lines.flatMap((line) => [line.overAssetId, line.underAssetId]),
       ...exactScores.map((item) => item.yesAssetId),
       ...(halftimeResult?.outcomes.map((outcome) => outcome.yesAssetId) ?? []),
+      ...(secondHalfResult?.outcomes.map((outcome) => outcome.yesAssetId) ?? []),
     ]
-  }, [detail, exactScores, halftimeResult])
+  }, [detail, exactScores, halftimeResult, secondHalfResult])
 
   usePolymarketAssetSubscription(subscribedAssetIds)
 
@@ -577,29 +641,22 @@ export function MatchDetailPage() {
             </div>
             <MoneylineSection match={detail.match} />
             <SpreadSection match={detail.match} />
-            {isHalftimeResultLoading ? (
-              <LoadingDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.loading')} />
-            ) : isHalftimeResultError ? (
-              <ErrorDataSection title={t('matchDetail.sections.halftime')} message={t('matchDetail.halftime.error')} />
-            ) : halftimeResult ? (
-              <MarketSection title={halftimeResult.title} subtitle={halftimeResult.volumeLabel}>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {halftimeResult.outcomes.map((outcome, outcomeIndex) => (
-                    <OddsButton
-                      key={outcome.id}
-                      active={isWinnerOutcomeActive(activeSelection, detail.match.id, outcome)}
-                      label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
-                      subLabel={outcome.subject}
-                      assetId={outcome.yesAssetId}
-                      fallbackPrice={outcome.yesPrice}
-                      onClick={() => selectHalftimeOutcome(outcome)}
-                    />
-                  ))}
-                </div>
-              </MarketSection>
-            ) : (
-              <EmptyDataSection title={t('matchDetail.sections.halftime')} />
-            )}
+            <HalftimeResultSection
+              fallbackTitle={t('matchDetail.sections.halftime')}
+              result={halftimeResult}
+              isLoading={isHalftimeResultLoading}
+              isError={isHalftimeResultError}
+              match={detail.match}
+              onSelect={selectHalftimeOutcome}
+            />
+            <HalftimeResultSection
+              fallbackTitle={t('matchDetail.sections.halftime')}
+              result={secondHalfResult}
+              isLoading={isSecondHalfResultLoading}
+              isError={isSecondHalfResultError}
+              match={detail.match}
+              onSelect={selectHalftimeOutcome}
+            />
             <TotalSection match={detail.match} />
           </div>
 

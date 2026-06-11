@@ -33,14 +33,23 @@ function toBaseEventSlug(slug: string) {
   return slug.replace(/-more-markets$/, '')
 }
 
+function toMarketBaseSlug(slug: string) {
+  return toBaseEventSlug(slug).replace(/-(exact-score|halftime-result|second-half-result)$/, '')
+}
+
 function toExactScoreSlug(slug: string) {
-  const baseSlug = toBaseEventSlug(slug).replace(/-exact-score$/, '')
+  const baseSlug = toMarketBaseSlug(slug)
   return `${baseSlug}-exact-score`
 }
 
 function toHalftimeResultSlug(slug: string) {
-  const baseSlug = toBaseEventSlug(slug).replace(/-halftime-result$/, '')
+  const baseSlug = toMarketBaseSlug(slug)
   return `${baseSlug}-halftime-result`
+}
+
+function toSecondHalfResultSlug(slug: string) {
+  const baseSlug = toMarketBaseSlug(slug)
+  return `${baseSlug}-second-half-result`
 }
 
 function resolveEvent(payload: WorldCupEventDetailEnvelope['data']) {
@@ -379,6 +388,20 @@ export async function getWorldCupHalftimeResult(
   language?: string,
 ): Promise<MatchDetailThreeWay | null> {
   const event = await fetchWorldCupEventBySlug(toHalftimeResultSlug(slug))
+
+  if (!event) {
+    return null
+  }
+
+  return buildHalftimeResult(event, match, language) ?? null
+}
+
+export async function getWorldCupSecondHalfResult(
+  slug: string,
+  match: MatchDetail['match'],
+  language?: string,
+): Promise<MatchDetailThreeWay | null> {
+  const event = await fetchWorldCupEventBySlug(toSecondHalfResultSlug(slug))
 
   if (!event) {
     return null
