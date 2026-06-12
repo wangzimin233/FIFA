@@ -298,7 +298,7 @@
       "quantity": "数量",
       "filledQuantity": "已成交",
       "commission": "佣金",
-      "updatedAt": "更新时间",
+      "updatedAt": "结算时间",
       "errorReason": "异常原因",
       "chain": "链",
       "registeredAt": "注册",

@@ -37,6 +37,7 @@ import { CopyIcon } from '../components/icons'
 
 const WALLET_HISTORY_PAGE_SIZE = 10
 const ORDER_HISTORY_PAGE_SIZE = 10
+const ORDER_HISTORY_QUERY_VERSION = 'settled-time-v1'
 const DIRECT_USER_PAGE_SIZE = 10
 const REWARD_PAGE_SIZE = 10
 const DIALOG_LIST_HEIGHT_CLASS = 'h-[min(30rem,calc(92vh-130px))]'
@@ -297,7 +298,7 @@ function resolveRewardBizType(bizType: number, bizTypeName?: string) {
   return i18n.t('profile.userTypes.withValue', { type: bizType })
 }
 
-function formatMaybeDate(value?: string) {
+function formatMaybeDate(value?: string | null) {
   if (!value) {
     return '--'
   }
@@ -971,11 +972,9 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
         <span>{t('profile.fields.currentOdds')}: <b className="font-semibold text-ink">{formatNumberValue(item.currentOdds)}</b></span>
         <span>{t('profile.fields.estimatedReturn')}: <b className="font-semibold text-ink">{formatNumberValue(item.estimatedReturnAmount)}</b></span>
       </div>
-      {item.updateTime ? (
-        <div className="mt-2 text-[12px] text-ink-soft">
-          {t('profile.fields.updatedAt')}: <b className="font-semibold text-ink">{formatMaybeDate(item.updateTime)}</b>
-        </div>
-      ) : null}
+      <div className="mt-2 text-[12px] text-ink-soft">
+        {t('profile.fields.updatedAt')}: <b className="font-semibold text-ink">{formatMaybeDate(item.settledTime)}</b>
+      </div>
     </div>
   )
 }
@@ -1130,7 +1129,7 @@ function OrderHistoryDialog({
     ReturnType<typeof buildOrderPage>,
     Error
   >({
-    queryKey: ['polymarket-orders', ORDER_HISTORY_PAGE_SIZE],
+    queryKey: ['polymarket-orders', ORDER_HISTORY_QUERY_VERSION, ORDER_HISTORY_PAGE_SIZE],
     queryFn: async ({ pageParam }) => {
       const page = Number(pageParam)
       const data = await getPolymarketOrdersPage({
@@ -1146,6 +1145,14 @@ function OrderHistoryDialog({
     getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.page + 1 : undefined),
     enabled: isOpen && isSessionReady,
   })
+
+  const { refetch: refetchOrders } = orderQuery
+
+  useEffect(() => {
+    if (isOpen && isSessionReady) {
+      refetchOrders()
+    }
+  }, [isOpen, isSessionReady, refetchOrders])
 
   const items = orderQuery.data?.pages.flatMap((page) => page.list) ?? []
   const total = orderQuery.data?.pages[0]?.total ?? 0
