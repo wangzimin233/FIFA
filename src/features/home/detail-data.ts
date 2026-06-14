@@ -41,6 +41,8 @@ export type MatchDetailThreeWay = {
 export type MatchDetail = {
   match: MatchCard
   countdownLabel: string
+  scoreLabel?: string
+  statusLabel: string
   headerTimeLabel: string
   headerDateLabel: string
   contextDescription?: string
@@ -70,6 +72,8 @@ export function buildMatchDetail(
     Pick<
       MatchDetail,
       | 'countdownLabel'
+      | 'scoreLabel'
+      | 'statusLabel'
       | 'headerTimeLabel'
       | 'headerDateLabel'
       | 'contextDescription'
@@ -85,9 +89,13 @@ export function buildMatchDetail(
   >,
   language?: string,
 ): MatchDetail {
+  const countdownLabel = overrides?.countdownLabel ?? i18n.t('dataLabels.countdown', { lng: language, days: 12, hours: 3 })
+
   return {
     match,
-    countdownLabel: overrides?.countdownLabel ?? i18n.t('dataLabels.countdown', { lng: language, days: 12, hours: 3 }),
+    countdownLabel,
+    scoreLabel: overrides?.scoreLabel,
+    statusLabel: overrides?.statusLabel ?? countdownLabel,
     headerTimeLabel: overrides?.headerTimeLabel ?? match.timeLabel,
     headerDateLabel: overrides?.headerDateLabel ?? match.date,
     contextDescription: overrides?.contextDescription,

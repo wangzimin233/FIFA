@@ -156,6 +156,16 @@ function formatCountdown(value?: string, language?: string) {
   return i18n.t('dataLabels.countdown', { lng: language, days, hours })
 }
 
+function normalizeScoreLabel(score?: string | null) {
+  const normalizedScore = score?.trim()
+  if (!normalizedScore) {
+    return undefined
+  }
+
+  const scoreParts = normalizedScore.match(/^(.+?)\s*[-:]\s*(.+)$/)
+  return scoreParts ? `${scoreParts[1]}:${scoreParts[2]}` : normalizedScore
+}
+
 function getOrderedTeams(teams?: WorldCupGameTeam[]) {
   return {
     home: teams?.find((team) => team.ordering === 'home'),
@@ -443,6 +453,10 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
     baseEvent?.endDate ??
     primaryEvent.startDate ??
     baseEvent?.startDate
+  const scoreLabel =
+    normalizeScoreLabel(primaryEvent.score) ??
+    normalizeScoreLabel(baseEvent?.score)
+  const statusLabel = formatCountdown(eventTime, language)
   const bothTeamsToScoreEvent =
     getEventForMarketType(moreMarketsEvent, 'both_teams_to_score') ??
     getEventForMarketType(baseEvent ?? primaryEvent, 'both_teams_to_score')
@@ -468,6 +482,8 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
 
   return buildMatchDetail(detailMatch, {
     countdownLabel: formatCountdown(eventTime, language),
+    scoreLabel,
+    statusLabel,
     headerTimeLabel: formatTimeLabel(eventTime, language),
     headerDateLabel: formatEventDate(baseEvent?.eventDate ?? primaryEvent.eventDate, eventTime, language),
     contextDescription: primaryEvent.eventMetadata?.context_description ?? primaryEvent.description,

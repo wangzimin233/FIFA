@@ -173,8 +173,8 @@ function AmountSection({ onOrderSuccess }: { onOrderSuccess?: () => void }) {
   return (
     <>
       <label className="mt-5 block">
-        <div className="grid grid-cols-[24px_minmax(0,1fr)] items-end gap-x-3">
-          <span className="whitespace-pre-line text-[12px] font-semibold leading-[0.96] text-ink">
+        <div className="grid grid-cols-[32px_minmax(0,1fr)] items-center gap-x-2.5">
+          <span className="whitespace-pre-line text-center text-[14px] font-semibold leading-[1.05] text-ink sm:text-[15px]">
             {t('orderPanel.amountLabel')}
           </span>
           <AmountInput

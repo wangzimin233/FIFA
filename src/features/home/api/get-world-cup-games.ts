@@ -190,6 +190,7 @@ export type WorldCupGameEvent = {
   slug?: string
   title?: string
   titleZh?: string
+  score?: string | null
   description?: string
   resolutionSource?: string
   eventDate?: string
@@ -580,8 +581,26 @@ function formatHandicap(value: number) {
   return value > 0 ? `+${normalized}` : `-${normalized}`
 }
 
-function getRecordLabel(record?: string) {
-  return record?.trim() ?? ''
+function getScoreParts(score?: string | null) {
+  const normalizedScore = score?.trim()
+  if (!normalizedScore) {
+    return { primaryScore: '', secondaryScore: '', score: '' }
+  }
+
+  const parts = normalizedScore.split(/\s*[-:]\s*/)
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return {
+      primaryScore: parts[0],
+      secondaryScore: parts[1],
+      score: normalizedScore,
+    }
+  }
+
+  return {
+    primaryScore: normalizedScore,
+    secondaryScore: normalizedScore,
+    score: normalizedScore,
+  }
 }
 
 function getTeamCodes(event: WorldCupGameEvent) {
@@ -838,8 +857,7 @@ export function normalizeGame(event: WorldCupGameEvent, language?: string): Matc
 
     return { ...outcome, subject: i18n.t('markets.outcomes.draw', { lng: language }) }
   })
-  const primaryRecord = getRecordLabel(homeTeamData?.record)
-  const secondaryRecord = getRecordLabel(awayTeamData?.record)
+  const { primaryScore, secondaryScore, score } = getScoreParts(event.score)
   const baseMatch = {
     id: String(event.id),
     slug: event.slug ?? event.ticker,
@@ -855,9 +873,9 @@ export function normalizeGame(event: WorldCupGameEvent, language?: string): Matc
     secondaryFlag: awayFlag,
     primaryLogo: homeLogo,
     secondaryLogo: awayLogo,
-    primaryRecord,
-    secondaryRecord,
-    score: primaryRecord,
+    primaryRecord: primaryScore,
+    secondaryRecord: secondaryScore,
+    score,
     badgeCount: event.gameMarketCount ?? event.commentCount ?? event.markets?.length ?? 0,
     winnerMarket: {
       outcomes: winnerOutcomes,

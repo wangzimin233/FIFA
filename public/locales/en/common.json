@@ -145,6 +145,8 @@
       "matchMarkets": "Match markets",
       "exactScore": "Exact score",
       "halftime": "Halftime result",
+      "firstHalfResult": "First half result",
+      "secondHalfResult": "Second half result",
       "context": "Match background"
     },
     "betLabels": {

@@ -344,6 +344,7 @@ function TotalSection({ match }: { match: MatchCard }) {
 
 function HalftimeResultSection({
   fallbackTitle,
+  period,
   result,
   isLoading,
   isError,
@@ -351,6 +352,7 @@ function HalftimeResultSection({
   onSelect,
 }: {
   fallbackTitle: string
+  period: 'first' | 'second'
   result?: MatchDetailThreeWay | null
   isLoading: boolean
   isError: boolean
@@ -359,32 +361,35 @@ function HalftimeResultSection({
 }) {
   const { t } = useTranslation()
   const { activeSelection } = useOrderStore()
+  const title = period === 'first'
+    ? t('matchDetail.sections.firstHalfResult')
+    : t('matchDetail.sections.secondHalfResult')
+  const matchup = formatMatchupWithSides(match)
 
   if (isLoading) {
     return (
-      <LoadingDataSection title={fallbackTitle} message={t('matchDetail.halftime.loading')} />
+      <LoadingDataSection title={fallbackTitle} matchup={matchup} message={t('matchDetail.halftime.loading')} />
     )
   }
 
   if (isError) {
     return (
-      <ErrorDataSection title={fallbackTitle} message={t('matchDetail.halftime.error')} />
+      <ErrorDataSection title={fallbackTitle} matchup={matchup} message={t('matchDetail.halftime.error')} />
     )
   }
 
   if (!result) {
-    return <EmptyDataSection title={fallbackTitle} />
+    return <EmptyDataSection title={fallbackTitle} matchup={matchup} />
   }
 
   return (
-    <MarketSection title={result.title} subtitle={result.volumeLabel}>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+    <MarketSection title={title} matchup={matchup} subtitle={result.volumeLabel}>
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
         {result.outcomes.map((outcome, outcomeIndex) => (
           <OddsButton
             key={outcome.id}
             active={isWinnerOutcomeActive(activeSelection, match.id, outcome)}
             label={getWinnerOutcomeDisplayLabel(outcomeIndex, t)}
-            subLabel={outcome.subject}
             assetId={outcome.yesAssetId}
             fallbackPrice={outcome.yesPrice}
             onClick={() => onSelect(outcome)}
@@ -586,11 +591,16 @@ export function MatchDetailPage() {
       </div>
 
       <section className="rounded-[22px] border border-white/8 bg-panel/95 px-3.5 py-3.5 shadow-[0_14px_30px_rgba(0,0,0,0.16)] sm:px-5 sm:py-5">
-        <h1 className="text-[22px] font-semibold tracking-tight text-ink sm:text-[34px]">
-          {detail.match.matchup}
+        <h1 className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[22px] font-semibold tracking-tight text-ink sm:gap-x-3 sm:text-[34px]">
+          <span>{detail.match.matchup}</span>
+          {detail.scoreLabel ? (
+            <span className="rounded-full border border-brand/35 bg-brand/16 px-3 py-1 text-[22px] font-semibold leading-tight text-brand shadow-[0_0_18px_rgba(0,255,91,0.14)] sm:px-3.5 sm:py-1.5 sm:text-[28px]">
+              {detail.scoreLabel}
+            </span>
+          ) : null}
         </h1>
         <div className="mt-2 text-[13px] font-medium text-ink-soft sm:mt-3 sm:text-[16px]">
-          ◔ {detail.countdownLabel}
+          ◔ {detail.statusLabel}
         </div>
 
         <div className="mt-4 border-t border-white/8 pt-4 sm:mt-6 sm:pt-6">
@@ -642,7 +652,8 @@ export function MatchDetailPage() {
             <MoneylineSection match={detail.match} />
             <SpreadSection match={detail.match} />
             <HalftimeResultSection
-              fallbackTitle={t('matchDetail.sections.halftime')}
+              fallbackTitle={t('matchDetail.sections.firstHalfResult')}
+              period="first"
               result={halftimeResult}
               isLoading={isHalftimeResultLoading}
               isError={isHalftimeResultError}
@@ -650,7 +661,8 @@ export function MatchDetailPage() {
               onSelect={selectHalftimeOutcome}
             />
             <HalftimeResultSection
-              fallbackTitle={t('matchDetail.sections.halftime')}
+              fallbackTitle={t('matchDetail.sections.secondHalfResult')}
+              period="second"
               result={secondHalfResult}
               isLoading={isSecondHalfResultLoading}
               isError={isSecondHalfResultError}
