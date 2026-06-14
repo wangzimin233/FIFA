@@ -210,6 +210,9 @@
     "tbd": "TBD",
     "timeTbd": "Time TBD",
     "inProgressOrEnded": "In progress or ended",
+    "notStarted": "Not started",
+    "live": "Live",
+    "ended": "Ended",
     "countdown": "{{days}}d {{hours}}h",
     "volume": "{{value}} volume",
     "sampleHeaderDate": "June 12"

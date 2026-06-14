@@ -191,6 +191,7 @@ export type WorldCupGameEvent = {
   title?: string
   titleZh?: string
   score?: string | null
+  live?: boolean | null
   description?: string
   resolutionSource?: string
   eventDate?: string
@@ -876,6 +877,7 @@ export function normalizeGame(event: WorldCupGameEvent, language?: string): Matc
     primaryRecord: primaryScore,
     secondaryRecord: secondaryScore,
     score,
+    live: event.live,
     badgeCount: event.gameMarketCount ?? event.commentCount ?? event.markets?.length ?? 0,
     winnerMarket: {
       outcomes: winnerOutcomes,

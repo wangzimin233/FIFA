@@ -42,6 +42,7 @@ export type MatchDetail = {
   match: MatchCard
   countdownLabel: string
   scoreLabel?: string
+  live?: boolean | null
   statusLabel: string
   headerTimeLabel: string
   headerDateLabel: string
@@ -73,6 +74,7 @@ export function buildMatchDetail(
       MatchDetail,
       | 'countdownLabel'
       | 'scoreLabel'
+      | 'live'
       | 'statusLabel'
       | 'headerTimeLabel'
       | 'headerDateLabel'
@@ -95,6 +97,7 @@ export function buildMatchDetail(
     match,
     countdownLabel,
     scoreLabel: overrides?.scoreLabel,
+    live: overrides?.live,
     statusLabel: overrides?.statusLabel ?? countdownLabel,
     headerTimeLabel: overrides?.headerTimeLabel ?? match.timeLabel,
     headerDateLabel: overrides?.headerDateLabel ?? match.date,

@@ -87,6 +87,7 @@ export type MatchCard = {
   primaryRecord: string
   secondaryRecord: string
   score: string
+  live?: boolean | null
   badgeCount: number
   winnerMarket: {
     outcomes: WinnerOutcome[]

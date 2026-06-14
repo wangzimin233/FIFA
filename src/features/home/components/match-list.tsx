@@ -39,6 +39,14 @@ function getWinnerOutcomeDisplayLabel(index: number, t: TFunction) {
       : t('markets.outcomes.away')
 }
 
+function LiveTag({ t }: { t: TFunction }) {
+  return (
+    <span className="rounded-full border border-brand/35 bg-brand/12 px-2.5 py-1 text-[11px] font-semibold text-brand shadow-[0_0_18px_rgba(0,230,86,0.12)] sm:text-[12px]">
+      {t('dataLabels.live')}
+    </span>
+  )
+}
+
 function RealtimePriceValue({
   assetId,
   fallbackPrice,
@@ -367,6 +375,7 @@ export function MatchList() {
                           {match.timeLabel}
                         </span>
                         <span>{match.volumeLabel}</span>
+                        {match.live === true ? <LiveTag t={t} /> : null}
                       </div>
 
                         <div className="grid gap-3.5">
@@ -440,6 +449,7 @@ export function MatchList() {
                           {match.timeLabel}
                         </span>
                         <span>{match.volumeLabel}</span>
+                        {match.live === true ? <LiveTag t={t} /> : null}
                       </div>
 
                       <div className="mt-4 grid gap-3.5 sm:mt-5 sm:gap-4">

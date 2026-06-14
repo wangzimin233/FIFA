@@ -166,6 +166,22 @@ function normalizeScoreLabel(score?: string | null) {
   return scoreParts ? `${scoreParts[1]}:${scoreParts[2]}` : normalizedScore
 }
 
+function formatLiveStatusLabel(live: boolean | null | undefined, fallbackTime?: string, language?: string) {
+  if (live === null) {
+    return i18n.t('dataLabels.notStarted', { lng: language })
+  }
+
+  if (live === true) {
+    return i18n.t('dataLabels.live', { lng: language })
+  }
+
+  if (live === false) {
+    return i18n.t('dataLabels.ended', { lng: language })
+  }
+
+  return formatCountdown(fallbackTime, language)
+}
+
 function getOrderedTeams(teams?: WorldCupGameTeam[]) {
   return {
     home: teams?.find((team) => team.ordering === 'home'),
@@ -456,7 +472,8 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
   const scoreLabel =
     normalizeScoreLabel(primaryEvent.score) ??
     normalizeScoreLabel(baseEvent?.score)
-  const statusLabel = formatCountdown(eventTime, language)
+  const live = primaryEvent.live !== undefined ? primaryEvent.live : baseEvent?.live
+  const statusLabel = formatLiveStatusLabel(live, eventTime, language)
   const bothTeamsToScoreEvent =
     getEventForMarketType(moreMarketsEvent, 'both_teams_to_score') ??
     getEventForMarketType(baseEvent ?? primaryEvent, 'both_teams_to_score')
@@ -483,6 +500,7 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
   return buildMatchDetail(detailMatch, {
     countdownLabel: formatCountdown(eventTime, language),
     scoreLabel,
+    live,
     statusLabel,
     headerTimeLabel: formatTimeLabel(eventTime, language),
     headerDateLabel: formatEventDate(baseEvent?.eventDate ?? primaryEvent.eventDate, eventTime, language),

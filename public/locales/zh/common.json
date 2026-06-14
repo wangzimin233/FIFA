@@ -210,6 +210,9 @@
     "tbd": "待定",
     "timeTbd": "时间待定",
     "inProgressOrEnded": "进行中或已结束",
+    "notStarted": "未开始",
+    "live": "进行中",
+    "ended": "已结束",
     "countdown": "{{days}}天 {{hours}}时",
     "volume": "{{value}} 交易量",
     "sampleHeaderDate": "六月 12"

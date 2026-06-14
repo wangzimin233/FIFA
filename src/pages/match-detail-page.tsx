@@ -33,6 +33,14 @@ function outcomeButtonClass(active: boolean) {
     : 'border-white/8 bg-white/[0.035] text-ink-soft hover:border-white/18 hover:bg-white/[0.06] hover:text-ink'
 }
 
+function LiveTag({ t }: { t: TFunction }) {
+  return (
+    <span className="rounded-full border border-brand/35 bg-brand/12 px-2.5 py-1 text-[11px] font-semibold text-brand shadow-[0_0_18px_rgba(0,230,86,0.12)] sm:text-[12px]">
+      {t('dataLabels.live')}
+    </span>
+  )
+}
+
 function getWinnerOutcomeDisplayLabel(index: number, t: TFunction) {
   return index === 0
     ? t('matchDetail.betLabels.homeWin')
@@ -599,8 +607,9 @@ export function MatchDetailPage() {
             </span>
           ) : null}
         </h1>
-        <div className="mt-2 text-[13px] font-medium text-ink-soft sm:mt-3 sm:text-[16px]">
-          ◔ {detail.statusLabel}
+        <div className="mt-2 flex items-center gap-2 text-[13px] font-medium text-ink-soft sm:mt-3 sm:text-[16px]">
+          <span aria-hidden="true">◔</span>
+          {detail.live === true ? <LiveTag t={t} /> : <span>{detail.statusLabel}</span>}
         </div>
 
         <div className="mt-4 border-t border-white/8 pt-4 sm:mt-6 sm:pt-6">
