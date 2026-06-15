@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   getWorldCupEventDetail,
+  getWorldCupCornerGroups,
   getWorldCupExactScores,
   getWorldCupHalftimeResult,
   getWorldCupSecondHalfResult,
@@ -12,7 +13,7 @@ import {
 import { MobileOrderDrawer } from '../features/home/components/mobile-order-drawer'
 import { OrderPanel } from '../features/home/components/order-panel'
 import { TeamMark } from '../features/home/components/team-mark'
-import type { MatchDetailProposition, MatchDetailThreeWay } from '../features/home/detail-data'
+import type { MatchDetailCornerMarket, MatchDetailCornerOutcome, MatchDetailProposition, MatchDetailThreeWay } from '../features/home/detail-data'
 import type { MatchCard, TotalLine, WinnerOutcome } from '../features/home/home-data'
 import { useOrderStore } from '../features/home/order-store'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
@@ -184,12 +185,14 @@ function CompactOddsButton({
   assetId,
   fallbackPrice,
   onClick,
+  className,
 }: {
   active: boolean
   label: string
   assetId?: string
   fallbackPrice: number
   onClick: () => void
+  className?: string
 }) {
   return (
     <button
@@ -200,6 +203,7 @@ function CompactOddsButton({
         active
           ? 'border-brand/40 bg-brand/16 text-brand'
           : 'border-white/8 bg-white/[0.025] text-ink-soft hover:border-white/18 hover:bg-white/[0.05] hover:text-ink',
+        className,
       ].join(' ')}
     >
       <span className="block max-w-full truncate text-[13px] font-semibold leading-tight sm:text-[14px]">
@@ -261,7 +265,7 @@ function SpreadSection({ match }: { match: MatchCard }) {
 
   return (
     <MarketSection title={t('markets.types.spread')} matchup={matchup}>
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-6">
+      <div className="grid grid-cols-3 gap-1.5">
         {match.spreadMarket.variants.map((variant) => {
           const homeActive =
             activeSelection?.contextType === 'match' &&
@@ -408,6 +412,55 @@ function HalftimeResultSection({
   )
 }
 
+function CornerMarketButton({
+  active,
+  outcome,
+  onClick,
+}: {
+  active: boolean
+  outcome: MatchDetailCornerOutcome
+  onClick: () => void
+}) {
+  return (
+    <CompactOddsButton
+      active={active}
+      label={outcome.label}
+      assetId={outcome.assetId}
+      fallbackPrice={outcome.price}
+      onClick={onClick}
+    />
+  )
+}
+
+function CornerGroupSection({
+  title,
+  matchup,
+  subtitle,
+  children,
+}: {
+  title: string
+  matchup?: string
+  subtitle?: string
+  children: ReactNode
+}) {
+  return (
+    <section className={sectionCardClass()}>
+      <div className="border-b border-white/8 px-3 py-2.5 sm:px-4 sm:py-3">
+        <h2 className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold text-ink sm:text-[16px]">
+          <span>{title}</span>
+          {matchup ? (
+            <span className="min-w-0 text-[11px] font-medium text-ink-soft sm:text-[12px]">
+              {matchup}
+            </span>
+          ) : null}
+        </h2>
+        {subtitle ? <p className="mt-0.5 text-[11px] text-ink-soft sm:text-[12px]">{subtitle}</p> : null}
+      </div>
+      <div className="px-2.5 py-2.5 sm:px-3 sm:py-3">{children}</div>
+    </section>
+  )
+}
+
 export function MatchDetailPage() {
   const { slug = '' } = useParams()
   const navigate = useNavigate()
@@ -449,6 +502,15 @@ export function MatchDetailPage() {
     queryFn: () => getWorldCupSecondHalfResult(slug, detail.match, language),
     enabled: slug.length > 0 && !!detail,
   })
+  const {
+    data: cornerGroups = [],
+    isLoading: isCornerGroupsLoading,
+    isError: isCornerGroupsError,
+  } = useQuery({
+    queryKey: ['world-cup-event-detail-corners', slug, detail?.match.id, language],
+    queryFn: () => getWorldCupCornerGroups(slug, detail.match, language),
+    enabled: slug.length > 0 && !!detail,
+  })
 
   const subscribedAssetIds = useMemo(() => {
     if (!detail) {
@@ -462,8 +524,11 @@ export function MatchDetailPage() {
       ...exactScores.map((item) => item.yesAssetId),
       ...(halftimeResult?.outcomes.map((outcome) => outcome.yesAssetId) ?? []),
       ...(secondHalfResult?.outcomes.map((outcome) => outcome.yesAssetId) ?? []),
+      ...cornerGroups.flatMap((group) =>
+        group.markets.flatMap((market) => market.outcomes.map((outcome) => outcome.assetId)),
+      ),
     ]
-  }, [detail, exactScores, halftimeResult, secondHalfResult])
+  }, [cornerGroups, detail, exactScores, halftimeResult, secondHalfResult])
 
   usePolymarketAssetSubscription(subscribedAssetIds)
 
@@ -573,6 +638,41 @@ export function MatchDetailPage() {
       yesAssetId: outcome.yesAssetId,
       noAssetId: outcome.noAssetId,
       activeSide: 'yes',
+    })
+  }
+
+  const selectCornerOutcome = (market: MatchDetailCornerMarket, outcome: MatchDetailCornerOutcome) => {
+    const isYes = outcome.side === 'yes'
+    selectProposition({
+      contextType: 'match',
+      sourceTab: 'matches',
+      matchId: detail.match.id,
+      eventSlug: market.eventSlug ?? detail.match.slug,
+      marketId: market.marketId ?? market.id,
+      marketSlug: market.marketSlug,
+      conditionId: market.conditionId,
+      acceptingOrders: market.acceptingOrders,
+      negRisk: market.negRisk,
+      eventTitle: detail.match.matchup,
+      eventTitleZh: detail.match.matchup,
+      marketTitle: market.title,
+      marketTitleZh: market.titleZh ?? market.title,
+      yesOutcomeTitle: market.yesOutcomeTitle,
+      noOutcomeTitle: market.noOutcomeTitle,
+      yesOutcomeTitleZh: market.yesOutcomeTitleZh,
+      noOutcomeTitleZh: market.noOutcomeTitleZh,
+      title: detail.match.matchup,
+      badge: market.badge,
+      badgeLogo: market.badgeLogo,
+      subject: outcome.label,
+      shortLabel: outcome.label,
+      yesPrice: market.yesPrice,
+      noPrice: market.noPrice,
+      yesOrderPrice: market.yesOrderPrice,
+      noOrderPrice: market.noOrderPrice,
+      yesAssetId: market.yesAssetId,
+      noAssetId: market.noAssetId,
+      activeSide: isYes ? 'yes' : 'no',
     })
   }
 
@@ -712,6 +812,52 @@ export function MatchDetailPage() {
             </MarketSection>
           ) : (
             <EmptyDataSection title={t('matchDetail.sections.exactScore')} matchup={matchup} />
+          )}
+
+          {isCornerGroupsLoading ? (
+            <LoadingDataSection title={t('matchDetail.sections.corners')} matchup={matchup} message={t('matchDetail.corners.loading')} />
+          ) : isCornerGroupsError ? (
+            <ErrorDataSection title={t('matchDetail.sections.corners')} matchup={matchup} message={t('matchDetail.corners.error')} />
+          ) : cornerGroups.length ? (
+            <div className="grid gap-3 sm:gap-4">
+              <div className="px-1 text-[13px] font-semibold text-ink-soft sm:text-[14px]">
+                {t('matchDetail.sections.corners')}
+              </div>
+              {cornerGroups.map((group) => {
+                const cornerOutcomeItems = group.markets.flatMap((market) =>
+                  market.outcomes.map((outcome) => ({ market, outcome })),
+                )
+                const gridClassName = cornerOutcomeItems.length === 2
+                  ? 'grid grid-cols-2 gap-1.5'
+                  : 'grid grid-cols-3 gap-1.5'
+
+                return (
+                  <CornerGroupSection key={group.key} title={group.title} matchup={matchup} subtitle={group.volumeLabel}>
+                    <div className={gridClassName}>
+                      {cornerOutcomeItems.map(({ market, outcome }) => {
+                        const isActive =
+                          activeSelection?.contextType === 'match' &&
+                          activeSelection.matchId === detail.match.id &&
+                          activeSelection.template === 'winner' &&
+                          activeSelection.marketId === (market.marketId ?? market.id) &&
+                          activeSelection.activeSide === outcome.side
+
+                        return (
+                          <CornerMarketButton
+                            key={outcome.id}
+                            active={isActive}
+                            outcome={outcome}
+                            onClick={() => selectCornerOutcome(market, outcome)}
+                          />
+                        )
+                      })}
+                    </div>
+                  </CornerGroupSection>
+                )
+              })}
+            </div>
+          ) : (
+            <EmptyDataSection title={t('matchDetail.sections.corners')} matchup={matchup} />
           )}
 
           {detail.contextDescription ? (

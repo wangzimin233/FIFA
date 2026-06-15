@@ -147,6 +147,7 @@
       "halftime": "半场结果",
       "firstHalfResult": "上半场结果",
       "secondHalfResult": "下半场结果",
+      "corners": "角球",
       "context": "比赛背景"
     },
     "betLabels": {
@@ -161,6 +162,10 @@
     "halftime": {
       "loading": "正在加载半场结果...",
       "error": "半场结果加载失败，请稍后重试。"
+    },
+    "corners": {
+      "loading": "正在加载角球...",
+      "error": "角球加载失败，请稍后重试。"
     }
   },
   "marketDetail": {

@@ -147,6 +147,7 @@
       "halftime": "Halftime result",
       "firstHalfResult": "First half result",
       "secondHalfResult": "Second half result",
+      "corners": "Corners",
       "context": "Match background"
     },
     "betLabels": {
@@ -161,6 +162,10 @@
     "halftime": {
       "loading": "Loading halftime result...",
       "error": "Failed to load halftime result. Please try again later."
+    },
+    "corners": {
+      "loading": "Loading corners...",
+      "error": "Failed to load corners. Please try again later."
     }
   },
   "marketDetail": {

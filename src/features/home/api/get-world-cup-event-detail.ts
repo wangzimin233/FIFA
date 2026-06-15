@@ -1,6 +1,14 @@
 import { apiClient } from '../../../lib/api-client'
 import i18n from '../../../config/i18n'
-import { buildMatchDetail, type MatchDetail, type MatchDetailProposition, type MatchDetailThreeWay } from '../detail-data'
+import {
+  buildMatchDetail,
+  type MatchDetail,
+  type MatchDetailCornerGroup,
+  type MatchDetailCornerMarket,
+  type MatchDetailCornerOutcome,
+  type MatchDetailProposition,
+  type MatchDetailThreeWay,
+} from '../detail-data'
 import {
   buildSpreadVariants,
   buildTotalLines,
@@ -15,7 +23,9 @@ import {
   hasMarketType,
   isZhLanguage,
   normalizeGame,
+  parseJsonStringArray,
   type WorldCupGameEvent,
+  type WorldCupGameMarket,
   type WorldCupGameTeam,
 } from './get-world-cup-games'
 
@@ -50,6 +60,11 @@ function toHalftimeResultSlug(slug: string) {
 function toSecondHalfResultSlug(slug: string) {
   const baseSlug = toMarketBaseSlug(slug)
   return `${baseSlug}-second-half-result`
+}
+
+function toTotalCornersSlug(slug: string) {
+  const baseSlug = toMarketBaseSlug(slug)
+  return `${baseSlug}-total-corners`
 }
 
 function resolveEvent(payload: WorldCupEventDetailEnvelope['data']) {
@@ -398,6 +413,256 @@ function buildBothTeamsToScore(event: WorldCupGameEvent | undefined, language?: 
   }
 }
 
+function getCornerGroup(market: WorldCupGameMarket) {
+  const type = market.sportsMarketType
+  const slug = market.slug || ''
+
+  if (type === 'total_corners') {
+    return 'Corners'
+  }
+
+  if (type === 'soccer_first_half_total_corners') {
+    return '1st Half Corners'
+  }
+
+  if (type === 'soccer_second_half_total_corners') {
+    return '2nd Half Corners'
+  }
+
+  if (type === 'soccer_team_total_corners' && slug.includes('team-home')) {
+    return 'Spain Corners'
+  }
+
+  if (type === 'soccer_team_total_corners' && slug.includes('team-away')) {
+    return 'Cabo Verde Corners'
+  }
+
+  if (type === 'soccer_game_corners_odd_even') {
+    return 'Corners Odd/Even'
+  }
+
+  if (type === 'soccer_first_corner') {
+    return 'First Corner'
+  }
+
+  return 'Unknown'
+}
+
+function getCornerGroupTitle(key: string, match?: MatchDetail['match'], language?: string) {
+  const isZh = isZhLanguage(language)
+  const homeTeam = match?.primaryTeam ?? 'Spain'
+  const awayTeam = match?.secondaryTeam ?? 'Cabo Verde'
+
+  if (!isZh) {
+    if (key === 'Spain Corners') {
+      return `${homeTeam} Corners`
+    }
+
+    if (key === 'Cabo Verde Corners') {
+      return `${awayTeam} Corners`
+    }
+
+    return key
+  }
+
+  const zhTitleMap: Record<string, string> = {
+    Corners: '总角球',
+    '1st Half Corners': '上半场角球',
+    '2nd Half Corners': '下半场角球',
+    'Corners Odd/Even': '角球单双',
+    'First Corner': '第一个角球',
+    Unknown: '其他角球',
+  }
+
+  if (key === 'Spain Corners') {
+    return `${homeTeam}角球`
+  }
+
+  if (key === 'Cabo Verde Corners') {
+    return `${awayTeam}角球`
+  }
+
+  return zhTitleMap[key] ?? key
+}
+
+function getCornerGroupSortOrder(key: string) {
+  const sortOrder: Record<string, number> = {
+    Corners: 0,
+    '1st Half Corners': 1,
+    '2nd Half Corners': 2,
+    'Spain Corners': 3,
+    'Cabo Verde Corners': 4,
+    'Corners Odd/Even': 5,
+    'First Corner': 6,
+    Unknown: 99,
+  }
+
+  return sortOrder[key] ?? sortOrder.Unknown
+}
+
+function formatCornerLine(market: WorldCupGameMarket) {
+  if (typeof market.line === 'number' && Number.isFinite(market.line)) {
+    return Number.isInteger(market.line) ? String(market.line) : String(market.line)
+  }
+
+  return ''
+}
+
+function getCornerOutcomeLabel(
+  market: WorldCupGameMarket,
+  outcome: string | undefined,
+  side: 'yes' | 'no',
+  lineLabel: string,
+  language?: string,
+) {
+  const normalized = outcome?.trim() || ''
+  const lower = normalized.toLowerCase()
+  const isZh = isZhLanguage(language)
+
+  if (market.sportsMarketType === 'soccer_first_corner') {
+    if (side === 'yes') {
+      return isZh ? '主' : 'Home'
+    }
+
+    return isZh ? '客' : 'Away'
+  }
+
+  if (lineLabel) {
+    if (lower === 'over') {
+      return isZh ? `大于 ${lineLabel}` : `Over ${lineLabel}`
+    }
+
+    if (lower === 'under') {
+      return isZh ? `小于 ${lineLabel}` : `Under ${lineLabel}`
+    }
+  }
+
+  if (isZh) {
+    if (lower === 'odd') {
+      return '单'
+    }
+
+    if (lower === 'even') {
+      return '双'
+    }
+  }
+
+  return normalized || (isZh ? '选项' : 'Pick')
+}
+
+function getCornerShortLabel(market: WorldCupGameMarket, language?: string) {
+  const lineLabel = formatCornerLine(market)
+  const localizedTitle = getLocalizedGroupItemTitle(market, language)
+  const rawTitle = localizedTitle || market.groupItemTitle || market.question || 'Corners'
+  const cleanedTitle = rawTitle
+    .replace(/\s*[:：]\s*(O\/U|大于\/小于|大小盘)\s*/i, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return lineLabel || cleanedTitle
+}
+
+function buildCornerMarket(
+  event: WorldCupGameEvent,
+  market: WorldCupGameMarket,
+  groupKey: string,
+  match: MatchDetail['match'] | undefined,
+  language?: string,
+): MatchDetailCornerMarket {
+  const outcomes = parseJsonStringArray(market.outcomes)
+  const { yesPrice, noPrice } = getYesNoPrices(market)
+  const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
+  const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
+  const lineLabel = formatCornerLine(market)
+  const title = getLocalizedGroupItemTitle(market, language) || market.groupItemTitle || market.question || groupKey
+  const shortLabel = getCornerShortLabel(market, language)
+  const cornerOutcomes: MatchDetailCornerOutcome[] = [
+    {
+      id: `${market.id}:yes`,
+      side: 'yes',
+      label: getCornerOutcomeLabel(market, outcomes[0], 'yes', lineLabel, language),
+      labelZh: getCornerOutcomeLabel(market, outcomes[0], 'yes', lineLabel, 'zh'),
+      price: yesPrice,
+      orderPrice: yesOrderPrice,
+      assetId: yesAssetId,
+    },
+    {
+      id: `${market.id}:no`,
+      side: 'no',
+      label: getCornerOutcomeLabel(market, outcomes[1], 'no', lineLabel, language),
+      labelZh: getCornerOutcomeLabel(market, outcomes[1], 'no', lineLabel, 'zh'),
+      price: noPrice,
+      orderPrice: noOrderPrice,
+      assetId: noAssetId,
+    },
+  ]
+
+  return {
+    id: String(market.id),
+    ...getOrderMarketMetadata(event, market),
+    negRisk: market.negRisk,
+    title,
+    titleZh: market.groupItemTitleZh,
+    shortLabel,
+    subject: title,
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market]), language),
+    badge: '◿',
+    badgeLogo: market.icon,
+    yesPrice,
+    noPrice,
+    yesOrderPrice,
+    noOrderPrice,
+    yesAssetId,
+    noAssetId,
+    outcomes: cornerOutcomes,
+    eventTitle: event.title ?? match?.matchup,
+    eventTitleZh: event.titleZh ?? match?.matchup,
+  }
+}
+
+function buildCornerGroups(
+  event: WorldCupGameEvent | undefined,
+  match: MatchDetail['match'] | undefined,
+  language?: string,
+) {
+  if (!event?.markets?.length) {
+    return []
+  }
+
+  const groupMap = new Map<string, MatchDetailCornerMarket[]>()
+  const groupVolumeMap = new Map<string, number>()
+
+  for (const market of event.markets) {
+    const key = getCornerGroup(market)
+    const markets = groupMap.get(key) ?? []
+    markets.push(buildCornerMarket(event, market, key, match, language))
+    groupMap.set(key, markets)
+    groupVolumeMap.set(key, (groupVolumeMap.get(key) ?? 0) + getMarketVolumeNumTotal([market]))
+  }
+
+  return Array.from(groupMap.entries())
+    .sort(([left], [right]) => getCornerGroupSortOrder(left) - getCornerGroupSortOrder(right))
+    .map(([key, markets]): MatchDetailCornerGroup => {
+      const sortedMarkets = [...markets].sort((left, right) => {
+        const leftLine = Number(left.shortLabel)
+        const rightLine = Number(right.shortLabel)
+
+        if (Number.isFinite(leftLine) && Number.isFinite(rightLine)) {
+          return leftLine - rightLine
+        }
+
+        return left.shortLabel.localeCompare(right.shortLabel)
+      })
+
+      return {
+        key,
+        title: getCornerGroupTitle(key, match, language),
+        volumeLabel: formatVolumeLabel(groupVolumeMap.get(key), language),
+        markets: sortedMarkets,
+      }
+    })
+}
+
 export async function getWorldCupExactScores(slug: string, language?: string): Promise<MatchDetailProposition[]> {
   const event = await fetchWorldCupEventBySlug(toExactScoreSlug(slug))
 
@@ -434,6 +699,20 @@ export async function getWorldCupSecondHalfResult(
   }
 
   return buildHalftimeResult(event, match, language) ?? null
+}
+
+export async function getWorldCupCornerGroups(
+  slug: string,
+  match?: MatchDetail['match'],
+  language?: string,
+): Promise<MatchDetailCornerGroup[]> {
+  const event = await fetchWorldCupEventBySlug(toTotalCornersSlug(slug))
+
+  if (!event) {
+    return []
+  }
+
+  return buildCornerGroups(event, match, language)
 }
 
 export async function getWorldCupEventDetail(slug: string, language?: string): Promise<MatchDetail | null> {
@@ -513,5 +792,6 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
     bothTeamsToScore: buildBothTeamsToScore(bothTeamsToScoreEvent, language),
     exactScores: [],
     halftimeResult: undefined,
+    cornerGroups: [],
   })
 }

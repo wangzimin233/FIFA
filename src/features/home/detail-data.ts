@@ -38,6 +38,47 @@ export type MatchDetailThreeWay = {
   outcomes: WinnerOutcome[]
 }
 
+export type MatchDetailCornerOutcome = {
+  id: string
+  side: 'yes' | 'no'
+  label: string
+  labelZh?: string
+  price: number
+  orderPrice?: number
+  assetId?: string
+}
+
+export type MatchDetailCornerMarket = OrderTextMetadata & {
+  id: string
+  eventSlug?: string
+  marketId?: string
+  marketSlug?: string
+  conditionId?: string
+  acceptingOrders?: boolean
+  negRisk?: boolean
+  title: string
+  titleZh?: string
+  shortLabel: string
+  subject: string
+  volumeLabel: string
+  badge: string
+  badgeLogo?: string
+  yesPrice: number
+  noPrice: number
+  yesOrderPrice?: number
+  noOrderPrice?: number
+  yesAssetId?: string
+  noAssetId?: string
+  outcomes: MatchDetailCornerOutcome[]
+}
+
+export type MatchDetailCornerGroup = {
+  key: string
+  title: string
+  volumeLabel: string
+  markets: MatchDetailCornerMarket[]
+}
+
 export type MatchDetail = {
   match: MatchCard
   countdownLabel: string
@@ -55,6 +96,7 @@ export type MatchDetail = {
   bothTeamsToScore?: MatchDetailProposition
   exactScores: MatchDetailProposition[]
   halftimeResult?: MatchDetailThreeWay
+  cornerGroups: MatchDetailCornerGroup[]
 }
 
 export const allMatches = matchGroups.flatMap((group) => group.matches)
@@ -87,6 +129,7 @@ export function buildMatchDetail(
       | 'bothTeamsToScore'
       | 'exactScores'
       | 'halftimeResult'
+      | 'cornerGroups'
     >
   >,
   language?: string,
@@ -110,6 +153,7 @@ export function buildMatchDetail(
     bothTeamsToScore: overrides?.bothTeamsToScore,
     exactScores: overrides?.exactScores ?? [],
     halftimeResult: overrides?.halftimeResult,
+    cornerGroups: overrides?.cornerGroups ?? [],
   }
 }
 
