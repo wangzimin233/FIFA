@@ -8,12 +8,19 @@ import {
   getWorldCupCornerGroups,
   getWorldCupExactScores,
   getWorldCupHalftimeResult,
+  getWorldCupPlayerPropGroups,
   getWorldCupSecondHalfResult,
 } from '../features/home/api/get-world-cup-event-detail'
 import { MobileOrderDrawer } from '../features/home/components/mobile-order-drawer'
 import { OrderPanel } from '../features/home/components/order-panel'
 import { TeamMark } from '../features/home/components/team-mark'
-import type { MatchDetailCornerMarket, MatchDetailCornerOutcome, MatchDetailProposition, MatchDetailThreeWay } from '../features/home/detail-data'
+import type {
+  MatchDetailCornerMarket,
+  MatchDetailCornerOutcome,
+  MatchDetailPlayerPropMarket,
+  MatchDetailProposition,
+  MatchDetailThreeWay,
+} from '../features/home/detail-data'
 import type { MatchCard, TotalLine, WinnerOutcome } from '../features/home/home-data'
 import { useOrderStore } from '../features/home/order-store'
 import { useDisplayPrice } from '../features/market-realtime/price-utils'
@@ -511,6 +518,15 @@ export function MatchDetailPage() {
     queryFn: () => getWorldCupCornerGroups(slug, detail.match, language),
     enabled: slug.length > 0 && !!detail,
   })
+  const {
+    data: playerPropGroups = [],
+    isLoading: isPlayerPropGroupsLoading,
+    isError: isPlayerPropGroupsError,
+  } = useQuery({
+    queryKey: ['world-cup-event-detail-player-props', slug, detail?.match.id, language],
+    queryFn: () => getWorldCupPlayerPropGroups(slug, language),
+    enabled: slug.length > 0 && !!detail,
+  })
 
   const subscribedAssetIds = useMemo(() => {
     if (!detail) {
@@ -527,8 +543,9 @@ export function MatchDetailPage() {
       ...cornerGroups.flatMap((group) =>
         group.markets.flatMap((market) => market.outcomes.map((outcome) => outcome.assetId)),
       ),
+      ...playerPropGroups.flatMap((group) => group.markets.map((market) => market.yesAssetId)),
     ]
-  }, [cornerGroups, detail, exactScores, halftimeResult, secondHalfResult])
+  }, [cornerGroups, detail, exactScores, halftimeResult, playerPropGroups, secondHalfResult])
 
   usePolymarketAssetSubscription(subscribedAssetIds)
 
@@ -673,6 +690,40 @@ export function MatchDetailPage() {
       yesAssetId: market.yesAssetId,
       noAssetId: market.noAssetId,
       activeSide: isYes ? 'yes' : 'no',
+    })
+  }
+
+  const selectPlayerPropMarket = (market: MatchDetailPlayerPropMarket) => {
+    selectProposition({
+      contextType: 'match',
+      sourceTab: 'matches',
+      matchId: detail.match.id,
+      eventSlug: market.eventSlug ?? detail.match.slug,
+      marketId: market.marketId ?? market.id,
+      marketSlug: market.marketSlug,
+      conditionId: market.conditionId,
+      acceptingOrders: market.acceptingOrders,
+      negRisk: market.negRisk,
+      eventTitle: detail.match.matchup,
+      eventTitleZh: detail.match.matchup,
+      marketTitle: market.title,
+      marketTitleZh: market.marketTitleZh ?? market.title,
+      yesOutcomeTitle: market.yesOutcomeTitle,
+      noOutcomeTitle: market.noOutcomeTitle,
+      yesOutcomeTitleZh: market.yesOutcomeTitleZh,
+      noOutcomeTitleZh: market.noOutcomeTitleZh,
+      title: detail.match.matchup,
+      badge: market.badge,
+      badgeLogo: market.badgeLogo,
+      subject: market.shortLabel,
+      shortLabel: market.shortLabel,
+      yesPrice: market.yesPrice,
+      noPrice: market.noPrice,
+      yesOrderPrice: market.yesOrderPrice,
+      noOrderPrice: market.noOrderPrice,
+      yesAssetId: market.yesAssetId,
+      noAssetId: market.noAssetId,
+      activeSide: 'yes',
     })
   }
 
@@ -858,6 +909,45 @@ export function MatchDetailPage() {
             </div>
           ) : (
             <EmptyDataSection title={t('matchDetail.sections.corners')} matchup={matchup} />
+          )}
+
+          {isPlayerPropGroupsLoading ? (
+            <LoadingDataSection title={t('matchDetail.sections.playerProps')} matchup={matchup} message={t('matchDetail.playerProps.loading')} />
+          ) : isPlayerPropGroupsError ? (
+            <ErrorDataSection title={t('matchDetail.sections.playerProps')} matchup={matchup} message={t('matchDetail.playerProps.error')} />
+          ) : playerPropGroups.length ? (
+            <div className="grid gap-3 sm:gap-4">
+              <div className="px-1 text-[13px] font-semibold text-ink-soft sm:text-[14px]">
+                {t('matchDetail.sections.playerProps')}
+              </div>
+              {playerPropGroups.map((group) => (
+                <MarketSection key={group.key} title={group.title} matchup={matchup} subtitle={group.volumeLabel}>
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 xl:grid-cols-4">
+                    {group.markets.map((market) => {
+                      const isActive =
+                        activeSelection?.contextType === 'match' &&
+                        activeSelection.matchId === detail.match.id &&
+                        activeSelection.template === 'winner' &&
+                        activeSelection.activeSide === 'yes' &&
+                        activeSelection.marketId === (market.marketId ?? market.id)
+
+                      return (
+                        <CompactOddsButton
+                          key={market.id}
+                          active={isActive}
+                          label={market.shortLabel}
+                          assetId={market.yesAssetId}
+                          fallbackPrice={market.yesPrice}
+                          onClick={() => selectPlayerPropMarket(market)}
+                        />
+                      )
+                    })}
+                  </div>
+                </MarketSection>
+              ))}
+            </div>
+          ) : (
+            <EmptyDataSection title={t('matchDetail.sections.playerProps')} matchup={matchup} />
           )}
 
           {detail.contextDescription ? (

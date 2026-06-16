@@ -148,6 +148,7 @@
       "firstHalfResult": "First half result",
       "secondHalfResult": "Second half result",
       "corners": "Corners",
+      "playerProps": "Player props",
       "context": "Match background"
     },
     "betLabels": {
@@ -166,6 +167,10 @@
     "corners": {
       "loading": "Loading corners...",
       "error": "Failed to load corners. Please try again later."
+    },
+    "playerProps": {
+      "loading": "Loading player props...",
+      "error": "Failed to load player props. Please try again later."
     }
   },
   "marketDetail": {

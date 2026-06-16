@@ -6,6 +6,8 @@ import {
   type MatchDetailCornerGroup,
   type MatchDetailCornerMarket,
   type MatchDetailCornerOutcome,
+  type MatchDetailPlayerPropGroup,
+  type MatchDetailPlayerPropMarket,
   type MatchDetailProposition,
   type MatchDetailThreeWay,
 } from '../detail-data'
@@ -33,6 +35,29 @@ type WorldCupEventDetailEnvelope = {
   code: number
   message: string
   data?: WorldCupGameEvent | { event?: WorldCupGameEvent } | null
+}
+
+type WorldCupPlayerPropsGroup = {
+  type: string
+  title?: string
+  titleZh?: string
+  sportsMarketType?: string
+  markets?: WorldCupGameMarket[]
+}
+
+type WorldCupPlayerPropsEnvelope = {
+  code: number
+  message: string
+  data?: {
+    baseSlug?: string
+    eventSlug?: string
+    title?: string
+    titleZh?: string
+    startTime?: string
+    endDate?: string
+    teams?: WorldCupGameTeam[]
+    groups?: WorldCupPlayerPropsGroup[]
+  } | null
 }
 
 function toMoreMarketsSlug(slug: string) {
@@ -65,6 +90,10 @@ function toSecondHalfResultSlug(slug: string) {
 function toTotalCornersSlug(slug: string) {
   const baseSlug = toMarketBaseSlug(slug)
   return `${baseSlug}-total-corners`
+}
+
+function toPlayerPropsSlug(slug: string) {
+  return toMarketBaseSlug(slug)
 }
 
 function resolveEvent(payload: WorldCupEventDetailEnvelope['data']) {
@@ -663,6 +692,124 @@ function buildCornerGroups(
     })
 }
 
+function getPlayerPropGroupTitle(group: WorldCupPlayerPropsGroup, language?: string) {
+  if (isZhLanguage(language)) {
+    const titleMap: Record<string, string> = {
+      goals: '进球',
+      shots: '射门',
+      assists: '助攻',
+    }
+
+    return titleMap[group.type] ?? group.titleZh ?? group.title ?? group.type
+  }
+
+  return group.title ?? group.type
+}
+
+function getPlayerPropGroupSortOrder(type: string) {
+  const sortOrder: Record<string, number> = {
+    goals: 0,
+    shots: 1,
+    assists: 2,
+  }
+
+  return sortOrder[type] ?? 99
+}
+
+function getPlayerPropThreshold(market: WorldCupGameMarket) {
+  const source = `${market.groupItemTitle ?? ''} ${market.question ?? ''}`
+  const match = source.match(/(\d+)\s*\+/)
+
+  if (match) {
+    return `${match[1]}+`
+  }
+
+  if (typeof market.line === 'number' && Number.isFinite(market.line)) {
+    return `${Math.floor(market.line + 0.5)}+`
+  }
+
+  return ''
+}
+
+function getPlayerPropName(market: WorldCupGameMarket, language?: string) {
+  const localizedTitle = getLocalizedGroupItemTitle(market, language)
+  const title = localizedTitle || market.groupItemTitle || market.question || ''
+  const [name] = title.split(/\s*[:：]\s*/)
+  const trimmedName = name?.trim()
+
+  return trimmedName || title.trim() || 'Player'
+}
+
+function buildPlayerPropMarket(
+  event: NonNullable<WorldCupPlayerPropsEnvelope['data']>,
+  group: WorldCupPlayerPropsGroup,
+  market: WorldCupGameMarket,
+  language?: string,
+): MatchDetailPlayerPropMarket {
+  const { yesPrice, noPrice } = getYesNoPrices(market)
+  const { yesOrderPrice, noOrderPrice } = getYesNoOrderPrices(market)
+  const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
+  const playerName = getPlayerPropName(market, language)
+  const threshold = getPlayerPropThreshold(market)
+  const title = getLocalizedGroupItemTitle(market, language) || market.groupItemTitle || market.question || playerName
+  const eventForOrder: WorldCupGameEvent = {
+    id: event.eventSlug ?? event.baseSlug ?? 'player-props',
+    slug: event.eventSlug,
+    title: event.title,
+    titleZh: event.titleZh,
+  }
+
+  return {
+    id: String(market.id),
+    ...getOrderMarketMetadata(eventForOrder, market),
+    negRisk: market.negRisk,
+    title,
+    volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal([market]), language),
+    badge: '◎',
+    badgeLogo: market.icon,
+    shortLabel: threshold ? `${playerName} ${threshold}` : playerName,
+    subject: title,
+    yesPrice,
+    noPrice,
+    yesOrderPrice,
+    noOrderPrice,
+    yesAssetId,
+    noAssetId,
+    playerName,
+    statType: group.type,
+  }
+}
+
+function buildPlayerPropGroups(
+  event: WorldCupPlayerPropsEnvelope['data'] | undefined | null,
+  language?: string,
+) {
+  if (!event?.groups?.length) {
+    return []
+  }
+
+  return [...event.groups]
+    .sort((left, right) => getPlayerPropGroupSortOrder(left.type) - getPlayerPropGroupSortOrder(right.type))
+    .map((group): MatchDetailPlayerPropGroup => {
+      const markets = [...(group.markets ?? [])]
+        .sort((left, right) => {
+          const leftOrder = Number(left.groupItemThreshold ?? Number.MAX_SAFE_INTEGER)
+          const rightOrder = Number(right.groupItemThreshold ?? Number.MAX_SAFE_INTEGER)
+
+          return leftOrder - rightOrder
+        })
+        .map((market) => buildPlayerPropMarket(event, group, market, language))
+
+      return {
+        key: group.type,
+        title: getPlayerPropGroupTitle(group, language),
+        volumeLabel: formatVolumeLabel(getMarketVolumeNumTotal(group.markets), language),
+        markets,
+      }
+    })
+    .filter((group) => group.markets.length > 0)
+}
+
 export async function getWorldCupExactScores(slug: string, language?: string): Promise<MatchDetailProposition[]> {
   const event = await fetchWorldCupEventBySlug(toExactScoreSlug(slug))
 
@@ -713,6 +860,22 @@ export async function getWorldCupCornerGroups(
   }
 
   return buildCornerGroups(event, match, language)
+}
+
+export async function getWorldCupPlayerPropGroups(
+  slug: string,
+  language?: string,
+): Promise<MatchDetailPlayerPropGroup[]> {
+  const response = await apiClient.get<WorldCupPlayerPropsEnvelope>(
+    `/api/world-cup/player-props/${toPlayerPropsSlug(slug)}`,
+    {
+      params: {
+        types: 'goals,shots,assists',
+      },
+    },
+  )
+
+  return buildPlayerPropGroups(response.data.data, language)
 }
 
 export async function getWorldCupEventDetail(slug: string, language?: string): Promise<MatchDetail | null> {
@@ -793,5 +956,6 @@ export async function getWorldCupEventDetail(slug: string, language?: string): P
     exactScores: [],
     halftimeResult: undefined,
     cornerGroups: [],
+    playerPropGroups: [],
   })
 }

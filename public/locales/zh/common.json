@@ -148,6 +148,7 @@
       "firstHalfResult": "上半场结果",
       "secondHalfResult": "下半场结果",
       "corners": "角球",
+      "playerProps": "球员数据",
       "context": "比赛背景"
     },
     "betLabels": {
@@ -166,6 +167,10 @@
     "corners": {
       "loading": "正在加载角球...",
       "error": "角球加载失败，请稍后重试。"
+    },
+    "playerProps": {
+      "loading": "正在加载球员数据...",
+      "error": "球员数据加载失败，请稍后重试。"
     }
   },
   "marketDetail": {

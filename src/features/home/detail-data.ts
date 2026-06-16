@@ -79,6 +79,18 @@ export type MatchDetailCornerGroup = {
   markets: MatchDetailCornerMarket[]
 }
 
+export type MatchDetailPlayerPropMarket = MatchDetailProposition & {
+  playerName: string
+  statType: string
+}
+
+export type MatchDetailPlayerPropGroup = {
+  key: string
+  title: string
+  volumeLabel: string
+  markets: MatchDetailPlayerPropMarket[]
+}
+
 export type MatchDetail = {
   match: MatchCard
   countdownLabel: string
@@ -97,6 +109,7 @@ export type MatchDetail = {
   exactScores: MatchDetailProposition[]
   halftimeResult?: MatchDetailThreeWay
   cornerGroups: MatchDetailCornerGroup[]
+  playerPropGroups: MatchDetailPlayerPropGroup[]
 }
 
 export const allMatches = matchGroups.flatMap((group) => group.matches)
@@ -130,6 +143,7 @@ export function buildMatchDetail(
       | 'exactScores'
       | 'halftimeResult'
       | 'cornerGroups'
+      | 'playerPropGroups'
     >
   >,
   language?: string,
@@ -154,6 +168,7 @@ export function buildMatchDetail(
     exactScores: overrides?.exactScores ?? [],
     halftimeResult: overrides?.halftimeResult,
     cornerGroups: overrides?.cornerGroups ?? [],
+    playerPropGroups: overrides?.playerPropGroups ?? [],
   }
 }
 
