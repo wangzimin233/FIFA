@@ -183,6 +183,7 @@
     "amountInputLabel": "Enter amount",
     "toWin": "To win",
     "minAmount": "Minimum order amount {{amount}}",
+    "availableBalance": "Balance {{amount}}",
     "unsupportedMarket": "This market does not support orders yet",
     "unsupportedOrder": "Orders unsupported",
     "submitting": "Submitting...",

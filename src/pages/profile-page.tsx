@@ -5,9 +5,9 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { useTranslation } from 'react-i18next'
 import i18n from '../config/i18n'
 import { toast } from '../lib/toast'
-import { getWalletUserInfo } from '../features/wallet-auth/api'
 import { useWalletAuthStore } from '../features/wallet-auth/auth-store'
 import { useWalletAuth } from '../features/wallet-auth/use-wallet-auth'
+import { getBscUsdtAsset, useWalletUserInfoQuery } from '../features/wallet-auth/use-wallet-user-info-query'
 import {
   getPolymarketOrdersPage,
   type PolymarketOrderPageItem,
@@ -1750,11 +1750,7 @@ export function ProfilePage() {
     setActiveAction(null)
   }, [])
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['wallet-user-info', session?.token ?? null],
-    queryFn: getWalletUserInfo,
-    enabled: isSessionForConnectedWallet,
-  })
+  const { data, isLoading, isError } = useWalletUserInfoQuery({ enabled: isSessionForConnectedWallet })
 
   const {
     data: contractConfigResult,
@@ -1770,9 +1766,7 @@ export function ProfilePage() {
   const contractConfig = contractConfigResult?.data ?? undefined
   const walletUserId = walletUser?.userId
   const inviteCode = walletUser?.inviteCode ?? ''
-  const primaryAsset =
-    walletUser?.assets.find((asset) => asset.chainCode === 'BSC' && asset.coinCode.toUpperCase() === 'USDT') ??
-    walletUser?.assets[0]
+  const primaryAsset = getBscUsdtAsset(walletUser) ?? walletUser?.assets[0]
 
   const {
     data: relationStatsResult,

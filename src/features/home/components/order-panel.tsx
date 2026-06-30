@@ -4,9 +4,14 @@ import { type ReactNode, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useActiveSelectionPrice, useDisplayPrice } from '../../market-realtime/price-utils'
 import { RollingNumber } from '../../market-realtime/rolling-number'
+import {
+  formatWalletBalanceCurrency,
+  getBscUsdtAsset,
+  useWalletUserInfoQuery,
+} from '../../wallet-auth/use-wallet-user-info-query'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
-import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
+import { useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
 import { SlippageSelector } from './slippage-selector'
 
 const quickAmounts = [2, 5, 10, 100]
@@ -156,6 +161,8 @@ function AmountSection({ onOrderSuccess }: { onOrderSuccess?: () => void }) {
     slippageConfirmed,
     submitOrder,
   } = useSubmitPolymarketOrder({ onSuccess: onOrderSuccess })
+  const walletUserQuery = useWalletUserInfoQuery({ enabled: isWalletAuthenticated })
+  const availableBalance = getBscUsdtAsset(walletUserQuery.data?.data)?.availableBalance
   const computedResult = useMemo(() => {
     if (!activeSelection || amount <= 0 || activePrice === null) {
       return null
@@ -220,7 +227,7 @@ function AmountSection({ onOrderSuccess }: { onOrderSuccess?: () => void }) {
         {!isOddsAllowed
           ? t('orderErrors.oddsTooLow', { odds: 1 })
           : isAcceptingOrders
-          ? t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })
+          ? t('orderPanel.availableBalance', { amount: formatWalletBalanceCurrency(availableBalance) })
           : t('orderPanel.unsupportedMarket')}
       </div>
 

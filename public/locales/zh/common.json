@@ -183,6 +183,7 @@
     "amountInputLabel": "输入金额",
     "toWin": "赢取",
     "minAmount": "最低下单金额 {{amount}}",
+    "availableBalance": "余额 {{amount}}",
     "unsupportedMarket": "当前盘口暂不支持挂单",
     "unsupportedOrder": "暂不支持挂单",
     "submitting": "提交中...",

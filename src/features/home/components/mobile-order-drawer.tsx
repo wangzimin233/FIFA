@@ -3,9 +3,14 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { useActiveSelectionPrice } from '../../market-realtime/price-utils'
 import { RollingNumber } from '../../market-realtime/rolling-number'
+import {
+  formatWalletBalanceCurrency,
+  getBscUsdtAsset,
+  useWalletUserInfoQuery,
+} from '../../wallet-auth/use-wallet-user-info-query'
 import { TeamMark } from './team-mark'
 import { type MarketSelection, useOrderStore } from '../order-store'
-import { MIN_POLYMARKET_ORDER_AMOUNT, useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
+import { useSubmitPolymarketOrder } from '../use-submit-polymarket-order'
 import { SlippageSelector } from './slippage-selector'
 
 const quickAmounts = [2, 5, 10, 100]
@@ -299,6 +304,8 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
     slippageConfirmed,
     submitOrder,
   } = useSubmitPolymarketOrder({ onSuccess: onClose })
+  const walletUserQuery = useWalletUserInfoQuery({ enabled: isWalletAuthenticated })
+  const availableBalance = getBscUsdtAsset(walletUserQuery.data?.data)?.availableBalance
 
   if (!activeSelection) {
     return null
@@ -324,7 +331,7 @@ function MobileDrawerContent({ onClose }: { onClose: () => void }) {
       <MobileComputedResult />
       <div className="mt-4 text-center text-[13px] font-medium text-ink-soft">
         {isOddsAllowed
-          ? t('orderPanel.minAmount', { amount: `$${MIN_POLYMARKET_ORDER_AMOUNT}` })
+          ? t('orderPanel.availableBalance', { amount: formatWalletBalanceCurrency(availableBalance) })
           : t('orderErrors.oddsTooLow', { odds: 1 })}
       </div>
       <MobileQuickAmounts />
