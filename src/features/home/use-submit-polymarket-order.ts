@@ -104,13 +104,15 @@ function getTotalOrderText(
   line: (typeof selection.lines)[number] | undefined,
 ) {
   const lineLabel = selection.activeSide === 'over' ? `Over ${line?.line ?? ''}` : `Under ${line?.line ?? ''}`
+  const lineLabelZh = selection.activeSide === 'over' ? `大于 ${line?.line ?? ''}` : `小于 ${line?.line ?? ''}`
 
   return {
     eventTitle: getFallbackText(line?.eventTitle ?? selection.eventTitle, selection.title),
     eventTitleZh: getFallbackText(line?.eventTitleZh ?? selection.eventTitleZh, selection.title),
     marketTitle: getFallbackText(line?.marketTitle ?? selection.marketTitle, lineLabel),
-    marketTitleZh: getFallbackText(line?.marketTitleZh ?? selection.marketTitleZh, lineLabel),
-    ...getBinaryOutcomeText(line ?? selection, selection.activeSide === 'over' ? 'yes' : 'no'),
+    marketTitleZh: getFallbackText(line?.marketTitleZh ?? selection.marketTitleZh, lineLabelZh),
+    outcomeTitle: selection.activeSide === 'over' ? 'Over' : 'Under',
+    outcomeTitleZh: selection.activeSide === 'over' ? '大于' : '小于',
   }
 }
 

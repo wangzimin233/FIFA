@@ -34,6 +34,12 @@ import {
 import { useWithdraw } from '../features/wallet/withdraw/use-withdraw'
 import { shortenAddress, shortenHash } from '../lib/format'
 import { CopyIcon } from '../components/icons'
+import { apiClient } from '../lib/api-client'
+import {
+  getYesNoAssetIds,
+  parseJsonStringArray,
+  type WorldCupGameEvent,
+} from '../features/home/api/get-world-cup-games'
 
 const WALLET_HISTORY_PAGE_SIZE = 10
 const ORDER_HISTORY_PAGE_SIZE = 10
@@ -49,6 +55,7 @@ type ActiveHistory = 'deposit' | 'withdraw' | null
 type RelationUsersListKind = 'direct' | 'umbrella'
 type DepositHistoryStatus = 1 | 2 | 3 | 4
 type WithdrawHistoryStatus = 1 | 2 | 3 | 4 | 5 | 6 | 7
+type OverUnderDirection = 'over' | 'under'
 
 const DEPOSIT_HISTORY_STATUS_OPTIONS: Array<{
   labelKey: string
@@ -379,6 +386,173 @@ function getLocalizedOrderTitle(item: PolymarketOrderPageItem, key: 'event' | 'm
   }
 
   return (isZh ? item.outcomeTitleZh : item.outcomeTitle) || item.outcomeTitle || item.outcomeTitleZh || '--'
+}
+
+function getOverUnderDirection(item: PolymarketOrderPageItem): OverUnderDirection | null {
+  const normalizedOutcome = String(item.outcomeTitle ?? '').trim().toLowerCase()
+
+  if (normalizedOutcome === 'over') {
+    return 'over'
+  }
+
+  if (normalizedOutcome === 'under') {
+    return 'under'
+  }
+
+  return null
+}
+
+function isThresholdOrderMarket(item: PolymarketOrderPageItem) {
+  const source = [item.marketTitle, item.marketTitleZh, item.marketSlug].filter(Boolean).join(' ').toLowerCase()
+
+  return (
+    /\bo\/u\b/i.test(source) ||
+    /\bover\/under\b/i.test(source) ||
+    source.includes('上下盘') ||
+    source.includes('大于/小于') ||
+    source.includes('total') ||
+    source.includes('corners')
+  )
+}
+
+function getThresholdLine(title?: string) {
+  const value = title?.trim()
+  if (!value) {
+    return ''
+  }
+
+  const markerMatch = value.match(/(?:\bo\/u\b|\bover\/under\b|上下盘|大于\/小于)\s*(-?\d+(?:\.\d+)?)/i)
+  if (markerMatch?.[1]) {
+    return markerMatch[1]
+  }
+
+  const numericMatches = value.match(/-?\d+(?:\.\d+)?/g)
+  return numericMatches?.at(-1) ?? ''
+}
+
+function getThresholdPrefix(title?: string) {
+  const value = title?.trim()
+  if (!value) {
+    return ''
+  }
+
+  const markerMatch = value.match(/\b(?:o\/u|over\/under)\b|上下盘|大于\/小于/i)
+  if (!markerMatch) {
+    return ''
+  }
+
+  const prefix = value.slice(0, markerMatch.index).replace(/\s*[:：-]\s*$/, '').trim()
+  return prefix || markerMatch[0]
+}
+
+function formatThresholdMarketTitle(title: string, direction: OverUnderDirection, isZh: boolean) {
+  const prefix = getThresholdPrefix(title)
+  const line = getThresholdLine(title)
+  const directionLabel = isZh
+    ? direction === 'over'
+      ? '大于'
+      : '小于'
+    : direction === 'over'
+      ? 'Over'
+      : 'Under'
+  const selectionLabel = [directionLabel, line].filter(Boolean).join(' ')
+
+  return prefix ? `${prefix}${isZh ? '：' : ': '}${selectionLabel}` : selectionLabel
+}
+
+function getOrderMarketDisplayTitle(item: PolymarketOrderPageItem, fallbackDirection?: OverUnderDirection) {
+  const isZh = i18n.resolvedLanguage?.startsWith('zh') ?? false
+  const localizedTitle = getLocalizedOrderTitle(item, 'market')
+
+  if (!isThresholdOrderMarket(item)) {
+    return localizedTitle
+  }
+
+  const direction = getOverUnderDirection(item) ?? fallbackDirection
+  if (!direction) {
+    return localizedTitle
+  }
+
+  const sourceTitle = (isZh ? item.marketTitleZh : item.marketTitle) || item.marketTitle || item.marketTitleZh
+  if (!sourceTitle) {
+    return localizedTitle
+  }
+
+  return formatThresholdMarketTitle(sourceTitle, direction, isZh)
+}
+
+type WorldCupEventDetailEnvelope = {
+  code: number
+  message: string
+  data?: WorldCupGameEvent | { event?: WorldCupGameEvent } | null
+}
+
+function resolveWorldCupEvent(payload: WorldCupEventDetailEnvelope['data']) {
+  if (!payload) {
+    return null
+  }
+
+  if ('id' in payload) {
+    return payload
+  }
+
+  return payload.event ?? null
+}
+
+async function getWorldCupOrderEvent(slug: string) {
+  const response = await apiClient.get<WorldCupEventDetailEnvelope>(`/api/world-cup/events/${slug}`)
+  return resolveWorldCupEvent(response.data.data)
+}
+
+function getOrderMarketAssetDirectionEntries(event: WorldCupGameEvent | null) {
+  const entries: Array<[string, OverUnderDirection]> = []
+
+  for (const market of event?.markets ?? []) {
+    const outcomes = parseJsonStringArray(market.outcomes).map((outcome) => String(outcome).toLowerCase())
+    const isOverUnderMarket = outcomes[0] === 'over' && outcomes[1] === 'under'
+
+    if (!isOverUnderMarket) {
+      continue
+    }
+
+    const { yesAssetId, noAssetId } = getYesNoAssetIds(market)
+    if (yesAssetId) {
+      entries.push([yesAssetId, 'over'])
+    }
+
+    if (noAssetId) {
+      entries.push([noAssetId, 'under'])
+    }
+  }
+
+  return entries
+}
+
+function shouldResolveOrderMarketAssetDirection(item: PolymarketOrderPageItem) {
+  return Boolean(
+    item.eventSlug &&
+    item.tokenId &&
+    isThresholdOrderMarket(item) &&
+    !getOverUnderDirection(item),
+  )
+}
+
+async function getOrderMarketAssetDirectionMap(items: PolymarketOrderPageItem[]) {
+  const eventSlugs = Array.from(new Set(
+    items
+      .filter(shouldResolveOrderMarketAssetDirection)
+      .map((item) => item.eventSlug)
+      .filter((slug): slug is string => Boolean(slug)),
+  ))
+
+  if (!eventSlugs.length) {
+    return {}
+  }
+
+  const settledEvents = await Promise.allSettled(eventSlugs.map((slug) => getWorldCupOrderEvent(slug)))
+  const events = settledEvents.flatMap((result) => result.status === 'fulfilled' ? [result.value] : [])
+
+  return Object.fromEntries(events.flatMap(getOrderMarketAssetDirectionEntries))
 }
 
 function IconMark({ children }: { children: ReactNode }) {
@@ -944,7 +1118,13 @@ function WithdrawRecordRow({ item }: { item: WithdrawOrderPageItem }) {
   )
 }
 
-function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
+function OrderRecordRow({
+  fallbackMarketDirection,
+  item,
+}: {
+  fallbackMarketDirection?: OverUnderDirection
+  item: PolymarketOrderPageItem
+}) {
   const { t } = useTranslation()
   const settlementStatus = resolvePolymarketOrderSettlementStatus(item.marketClosed)
   const winStatus = resolvePolymarketOrderWinStatus(item.winStatus)
@@ -965,7 +1145,7 @@ function OrderRecordRow({ item }: { item: PolymarketOrderPageItem }) {
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-3">
         <span className="min-w-0">{t('profile.fields.event')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'event')}</b></span>
-        <span className="min-w-0">{t('profile.fields.market')}: <b className="font-semibold text-ink">{getLocalizedOrderTitle(item, 'market')}</b></span>
+        <span className="min-w-0">{t('profile.fields.market')}: <b className="font-semibold text-ink">{getOrderMarketDisplayTitle(item, fallbackMarketDirection)}</b></span>
         <span className="min-w-0">{t('profile.fields.outcome')}: <b className="font-semibold text-ink">{winStatus}</b></span>
       </div>
       <div className="mt-2 grid gap-2 text-[12px] text-ink-soft sm:grid-cols-2">
@@ -1156,6 +1336,20 @@ function OrderHistoryDialog({
 
   const items = orderQuery.data?.pages.flatMap((page) => page.list) ?? []
   const total = orderQuery.data?.pages[0]?.total ?? 0
+  const orderMarketAssetDirectionKey = useMemo(
+    () => items
+      .filter(shouldResolveOrderMarketAssetDirection)
+      .map((item) => `${item.eventSlug}:${item.tokenId}`)
+      .sort()
+      .join('|'),
+    [items],
+  )
+  const { data: orderMarketAssetDirectionMap = {} } = useQuery({
+    queryKey: ['order-market-asset-directions', orderMarketAssetDirectionKey],
+    queryFn: () => getOrderMarketAssetDirectionMap(items),
+    enabled: isOpen && isSessionReady && orderMarketAssetDirectionKey.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
 
   return (
     <DialogFrame isOpen={isOpen} maxWidthClass="max-w-3xl" onClose={onClose}>
@@ -1194,6 +1388,7 @@ function OrderHistoryDialog({
             {items.map((item) => (
               <OrderRecordRow
                 key={`${item.id}-${item.orderNo ?? item.polymarketOrderId ?? 'order'}`}
+                fallbackMarketDirection={item.tokenId ? orderMarketAssetDirectionMap[item.tokenId] : undefined}
                 item={item}
               />
             ))}

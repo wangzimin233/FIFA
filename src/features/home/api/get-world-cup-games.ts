@@ -518,6 +518,14 @@ function getOutcomeTitleZh(outcomeTitle: string | undefined, fallback: '是' | '
     return '否'
   }
 
+  if (normalized === 'over') {
+    return '大于'
+  }
+
+  if (normalized === 'under') {
+    return '小于'
+  }
+
   return fallback
 }
 
